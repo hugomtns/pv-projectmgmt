@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { Sidebar } from './Sidebar';
 
 interface AppShellProps {
   children: React.ReactNode;
+  currentPage: 'projects' | 'workflow';
+  onNavigate: (page: 'projects' | 'workflow') => void;
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
@@ -52,10 +55,14 @@ export function AppShell({ children }: AppShellProps) {
           </button>
         </div>
 
-        {/* Sidebar content placeholder */}
-        <nav className="flex-1 overflow-y-auto p-4">
-          {/* Navigation items will be added in P2-2 */}
-        </nav>
+        {/* Sidebar navigation */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <Sidebar
+            isOpen={sidebarOpen}
+            currentPage={currentPage}
+            onNavigate={onNavigate}
+          />
+        </div>
       </aside>
 
       {/* Main content */}
