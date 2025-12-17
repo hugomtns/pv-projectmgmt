@@ -1,10 +1,14 @@
+import { Header } from '@/components/layout/Header';
+
 export function Projects() {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-full items-center justify-center">
+      <Header title="Projects">
+        {/* Filter bar and display popover will be added in Phase 5 */}
+      </Header>
+      <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-foreground">Projects</h1>
-          <p className="mt-4 text-muted-foreground">
+          <p className="text-muted-foreground">
             Project management for solar PV installations
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
