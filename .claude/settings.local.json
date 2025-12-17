@@ -12,7 +12,13 @@
       "Bash(npm install:*)",
       "Bash(npx tailwindcss:*)",
       "Bash(node_modules/.bin/tailwindcss:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "mcp__shadcn__getComponents",
+      "Bash(npx shadcn@latest add button dialog popover dropdown-menu input badge checkbox tabs sheet command tooltip table -y)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "filesystem",
+    "shadcn"
+  ]
 }
