@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(react-prototype)",
+      "Skill(story-workflow)",
+      "Bash(npm create:*)",
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
