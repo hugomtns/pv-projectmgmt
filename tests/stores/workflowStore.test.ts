@@ -1,11 +1,33 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import { useUserStore } from '@/stores/userStore';
+import { seedRoles } from '@/data/seedUserData';
 import type { Stage, TaskTemplate } from '@/lib/types';
 
 describe('workflowStore', () => {
   beforeEach(() => {
-    // Reset store before each test
+    // Reset workflow store before each test
     useWorkflowStore.setState({ workflow: { stages: [] } });
+
+    // Set up user store with roles and a current admin user for testing
+    const adminUser = {
+      id: 'test-user-1',
+      firstName: 'Test',
+      lastName: 'Admin',
+      email: 'admin@test.com',
+      function: 'Administrator',
+      roleId: 'role-admin',
+      groupIds: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    useUserStore.setState({
+      currentUser: adminUser,
+      roles: seedRoles,
+      users: [adminUser],
+      groups: [],
+      permissionOverrides: []
+    });
   });
 
   describe('addStage', () => {
