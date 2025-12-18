@@ -178,7 +178,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
   const renderHeaderRow = () => (
     <div
       className="grid border-b border-border bg-muted/50"
-      style={{ gridTemplateColumns: '300px 150px 120px 150px 200px 120px 80px' }}
+      style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(80px, 0.67fr)' }}
     >
       <div className="px-4 py-3">
         <button
@@ -250,7 +250,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
       <div
         key={project.id}
         className="grid hover:bg-muted/50 cursor-pointer border-b border-border"
-        style={{ gridTemplateColumns: '300px 150px 120px 150px 200px 120px 80px' }}
+        style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(80px, 0.67fr)' }}
         onClick={() => selectProject(project.id)}
         onMouseEnter={() => onProjectHover?.(project.id)}
         onMouseLeave={() => onProjectHover?.(null)}
