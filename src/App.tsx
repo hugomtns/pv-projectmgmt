@@ -4,6 +4,7 @@ import { Projects } from './pages/Projects';
 import { WorkflowSettings } from './pages/WorkflowSettings';
 import { LoadingScreen } from './components/layout/LoadingScreen';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { Toaster } from 'sonner';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<'projects' | 'workflow'>('projects');
@@ -34,9 +35,12 @@ function App() {
   }
 
   return (
-    <AppShell currentPage={currentPage} onNavigate={setCurrentPage}>
-      {currentPage === 'projects' ? <Projects /> : <WorkflowSettings />}
-    </AppShell>
+    <>
+      <AppShell currentPage={currentPage} onNavigate={setCurrentPage}>
+        {currentPage === 'projects' ? <Projects /> : <WorkflowSettings />}
+      </AppShell>
+      <Toaster position="bottom-right" richColors />
+    </>
   );
 }
 

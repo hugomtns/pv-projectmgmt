@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/core';
 import { useState } from 'react';
 import { ProjectCard } from './ProjectCard';
+import { toast } from 'sonner';
 
 interface ProjectBoardProps {
   onProjectHover?: (projectId: string | null) => void;
@@ -24,6 +25,7 @@ interface ProjectBoardProps {
 export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   const projects = useProjectStore((state) => state.projects);
   const updateProject = useProjectStore((state) => state.updateProject);
+  const moveProjectToStage = useProjectStore((state) => state.moveProjectToStage);
   const workflow = useWorkflowStore((state) => state.workflow);
   const filters = useFilterStore((state) => state.filters);
   const { settings } = useDisplayStore();
@@ -88,10 +90,18 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
 
     const projectId = active.id as string;
     const targetColumnId = over.id as string;
+    const project = projects.find((p) => p.id === projectId);
 
     if (columnBy === 'stage') {
-      // Update project's current stage
-      updateProject(projectId, { currentStageId: targetColumnId });
+      // Use moveProjectToStage to respect gate checks
+      const success = moveProjectToStage(projectId, targetColumnId);
+
+      if (!success && project) {
+        const targetStage = workflow.stages.find((s) => s.id === targetColumnId);
+        toast.error('Cannot move project', {
+          description: `Complete all tasks in the current stage before moving to "${targetStage?.name || 'next stage'}".`,
+        });
+      }
     } else if (columnBy === 'priority') {
       // Extract priority from column ID (format: "priority-X")
       const priority = parseInt(targetColumnId.split('-')[1]) as Priority;

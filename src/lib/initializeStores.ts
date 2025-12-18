@@ -1,6 +1,7 @@
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
+import { toast } from 'sonner';
 
 /**
  * Migrate old task data structure from 'name' to 'title' field
@@ -53,24 +54,44 @@ function migrateTaskData() {
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  */
 export function initializeStores() {
-  const workflowState = useWorkflowStore.getState();
-  const projectState = useProjectStore.getState();
+  try {
+    const workflowState = useWorkflowStore.getState();
+    const projectState = useProjectStore.getState();
 
-  // Check if stores are empty (first load)
-  const isFirstLoad = workflowState.workflow.stages.length === 0 && projectState.projects.length === 0;
+    // Check if stores are empty (first load)
+    const isFirstLoad = workflowState.workflow.stages.length === 0 && projectState.projects.length === 0;
 
-  if (isFirstLoad) {
-    // Seed workflow
-    useWorkflowStore.setState({ workflow: defaultWorkflow });
+    if (isFirstLoad) {
+      // Seed workflow
+      useWorkflowStore.setState({ workflow: defaultWorkflow });
 
-    // Seed projects
-    mockProjects.forEach((project) => {
-      useProjectStore.getState().addProject(project);
+      // Seed projects
+      mockProjects.forEach((project) => {
+        useProjectStore.getState().addProject(project);
+      });
+
+      console.log('✓ Stores initialized with seed data');
+    } else {
+      // Run migrations on existing data
+      migrateTaskData();
+    }
+  } catch (error) {
+    console.error('Failed to initialize stores:', error);
+    toast.error('Failed to load data', {
+      description: 'There was an error loading your data. The app will continue with default settings.',
     });
 
-    console.log('✓ Stores initialized with seed data');
-  } else {
-    // Run migrations on existing data
-    migrateTaskData();
+    // Fallback: seed with default data
+    try {
+      useWorkflowStore.setState({ workflow: defaultWorkflow });
+      mockProjects.forEach((project) => {
+        useProjectStore.getState().addProject(project);
+      });
+    } catch (fallbackError) {
+      console.error('Fallback initialization also failed:', fallbackError);
+      toast.error('Critical error', {
+        description: 'Unable to initialize the application. Please refresh the page.',
+      });
+    }
   }
 }
