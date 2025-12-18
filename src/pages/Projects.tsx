@@ -95,11 +95,13 @@ export function Projects() {
         </div>
       </Header>
       <ActiveFilters />
-      {view === 'list' ? (
-        <ProjectList onProjectHover={setHoveredProjectId} />
-      ) : (
-        <ProjectBoard onProjectHover={setHoveredProjectId} />
-      )}
+      <div key={view} className="animate-in fade-in duration-300">
+        {view === 'list' ? (
+          <ProjectList onProjectHover={setHoveredProjectId} />
+        ) : (
+          <ProjectBoard onProjectHover={setHoveredProjectId} />
+        )}
+      </div>
       <CreateProjectDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
       <ProjectDetail />
       <KeyboardShortcutsDialog open={shortcutsDialogOpen} onOpenChange={setShortcutsDialogOpen} />

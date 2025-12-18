@@ -54,7 +54,7 @@ export function ProjectCard({
       onClick={handleClick}
       onMouseEnter={() => onProjectHover?.(project.id)}
       onMouseLeave={() => onProjectHover?.(null)}
-      className="rounded-lg border border-border bg-card p-4 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+      className="rounded-lg border border-border bg-card p-4 hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-grab active:cursor-grabbing"
     >
       <div className="space-y-3">
         <div>

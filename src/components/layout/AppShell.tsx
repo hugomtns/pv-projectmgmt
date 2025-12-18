@@ -67,7 +67,9 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
 
       {/* Main content */}
       <main className="flex flex-1 flex-col overflow-hidden">
-        {children}
+        <div key={currentPage} className="flex flex-1 flex-col animate-in fade-in duration-300">
+          {children}
+        </div>
       </main>
     </div>
   );
