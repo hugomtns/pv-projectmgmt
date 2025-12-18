@@ -24,7 +24,6 @@ export function StageEditor({ stageId, onClose }: StageEditorProps) {
   const workflow = useWorkflowStore((state) => state.workflow);
   const updateStage = useWorkflowStore((state) => state.updateStage);
   const addTaskTemplate = useWorkflowStore((state) => state.addTaskTemplate);
-  const updateTaskTemplate = useWorkflowStore((state) => state.updateTaskTemplate);
   const removeTaskTemplate = useWorkflowStore((state) => state.removeTaskTemplate);
 
   const stage = workflow.stages.find((s) => s.id === stageId);

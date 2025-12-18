@@ -38,7 +38,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
+      result.error.issues.forEach((err) => {
         if (err.path[0]) {
           fieldErrors[err.path[0] as string] = err.message;
         }
@@ -66,7 +66,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     addProject({
       name: result.data.name,
       location: result.data.location,
-      priority: result.data.priority,
+      priority: result.data.priority as Priority,
       owner: result.data.owner,
       currentStageId: firstStage.id,
       stages: {

@@ -247,7 +247,9 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
             <div key={row.id}>
               {/* Row header */}
               <div className="mb-3 flex items-center gap-2">
-                {row.color && <div className="h-3 w-3 rounded-full" style={{ backgroundColor: row.color }} />}
+                {'color' in row && row.color && (
+                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: row.color }} />
+                )}
                 <h3 className="text-sm font-semibold">{row.title}</h3>
               </div>
 

@@ -6,10 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import type { ViewType, GroupingOption, BoardColumns, BoardRows } from '@/lib/types';
 
 export function DisplayPopover() {
-  const { settings, updateView, updateListSettings, updateBoardSettings } = useDisplayStore();
+  const { settings, setView, updateListSettings, updateBoardSettings } = useDisplayStore();
 
   const handleViewChange = (view: ViewType) => {
-    updateView(view);
+    setView(view);
   };
 
   const handleListGroupingChange = (grouping: GroupingOption) => {
