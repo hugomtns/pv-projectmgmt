@@ -3,6 +3,13 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PriorityBadge } from './PriorityBadge';
 import { StageStepper } from './StageStepper';
 import { StageTaskSection } from './StageTaskSection';
@@ -12,6 +19,7 @@ export function ProjectDetail() {
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
   const projects = useProjectStore((state) => state.projects);
   const updateProject = useProjectStore((state) => state.updateProject);
+  const moveProjectToStage = useProjectStore((state) => state.moveProjectToStage);
   const selectProject = useProjectStore((state) => state.selectProject);
   const workflow = useWorkflowStore((state) => state.workflow);
 
@@ -43,6 +51,28 @@ export function ProjectDetail() {
 
   const handlePriorityChange = (priority: Priority) => {
     updateProject(project.id, { priority });
+  };
+
+  const currentStageIndex = workflow.stages.findIndex((s) => s.id === project.currentStageId);
+  const nextStage = workflow.stages[currentStageIndex + 1];
+  const previousStages = workflow.stages.slice(0, currentStageIndex);
+
+  // Check if all current stage tasks are complete
+  const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
+  const allTasksComplete = currentStageTasks.length > 0 && currentStageTasks.every((t) => t.status === 'complete');
+
+  const handleAdvanceStage = () => {
+    if (!nextStage) return;
+    const success = moveProjectToStage(project.id, nextStage.id);
+    if (!success) {
+      alert('Cannot advance: Please complete all tasks in the current stage first.');
+    }
+  };
+
+  const handleMoveBack = (stageId: string) => {
+    if (confirm('Are you sure you want to move this project back to a previous stage?')) {
+      updateProject(project.id, { currentStageId: stageId });
+    }
   };
 
   return (
@@ -93,6 +123,33 @@ export function ProjectDetail() {
           <div>
             <label className="text-sm font-medium">Current Stage</label>
             <div className="mt-1 text-sm text-muted-foreground">{currentStage?.name || 'Unknown'}</div>
+          </div>
+
+          {/* Stage Controls */}
+          <div className="flex gap-2">
+            {nextStage && (
+              <Button
+                onClick={handleAdvanceStage}
+                disabled={!allTasksComplete}
+                className="flex-1"
+              >
+                Advance to {nextStage.name}
+              </Button>
+            )}
+            {previousStages.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">Move Back</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {previousStages.map((stage) => (
+                    <DropdownMenuItem key={stage.id} onClick={() => handleMoveBack(stage.id)}>
+                      {stage.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* Stage Progress */}
