@@ -6,6 +6,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface StageCardProps {
   stage: Stage;
@@ -15,10 +17,33 @@ interface StageCardProps {
 }
 
 export function StageCard({ stage, index, onEdit, onDelete }: StageCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: stage.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-border bg-card p-4">
-      {/* Stage number */}
-      <div className="flex items-center justify-center h-10 w-10 rounded-full bg-muted text-sm font-semibold shrink-0">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-4 rounded-lg border border-border bg-card p-4"
+    >
+      {/* Drag handle & Stage number */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex items-center justify-center h-10 w-10 rounded-full bg-muted text-sm font-semibold shrink-0 cursor-grab active:cursor-grabbing"
+      >
         {index + 1}
       </div>
 

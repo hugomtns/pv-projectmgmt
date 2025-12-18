@@ -1,10 +1,33 @@
 import { Header } from '@/components/layout/Header';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { StageCard } from '@/components/workflow/StageCard';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 export function WorkflowSettings() {
   const workflow = useWorkflowStore((state) => state.workflow);
   const removeStage = useWorkflowStore((state) => state.removeStage);
+  const reorderStages = useWorkflowStore((state) => state.reorderStages);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleEdit = (stageId: string) => {
     // Will be implemented in P9-4
@@ -14,6 +37,19 @@ export function WorkflowSettings() {
   const handleDelete = (stageId: string, stageName: string) => {
     if (confirm(`Are you sure you want to delete the "${stageName}" stage? This will affect the workflow for new projects.`)) {
       removeStage(stageId);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = workflow.stages.findIndex((s) => s.id === active.id);
+      const newIndex = workflow.stages.findIndex((s) => s.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        reorderStages(oldIndex, newIndex);
+      }
     }
   };
 
@@ -31,17 +67,28 @@ export function WorkflowSettings() {
           </div>
 
           {/* Workflow diagram */}
-          <div className="space-y-3">
-            {workflow.stages.map((stage, index) => (
-              <StageCard
-                key={stage.id}
-                stage={stage}
-                index={index}
-                onEdit={() => handleEdit(stage.id)}
-                onDelete={() => handleDelete(stage.id, stage.name)}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={workflow.stages.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-3">
+                {workflow.stages.map((stage, index) => (
+                  <StageCard
+                    key={stage.id}
+                    stage={stage}
+                    index={index}
+                    onEdit={() => handleEdit(stage.id)}
+                    onDelete={() => handleDelete(stage.id, stage.name)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
 
           {/* Empty state */}
           {workflow.stages.length === 0 && (
