@@ -30,7 +30,7 @@ export function BoardColumn({
 
   const projectIds = projects.map((p) => p.id);
   return (
-    <div className="flex flex-col min-w-[280px] max-w-[320px]">
+    <div className="flex flex-col min-w-[240px] md:min-w-[280px] max-w-full md:max-w-[320px] flex-shrink-0">
       <div className="mb-4 flex items-center gap-2">
         {color && <div className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />}
         <h3 className="font-semibold text-sm">

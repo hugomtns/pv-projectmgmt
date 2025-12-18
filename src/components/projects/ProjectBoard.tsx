@@ -203,8 +203,8 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   if (rowBy === 'none') {
     return (
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex-1 overflow-auto p-6">
-          <div className="flex gap-4 min-h-full">
+        <div className="flex-1 overflow-auto p-3 md:p-6">
+          <div className="flex gap-3 md:gap-4 min-h-full">
             {columnDefs.map((col) => {
               const projects = getProjectsForCell(col.id, 'all');
               return (
@@ -241,8 +241,8 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   // Render grid layout when rows='priority' or 'owner'
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex-1 overflow-auto p-6">
-        <div className="space-y-6">
+      <div className="flex-1 overflow-auto p-3 md:p-6">
+        <div className="space-y-4 md:space-y-6">
           {rowDefs.map((row) => (
             <div key={row.id}>
               {/* Row header */}

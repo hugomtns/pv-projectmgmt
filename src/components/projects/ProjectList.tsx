@@ -200,8 +200,8 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
   };
 
   return (
-    <div className="flex-1 overflow-auto p-6">
-      <div className="space-y-6">
+    <div className="flex-1 overflow-auto p-3 md:p-6">
+      <div className="space-y-4 md:space-y-6">
         {groupsToShow.map(([groupKey, groupProjects]) => (
           <div key={groupKey} className="rounded-lg border border-border bg-card">
             {grouping !== 'none' && (
