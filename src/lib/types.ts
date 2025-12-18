@@ -88,3 +88,17 @@ export interface Filters {
   owner: string;
   search: string;
 }
+
+// User Management & Permissions
+export type {
+  User,
+  UserGroup,
+} from './types/user';
+
+export type {
+  EntityType,
+  PermissionAction,
+  PermissionSet,
+  CustomRole,
+  GroupPermissionOverride,
+} from './types/permission';

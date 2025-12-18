@@ -1,6 +1,8 @@
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUserStore } from '@/stores/userStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
+import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
 
 /**
@@ -74,6 +76,23 @@ export function initializeStores() {
     } else {
       // Run migrations on existing data
       migrateTaskData();
+    }
+
+    // Initialize user store if empty
+    const userState = useUserStore.getState();
+    const isUserStoreEmpty =
+      userState.users.length === 0 &&
+      userState.roles.length === 0;
+
+    if (isUserStoreEmpty) {
+      useUserStore.setState({
+        users: seedUsers,
+        groups: seedGroups,
+        roles: seedRoles,
+        permissionOverrides: [],
+        currentUser: seedUsers[0], // Set admin as default current user
+      });
+      console.log('✓ User store initialized with seed data');
     }
   } catch (error) {
     console.error('Failed to initialize stores:', error);
