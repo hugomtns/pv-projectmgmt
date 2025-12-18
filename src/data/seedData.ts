@@ -174,21 +174,13 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
         tasks: [
           {
             id: 'task-1',
-            title: 'Initial site assessment',
-            description: 'Conduct preliminary site visit and feasibility analysis',
-            assignee: 'Mike Chen',
-            dueDate: '2024-01-20',
-            status: 'complete',
-            comments: []
+            name: 'Initial site assessment',
+            status: 'complete' as const
           },
           {
             id: 'task-2',
-            title: 'Project charter creation',
-            description: 'Draft and approve project charter with stakeholders',
-            assignee: 'Sarah Johnson',
-            dueDate: '2024-01-25',
-            status: 'complete',
-            comments: []
+            name: 'Project charter creation',
+            status: 'complete' as const
           }
         ]
       },
@@ -197,30 +189,18 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
         tasks: [
           {
             id: 'task-3',
-            title: 'Site preparation',
-            description: 'Prepare site and install mounting structures',
-            assignee: 'Construction Team A',
-            dueDate: '2024-11-10',
-            status: 'complete',
-            comments: []
+            name: 'Site preparation',
+            status: 'complete' as const
           },
           {
             id: 'task-4',
-            title: 'Panel installation',
-            description: 'Install solar panels and complete wiring',
-            assignee: 'Construction Team A',
-            dueDate: '2024-12-15',
-            status: 'in_progress',
-            comments: []
+            name: 'Panel installation',
+            status: 'in_progress' as const
           },
           {
             id: 'task-5',
-            title: 'Inverter and electrical',
-            description: 'Install inverters and complete electrical connections',
-            assignee: 'Electrical Team',
-            dueDate: '2024-12-20',
-            status: 'not_started',
-            comments: []
+            name: 'Inverter and electrical',
+            status: 'not_started' as const
           }
         ]
       }
@@ -238,30 +218,18 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
         tasks: [
           {
             id: 'task-6',
-            title: 'Submit permit applications',
-            description: 'Submit all required building and electrical permits',
-            assignee: 'Permit Coordinator',
-            dueDate: '2024-10-20',
-            status: 'complete',
-            comments: []
+            name: 'Submit permit applications',
+            status: 'complete' as const
           },
           {
             id: 'task-7',
-            title: 'Utility interconnection agreement',
-            description: 'Secure utility approval for grid connection',
-            assignee: 'James Martinez',
-            dueDate: '2024-11-30',
-            status: 'in_progress',
-            comments: []
+            name: 'Utility interconnection agreement',
+            status: 'in_progress' as const
           },
           {
             id: 'task-8',
-            title: 'Obtain permits',
-            description: 'Receive all approved permits from authorities',
-            assignee: 'Permit Coordinator',
-            dueDate: null,
-            status: 'not_started',
-            comments: []
+            name: 'Obtain permits',
+            status: 'not_started' as const
           }
         ]
       }
@@ -279,30 +247,18 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
         tasks: [
           {
             id: 'task-9',
-            title: 'System design',
-            description: 'Design PV system layout and electrical specifications',
-            assignee: 'Design Team',
-            dueDate: '2024-12-01',
-            status: 'complete',
-            comments: []
+            name: 'System design',
+            status: 'complete' as const
           },
           {
             id: 'task-10',
-            title: 'Engineering drawings',
-            description: 'Create detailed engineering and CAD drawings',
-            assignee: 'CAD Specialist',
-            dueDate: '2024-12-10',
-            status: 'in_progress',
-            comments: []
+            name: 'Engineering drawings',
+            status: 'in_progress' as const
           },
           {
             id: 'task-11',
-            title: 'Design review',
-            description: 'Conduct internal design review and approval',
-            assignee: 'Emily Rodriguez',
-            dueDate: null,
-            status: 'not_started',
-            comments: []
+            name: 'Design review',
+            status: 'not_started' as const
           }
         ]
       }
@@ -320,21 +276,13 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
         tasks: [
           {
             id: 'task-12',
-            title: 'Initial site assessment',
-            description: 'Conduct preliminary site visit and feasibility analysis',
-            assignee: 'Site Assessor',
-            dueDate: '2024-12-15',
-            status: 'in_progress',
-            comments: []
+            name: 'Initial site assessment',
+            status: 'in_progress' as const
           },
           {
             id: 'task-13',
-            title: 'Project charter creation',
-            description: 'Draft and approve project charter with stakeholders',
-            assignee: 'David Kim',
-            dueDate: null,
-            status: 'not_started',
-            comments: []
+            name: 'Project charter creation',
+            status: 'not_started' as const
           }
         ]
       }
@@ -352,28 +300,13 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
         tasks: [
           {
             id: 'task-14',
-            title: 'Equipment ordering',
-            description: 'Order solar panels, inverters, and mounting hardware',
-            assignee: 'Procurement Team',
-            dueDate: null,
-            status: 'not_started',
-            comments: [
-              {
-                id: 'comment-1',
-                author: 'Lisa Anderson',
-                text: 'Project on hold pending budget approval',
-                createdAt: '2024-09-15T14:30:00Z'
-              }
-            ]
+            name: 'Equipment ordering',
+            status: 'not_started' as const
           },
           {
             id: 'task-15',
-            title: 'Delivery coordination',
-            description: 'Coordinate delivery schedule with site readiness',
-            assignee: 'Procurement Team',
-            dueDate: null,
-            status: 'not_started',
-            comments: []
+            name: 'Delivery coordination',
+            status: 'not_started' as const
           }
         ]
       }
@@ -391,30 +324,18 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
         tasks: [
           {
             id: 'task-16',
-            title: 'System testing',
-            description: 'Test all electrical systems and performance',
-            assignee: 'Testing Team',
-            dueDate: '2024-12-10',
-            status: 'complete',
-            comments: []
+            name: 'System testing',
+            status: 'complete' as const
           },
           {
             id: 'task-17',
-            title: 'Final inspection',
-            description: 'Pass final inspection from building department',
-            assignee: 'Inspection Coordinator',
-            dueDate: '2024-12-18',
-            status: 'complete',
-            comments: []
+            name: 'Final inspection',
+            status: 'complete' as const
           },
           {
             id: 'task-18',
-            title: 'Utility approval',
-            description: 'Obtain permission to operate from utility',
-            assignee: 'Robert Taylor',
-            dueDate: '2024-12-20',
-            status: 'in_progress',
-            comments: []
+            name: 'Utility approval',
+            status: 'in_progress' as const
           }
         ]
       }

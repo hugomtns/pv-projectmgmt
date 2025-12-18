@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Project, Task, Comment } from '@/lib/types';
+import { useWorkflowStore } from './workflowStore';
 
 interface ProjectState {
   projects: Project[];
@@ -61,6 +62,23 @@ export const useProjectStore = create<ProjectState>()(
             return state;
           }
 
+          // Get workflow to instantiate tasks from template
+          const workflow = useWorkflowStore.getState().workflow;
+          const targetStage = workflow.stages.find(s => s.id === stageId);
+
+          // Create tasks from template if entering stage for first time
+          let stageData = project.stages[stageId];
+          if (!stageData && targetStage) {
+            stageData = {
+              enteredAt: new Date().toISOString(),
+              tasks: targetStage.taskTemplates.map(template => ({
+                id: crypto.randomUUID(),
+                name: template.name,
+                status: 'not_started' as const
+              }))
+            };
+          }
+
           success = true;
           return {
             projects: state.projects.map(p =>
@@ -71,7 +89,7 @@ export const useProjectStore = create<ProjectState>()(
                     updatedAt: new Date().toISOString(),
                     stages: {
                       ...p.stages,
-                      [stageId]: p.stages[stageId] || {
+                      [stageId]: stageData || {
                         enteredAt: new Date().toISOString(),
                         tasks: []
                       }
