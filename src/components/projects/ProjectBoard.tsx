@@ -14,9 +14,11 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ProjectCard } from './ProjectCard';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProjectBoardProps {
   onProjectHover?: (projectId: string | null) => void;
@@ -30,6 +32,9 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   const filters = useFilterStore((state) => state.filters);
   const { settings } = useDisplayStore();
   const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -38,6 +43,48 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
       },
     })
   );
+
+  // Check scroll position and update arrow visibility
+  const checkScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    setShowLeftArrow(scrollLeft > 0);
+    setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
+  };
+
+  // Scroll left/right
+  const scroll = (direction: 'left' | 'right') => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const scrollAmount = container.clientWidth * 0.8; // Scroll 80% of visible width
+    const newScrollLeft = direction === 'left'
+      ? container.scrollLeft - scrollAmount
+      : container.scrollLeft + scrollAmount;
+
+    container.scrollTo({
+      left: newScrollLeft,
+      behavior: 'smooth',
+    });
+  };
+
+  // Check scroll on mount and when columns change
+  useEffect(() => {
+    checkScroll();
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => checkScroll();
+    container.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleScroll);
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [columnBy, rowBy]);
 
   // Apply filters
   const filteredProjects = projects.filter((project) => {
@@ -220,24 +267,62 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   if (rowBy === 'none') {
     return (
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex-1 overflow-auto p-3 md:p-6">
-          <div className="flex gap-3 md:gap-4 min-h-full">
-            {columnDefs.map((col) => {
-              const projects = getProjectsForCell(col.id, 'all');
-              return (
-                <BoardColumn
-                  key={col.id}
-                  columnId={col.id}
-                  title={col.title}
-                  color={col.color}
-                  projects={projects}
-                  getStageName={getStageName}
-                  onUpdatePriority={handleUpdatePriority}
-                  getTasksInfo={getTasksInfo}
-                  onProjectHover={onProjectHover}
-                />
-              );
-            })}
+        <div className="flex-1 relative overflow-hidden">
+          {/* Left scroll arrow */}
+          {showLeftArrow && (
+            <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pl-2">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-10 w-10 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                onClick={() => scroll('left')}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
+
+          {/* Right scroll arrow */}
+          {showRightArrow && (
+            <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pr-2">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-10 w-10 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                onClick={() => scroll('right')}
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
+
+          {/* Scrollable content */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-x-auto overflow-y-auto p-3 md:p-6 scrollbar-hide"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+            <div className="flex gap-3 md:gap-4 min-h-full">
+              {columnDefs.map((col) => {
+                const projects = getProjectsForCell(col.id, 'all');
+                return (
+                  <BoardColumn
+                    key={col.id}
+                    columnId={col.id}
+                    title={col.title}
+                    color={col.color}
+                    projects={projects}
+                    getStageName={getStageName}
+                    onUpdatePriority={handleUpdatePriority}
+                    getTasksInfo={getTasksInfo}
+                    onProjectHover={onProjectHover}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
         <DragOverlay>
