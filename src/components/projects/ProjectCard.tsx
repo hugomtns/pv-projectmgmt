@@ -1,4 +1,5 @@
 import { PriorityBadge } from './PriorityBadge';
+import { useProjectStore } from '@/stores/projectStore';
 import type { Project, Priority } from '@/lib/types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -12,6 +13,7 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, stageName, onUpdatePriority, tasksCompleted, tasksTotal }: ProjectCardProps) {
+  const selectProject = useProjectStore((state) => state.selectProject);
   const {
     attributes,
     listeners,
@@ -27,12 +29,21 @@ export function ProjectCard({ project, stageName, onUpdatePriority, tasksComplet
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't open detail if clicking on priority badge
+    if ((e.target as HTMLElement).closest('[role="button"]')) {
+      return;
+    }
+    selectProject(project.id);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
+      onClick={handleClick}
       className="rounded-lg border border-border bg-card p-4 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
     >
       <div className="space-y-3">

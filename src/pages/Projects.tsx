@@ -7,6 +7,7 @@ import { FilterBar } from '@/components/projects/FilterBar';
 import { SearchInput } from '@/components/projects/SearchInput';
 import { ActiveFilters } from '@/components/projects/ActiveFilters';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
+import { ProjectDetail } from '@/components/projects/ProjectDetail';
 import { Button } from '@/components/ui/button';
 import { useDisplayStore } from '@/stores/displayStore';
 
@@ -27,6 +28,7 @@ export function Projects() {
       <ActiveFilters />
       {view === 'list' ? <ProjectList /> : <ProjectBoard />}
       <CreateProjectDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+      <ProjectDetail />
     </div>
   );
 }

@@ -132,9 +132,10 @@ export function ProjectList() {
     const stage = workflow.stages.find((s) => s.id === project.currentStageId);
     const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
     const completedTasks = currentStageTasks.filter((t) => t.status === 'complete').length;
+    const selectProject = useProjectStore((state) => state.selectProject);
 
     return (
-      <tr key={project.id} className="hover:bg-muted/50">
+      <tr key={project.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => selectProject(project.id)}>
         <td className="px-4 py-3 text-sm font-medium">{project.name}</td>
         <td className="px-4 py-3 text-sm">{stage?.name || 'Unknown'}</td>
         <td className="px-4 py-3">
