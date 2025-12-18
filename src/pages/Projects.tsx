@@ -1,6 +1,7 @@
 import { Header } from '@/components/layout/Header';
 import { ProjectList } from '@/components/projects/ProjectList';
 import { ProjectBoard } from '@/components/projects/ProjectBoard';
+import { DisplayPopover } from '@/components/projects/DisplayPopover';
 import { useDisplayStore } from '@/stores/displayStore';
 
 export function Projects() {
@@ -9,7 +10,7 @@ export function Projects() {
   return (
     <div className="flex h-full flex-col">
       <Header title="Projects">
-        {/* Filter bar and display popover will be added in Phase 5 */}
+        <DisplayPopover />
       </Header>
       {view === 'list' ? <ProjectList /> : <ProjectBoard />}
     </div>
