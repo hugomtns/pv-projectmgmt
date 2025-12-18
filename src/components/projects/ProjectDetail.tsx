@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { PriorityBadge } from './PriorityBadge';
+import { StageStepper } from './StageStepper';
 import type { Priority } from '@/lib/types';
 
 export function ProjectDetail() {
@@ -13,6 +15,14 @@ export function ProjectDetail() {
   const workflow = useWorkflowStore((state) => state.workflow);
 
   const project = projects.find((p) => p.id === selectedProjectId);
+  const [selectedStageId, setSelectedStageId] = useState(project?.currentStageId || '');
+
+  // Update selected stage when project changes
+  useEffect(() => {
+    if (project) {
+      setSelectedStageId(project.currentStageId);
+    }
+  }, [project?.id, project?.currentStageId]);
 
   if (!project) return null;
 
@@ -82,6 +92,16 @@ export function ProjectDetail() {
           <div>
             <label className="text-sm font-medium">Current Stage</label>
             <div className="mt-1 text-sm text-muted-foreground">{currentStage?.name || 'Unknown'}</div>
+          </div>
+
+          {/* Stage Progress */}
+          <div>
+            <label className="text-sm font-medium block mb-3">Stage Progress</label>
+            <StageStepper
+              project={project}
+              selectedStageId={selectedStageId}
+              onStageSelect={setSelectedStageId}
+            />
           </div>
         </div>
       </SheetContent>
