@@ -1,0 +1,58 @@
+import { PriorityBadge } from './PriorityBadge';
+import type { Project, Priority } from '@/lib/types';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface ProjectCardProps {
+  project: Project;
+  stageName: string;
+  onUpdatePriority: (priority: Priority) => void;
+  tasksCompleted: number;
+  tasksTotal: number;
+}
+
+export function ProjectCard({ project, stageName, onUpdatePriority, tasksCompleted, tasksTotal }: ProjectCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="rounded-lg border border-border bg-card p-4 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+    >
+      <div className="space-y-3">
+        <div>
+          <h4 className="font-medium text-sm">{project.name}</h4>
+          <p className="text-xs text-muted-foreground mt-1">{project.location}</p>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <PriorityBadge priority={project.priority} onChange={onUpdatePriority} />
+          <span className="text-xs text-muted-foreground">
+            {tasksCompleted}/{tasksTotal} tasks
+          </span>
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          <div>{project.owner}</div>
+          <div className="mt-1">{stageName}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
