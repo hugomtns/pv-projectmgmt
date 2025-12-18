@@ -3,6 +3,7 @@ import { ProjectList } from '@/components/projects/ProjectList';
 import { ProjectBoard } from '@/components/projects/ProjectBoard';
 import { DisplayPopover } from '@/components/projects/DisplayPopover';
 import { FilterBar } from '@/components/projects/FilterBar';
+import { SearchInput } from '@/components/projects/SearchInput';
 import { useDisplayStore } from '@/stores/displayStore';
 
 export function Projects() {
@@ -11,7 +12,8 @@ export function Projects() {
   return (
     <div className="flex h-full flex-col">
       <Header title="Projects">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-1 max-w-2xl">
+          <SearchInput />
           <FilterBar />
           <DisplayPopover />
         </div>
