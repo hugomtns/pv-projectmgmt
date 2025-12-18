@@ -92,7 +92,7 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
               {task.status === 'complete' ? '✓' : task.status === 'in_progress' ? '•' : '○'}
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium">{task.name}</div>
+              <div className="text-sm font-medium">{task.title}</div>
             </div>
             <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>
               {getStatusLabel(task.status)}

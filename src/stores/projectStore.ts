@@ -73,8 +73,12 @@ export const useProjectStore = create<ProjectState>()(
               enteredAt: new Date().toISOString(),
               tasks: targetStage.taskTemplates.map(template => ({
                 id: crypto.randomUUID(),
-                name: template.name,
-                status: 'not_started' as const
+                title: template.title,
+                description: template.description,
+                assignee: '',
+                dueDate: null,
+                status: 'not_started' as const,
+                comments: []
               }))
             };
           }

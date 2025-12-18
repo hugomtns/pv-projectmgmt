@@ -54,8 +54,12 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     // Create initial tasks from first stage template
     const initialTasks = firstStage.taskTemplates.map((template) => ({
       id: crypto.randomUUID(),
-      name: template.name,
+      title: template.title,
+      description: template.description,
+      assignee: '',
+      dueDate: null,
       status: 'not_started' as const,
+      comments: [],
     }));
 
     // Create project with initial stage data
