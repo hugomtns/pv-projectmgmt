@@ -3,6 +3,8 @@ import { Header } from '@/components/layout/Header';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { StageCard } from '@/components/workflow/StageCard';
 import { StageEditor } from '@/components/workflow/StageEditor';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   DndContext,
   closestCenter,
@@ -19,11 +21,17 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
+const DEFAULT_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#0ea5e9'];
+
 export function WorkflowSettings() {
   const workflow = useWorkflowStore((state) => state.workflow);
   const removeStage = useWorkflowStore((state) => state.removeStage);
   const reorderStages = useWorkflowStore((state) => state.reorderStages);
+  const addStage = useWorkflowStore((state) => state.addStage);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newStageName, setNewStageName] = useState('');
+  const [newStageColor, setNewStageColor] = useState(DEFAULT_COLORS[0]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -53,6 +61,20 @@ export function WorkflowSettings() {
         reorderStages(oldIndex, newIndex);
       }
     }
+  };
+
+  const handleAddStage = () => {
+    if (!newStageName.trim()) return;
+
+    addStage({
+      name: newStageName,
+      color: newStageColor,
+      taskTemplates: [],
+    });
+
+    setNewStageName('');
+    setNewStageColor(DEFAULT_COLORS[0]);
+    setIsAdding(false);
   };
 
   return (
@@ -92,8 +114,52 @@ export function WorkflowSettings() {
             </SortableContext>
           </DndContext>
 
+          {/* Add Stage */}
+          {!isAdding ? (
+            <Button onClick={() => setIsAdding(true)} variant="outline" className="w-full">
+              + Add Stage
+            </Button>
+          ) : (
+            <div className="p-4 border border-border rounded-lg space-y-3">
+              <Input
+                autoFocus
+                placeholder="Stage name"
+                value={newStageName}
+                onChange={(e) => setNewStageName(e.target.value)}
+              />
+              <div>
+                <label className="text-sm font-medium block mb-2">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {DEFAULT_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setNewStageColor(color)}
+                      className={`h-8 w-8 rounded-full transition-transform ${
+                        newStageColor === color ? 'ring-2 ring-offset-2 ring-foreground scale-110' : ''
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAdding(false);
+                    setNewStageName('');
+                    setNewStageColor(DEFAULT_COLORS[0]);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleAddStage}>Add Stage</Button>
+              </div>
+            </div>
+          )}
+
           {/* Empty state */}
-          {workflow.stages.length === 0 && (
+          {workflow.stages.length === 0 && !isAdding && (
             <div className="text-center py-12 border border-dashed rounded-lg">
               <p className="text-muted-foreground">No workflow stages configured</p>
               <p className="text-sm text-muted-foreground mt-2">
