@@ -23,6 +23,7 @@ export function Projects() {
   const updateProject = useProjectStore((state) => state.updateProject);
 
   // Priority shortcuts: 0-4
+  // Navigation shortcuts: N (new project), / (focus search)
   useKeyboardShortcuts({
     shortcuts: [
       {
@@ -44,6 +45,17 @@ export function Projects() {
       {
         key: '4',
         handler: () => handlePriorityShortcut(4),
+      },
+      {
+        key: 'n',
+        handler: () => setCreateDialogOpen(true),
+      },
+      {
+        key: '/',
+        handler: () => {
+          const searchInput = document.querySelector('input[type="search"]') as HTMLInputElement;
+          searchInput?.focus();
+        },
       },
     ],
   });
