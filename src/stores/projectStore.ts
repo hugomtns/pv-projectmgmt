@@ -195,6 +195,6 @@ export const useProjectStore = create<ProjectState>()(
 
       selectProject: (id) => set({ selectedProjectId: id })
     }),
-    { name: 'project-storage' }
+    { name: 'project-storage-v2' }
   )
 );

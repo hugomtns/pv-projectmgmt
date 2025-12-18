@@ -84,6 +84,6 @@ export const useWorkflowStore = create<WorkflowState>()(
 
       resetToDefault: () => set({ workflow: { stages: [] } })
     }),
-    { name: 'workflow-storage' }
+    { name: 'workflow-storage-v2' }
   )
 );
