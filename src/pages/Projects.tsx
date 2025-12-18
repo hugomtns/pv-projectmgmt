@@ -4,6 +4,7 @@ import { ProjectBoard } from '@/components/projects/ProjectBoard';
 import { DisplayPopover } from '@/components/projects/DisplayPopover';
 import { FilterBar } from '@/components/projects/FilterBar';
 import { SearchInput } from '@/components/projects/SearchInput';
+import { ActiveFilters } from '@/components/projects/ActiveFilters';
 import { useDisplayStore } from '@/stores/displayStore';
 
 export function Projects() {
@@ -18,6 +19,7 @@ export function Projects() {
           <DisplayPopover />
         </div>
       </Header>
+      <ActiveFilters />
       {view === 'list' ? <ProjectList /> : <ProjectBoard />}
     </div>
   );
