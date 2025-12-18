@@ -1,4 +1,8 @@
+import { useState } from 'react';
 import type { Project } from '@/lib/types';
+import { useProjectStore } from '@/stores/projectStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface StageTaskSectionProps {
   project: Project;
@@ -7,14 +11,63 @@ interface StageTaskSectionProps {
 }
 
 export function StageTaskSection({ project, stageId, stageName }: StageTaskSectionProps) {
+  const addTask = useProjectStore((state) => state.addTask);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
   const stageData = project.stages[stageId];
+
+  const handleAddTask = () => {
+    if (!newTaskTitle.trim()) return;
+
+    addTask(project.id, stageId, {
+      title: newTaskTitle,
+      description: '',
+      assignee: '',
+      dueDate: null,
+      status: 'not_started',
+      comments: [],
+    });
+
+    setNewTaskTitle('');
+    setIsAdding(false);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAddTask();
+    } else if (e.key === 'Escape') {
+      setIsAdding(false);
+      setNewTaskTitle('');
+    }
+  };
 
   if (!stageData || !stageData.tasks || stageData.tasks.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          No tasks for {stageName}
-        </p>
+      <div className="space-y-3">
+        <div className="rounded-lg border border-dashed border-border p-6 text-center">
+          <p className="text-sm text-muted-foreground mb-3">
+            No tasks for {stageName}
+          </p>
+          <Button size="sm" onClick={() => setIsAdding(true)}>
+            Add Task
+          </Button>
+        </div>
+
+        {isAdding && (
+          <div className="flex gap-2">
+            <Input
+              autoFocus
+              placeholder="Task title..."
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyDown={handleKeyPress}
+            />
+            <Button onClick={handleAddTask}>Add</Button>
+            <Button variant="outline" onClick={() => { setIsAdding(false); setNewTaskTitle(''); }}>
+              Cancel
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -92,7 +145,9 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
               {task.status === 'complete' ? '✓' : task.status === 'in_progress' ? '•' : '○'}
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium text-foreground">{task.title}</div>
+              <div className="text-sm font-medium" style={{ color: 'hsl(var(--foreground))' }}>
+                {task.title}
+              </div>
             </div>
             <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>
               {getStatusLabel(task.status)}
@@ -100,6 +155,27 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
           </div>
         ))}
       </div>
+
+      {/* Add task */}
+      {!isAdding ? (
+        <Button variant="outline" size="sm" onClick={() => setIsAdding(true)} className="w-full">
+          + Add Task
+        </Button>
+      ) : (
+        <div className="flex gap-2">
+          <Input
+            autoFocus
+            placeholder="Task title..."
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            onKeyDown={handleKeyPress}
+          />
+          <Button onClick={handleAddTask}>Add</Button>
+          <Button variant="outline" onClick={() => { setIsAdding(false); setNewTaskTitle(''); }}>
+            Cancel
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
