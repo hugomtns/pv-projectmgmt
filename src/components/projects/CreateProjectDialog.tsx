@@ -51,13 +51,26 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     const firstStage = workflow.stages[0];
     if (!firstStage) return;
 
-    // Create project
+    // Create initial tasks from first stage template
+    const initialTasks = firstStage.taskTemplates.map((template) => ({
+      id: crypto.randomUUID(),
+      name: template.name,
+      status: 'not_started' as const,
+    }));
+
+    // Create project with initial stage data
     addProject({
       name: result.data.name,
       location: result.data.location,
       priority: result.data.priority,
       owner: result.data.owner,
       currentStageId: firstStage.id,
+      stages: {
+        [firstStage.id]: {
+          enteredAt: new Date().toISOString(),
+          tasks: initialTasks,
+        },
+      },
     });
 
     // Reset form and close

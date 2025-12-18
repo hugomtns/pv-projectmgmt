@@ -6,7 +6,7 @@ interface ProjectState {
   projects: Project[];
   selectedProjectId: string | null;
   // Actions
-  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'stages'>) => void;
+  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   moveProjectToStage: (projectId: string, stageId: string) => boolean; // returns false if gate blocks
@@ -32,7 +32,7 @@ export const useProjectStore = create<ProjectState>()(
           id: crypto.randomUUID(),
           createdAt: now,
           updatedAt: now,
-          stages: {}
+          stages: project.stages || {}
         };
         return { projects: [...state.projects, newProject] };
       }),
