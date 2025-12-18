@@ -4,8 +4,8 @@ import { Sidebar } from './Sidebar';
 
 interface AppShellProps {
   children: React.ReactNode;
-  currentPage: 'projects' | 'workflow' | 'users' | 'groups';
-  onNavigate: (page: 'projects' | 'workflow' | 'users' | 'groups') => void;
+  currentPage: 'projects' | 'workflow' | 'users' | 'groups' | 'permissions';
+  onNavigate: (page: 'projects' | 'workflow' | 'users' | 'groups' | 'permissions') => void;
 }
 
 export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {

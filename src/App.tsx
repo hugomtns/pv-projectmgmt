@@ -4,12 +4,13 @@ import { Projects } from './pages/Projects';
 import { WorkflowSettings } from './pages/WorkflowSettings';
 import { Users } from './pages/Users';
 import { Groups } from './pages/Groups';
+import { Permissions } from './pages/Permissions';
 import { LoadingScreen } from './components/layout/LoadingScreen';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { Toaster } from 'sonner';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<'projects' | 'workflow' | 'users' | 'groups'>('projects');
+  const [currentPage, setCurrentPage] = useState<'projects' | 'workflow' | 'users' | 'groups' | 'permissions'>('projects');
   const [isHydrated, setIsHydrated] = useState(false);
 
   // Simulate brief hydration delay to show loading state
@@ -18,7 +19,7 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Global navigation shortcuts: G+P (go to projects), G+W (go to workflow), G+U (go to users), G+G (go to groups)
+  // Global navigation shortcuts: G+P (go to projects), G+W (go to workflow), G+U (go to users), G+G (go to groups), G+R (go to permissions)
   useKeyboardShortcuts({
     sequenceShortcuts: [
       {
@@ -37,6 +38,10 @@ function App() {
         sequence: ['g', 'g'],
         handler: () => setCurrentPage('groups'),
       },
+      {
+        sequence: ['g', 'r'],
+        handler: () => setCurrentPage('permissions'),
+      },
     ],
   });
 
@@ -51,6 +56,7 @@ function App() {
         {currentPage === 'workflow' && <WorkflowSettings />}
         {currentPage === 'users' && <Users />}
         {currentPage === 'groups' && <Groups />}
+        {currentPage === 'permissions' && <Permissions />}
       </AppShell>
       <Toaster position="bottom-right" richColors />
     </>
