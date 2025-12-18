@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { StageCard } from '@/components/workflow/StageCard';
+import { StageEditor } from '@/components/workflow/StageEditor';
 import {
   DndContext,
   closestCenter,
@@ -21,6 +23,7 @@ export function WorkflowSettings() {
   const workflow = useWorkflowStore((state) => state.workflow);
   const removeStage = useWorkflowStore((state) => state.removeStage);
   const reorderStages = useWorkflowStore((state) => state.reorderStages);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -30,8 +33,7 @@ export function WorkflowSettings() {
   );
 
   const handleEdit = (stageId: string) => {
-    // Will be implemented in P9-4
-    console.log('Edit stage:', stageId);
+    setEditingStageId(stageId);
   };
 
   const handleDelete = (stageId: string, stageName: string) => {
@@ -101,6 +103,12 @@ export function WorkflowSettings() {
           )}
         </div>
       </div>
+
+      {/* Stage Editor */}
+      <StageEditor
+        stageId={editingStageId}
+        onClose={() => setEditingStageId(null)}
+      />
     </div>
   );
 }
