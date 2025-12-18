@@ -3,7 +3,8 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 import { useFilterStore } from '@/stores/filterStore';
 import { useDisplayStore } from '@/stores/displayStore';
 import { PriorityBadge } from './PriorityBadge';
-import type { Priority } from '@/lib/types';
+import { PRIORITY_LABELS } from '@/lib/constants';
+import type { Priority, Project } from '@/lib/types';
 
 export function ProjectList() {
   const projects = useProjectStore((state) => state.projects);
@@ -11,25 +12,28 @@ export function ProjectList() {
   const workflow = useWorkflowStore((state) => state.workflow);
   const filters = useFilterStore((state) => state.filters);
   const { settings } = useDisplayStore();
+  const updateListSettings = useDisplayStore((state) => state.updateListSettings);
+
+  const handleSort = (field: string) => {
+    const currentField = settings.list.ordering.field;
+    const currentDirection = settings.list.ordering.direction;
+
+    // Toggle direction if same field, otherwise default to asc
+    const newDirection = currentField === field && currentDirection === 'asc' ? 'desc' : 'asc';
+    updateListSettings({ ordering: { field, direction: newDirection } });
+  };
 
   // Apply filters
   const filteredProjects = projects.filter((project) => {
-    // Stage filter
     if (filters.stages.length > 0 && !filters.stages.includes(project.currentStageId)) {
       return false;
     }
-
-    // Priority filter
     if (filters.priorities.length > 0 && !filters.priorities.includes(project.priority)) {
       return false;
     }
-
-    // Owner filter
     if (filters.owner && !project.owner.toLowerCase().includes(filters.owner.toLowerCase())) {
       return false;
     }
-
-    // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       return (
@@ -37,7 +41,6 @@ export function ProjectList() {
         project.location.toLowerCase().includes(searchLower)
       );
     }
-
     return true;
   });
 
@@ -56,6 +59,14 @@ export function ProjectList() {
         aVal = a.priority;
         bVal = b.priority;
         break;
+      case 'owner':
+        aVal = a.owner;
+        bVal = b.owner;
+        break;
+      case 'location':
+        aVal = a.location;
+        bVal = b.location;
+        break;
       case 'updatedAt':
         aVal = a.updatedAt;
         bVal = b.updatedAt;
@@ -69,6 +80,38 @@ export function ProjectList() {
     if (aVal > bVal) return direction === 'asc' ? 1 : -1;
     return 0;
   });
+
+  // Apply grouping
+  const grouping = settings.list.grouping;
+  const grouped = new Map<string, Project[]>();
+
+  if (grouping === 'none') {
+    grouped.set('all', sortedProjects);
+  } else {
+    sortedProjects.forEach((project) => {
+      let groupKey = '';
+      switch (grouping) {
+        case 'stage':
+          groupKey = project.currentStageId;
+          break;
+        case 'priority':
+          groupKey = `priority-${project.priority}`;
+          break;
+        case 'owner':
+          groupKey = project.owner;
+          break;
+      }
+      if (!grouped.has(groupKey)) {
+        grouped.set(groupKey, []);
+      }
+      grouped.get(groupKey)!.push(project);
+    });
+  }
+
+  // Filter out empty groups if needed
+  const groupsToShow = Array.from(grouped.entries()).filter(([_, projects]) =>
+    settings.list.showEmptyGroups || projects.length > 0
+  );
 
   if (sortedProjects.length === 0) {
     return (
@@ -85,50 +128,126 @@ export function ProjectList() {
     );
   }
 
+  const renderProjectRow = (project: Project) => {
+    const stage = workflow.stages.find((s) => s.id === project.currentStageId);
+    const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
+    const completedTasks = currentStageTasks.filter((t) => t.status === 'complete').length;
+
+    return (
+      <tr key={project.id} className="hover:bg-muted/50">
+        <td className="px-4 py-3 text-sm font-medium">{project.name}</td>
+        <td className="px-4 py-3 text-sm">{stage?.name || 'Unknown'}</td>
+        <td className="px-4 py-3">
+          <PriorityBadge
+            priority={project.priority}
+            onChange={(newPriority: Priority) => updateProject(project.id, { priority: newPriority })}
+          />
+        </td>
+        <td className="px-4 py-3 text-sm">{project.owner}</td>
+        <td className="px-4 py-3 text-sm text-muted-foreground">{project.location}</td>
+        <td className="px-4 py-3 text-sm text-muted-foreground">
+          {new Date(project.updatedAt).toLocaleDateString()}
+        </td>
+        <td className="px-4 py-3 text-sm text-muted-foreground">
+          {completedTasks}/{currentStageTasks.length}
+        </td>
+      </tr>
+    );
+  };
+
+  const getGroupLabel = (groupKey: string): string => {
+    if (grouping === 'none') return '';
+    if (grouping === 'stage') {
+      const stage = workflow.stages.find((s) => s.id === groupKey);
+      return stage?.name || 'Unknown Stage';
+    }
+    if (grouping === 'priority') {
+      const priority = parseInt(groupKey.split('-')[1]) as Priority;
+      return PRIORITY_LABELS[priority];
+    }
+    return groupKey; // owner name
+  };
+
   return (
     <div className="flex-1 overflow-auto p-6">
-      <div className="rounded-lg border border-border bg-card">
-        <table className="w-full">
-          <thead className="border-b border-border bg-muted/50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Name</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Stage</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Priority</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Owner</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Location</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Updated</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tasks</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {sortedProjects.map((project) => {
-              const stage = workflow.stages.find((s) => s.id === project.currentStageId);
-              const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
-              const completedTasks = currentStageTasks.filter((t) => t.status === 'complete').length;
-
-              return (
-                <tr key={project.id} className="hover:bg-muted/50">
-                  <td className="px-4 py-3 text-sm font-medium">{project.name}</td>
-                  <td className="px-4 py-3 text-sm">{stage?.name || 'Unknown'}</td>
-                  <td className="px-4 py-3">
-                    <PriorityBadge
-                      priority={project.priority}
-                      onChange={(newPriority: Priority) => updateProject(project.id, { priority: newPriority })}
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-sm">{project.owner}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{project.location}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">
-                    {new Date(project.updatedAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">
-                    {completedTasks}/{currentStageTasks.length}
-                  </td>
+      <div className="space-y-6">
+        {groupsToShow.map(([groupKey, groupProjects]) => (
+          <div key={groupKey} className="rounded-lg border border-border bg-card">
+            {grouping !== 'none' && (
+              <div className="border-b border-border bg-muted/50 px-4 py-3">
+                <h3 className="text-sm font-semibold">
+                  {getGroupLabel(groupKey)} <span className="text-muted-foreground">({groupProjects.length})</span>
+                </h3>
+              </div>
+            )}
+            <table className="w-full">
+              <thead className="border-b border-border bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('name')}
+                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Name
+                      {settings.list.ordering.field === 'name' && (
+                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Stage</th>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('priority')}
+                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Priority
+                      {settings.list.ordering.field === 'priority' && (
+                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('owner')}
+                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Owner
+                      {settings.list.ordering.field === 'owner' && (
+                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('location')}
+                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Location
+                      {settings.list.ordering.field === 'location' && (
+                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left">
+                    <button
+                      onClick={() => handleSort('updatedAt')}
+                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Updated
+                      {settings.list.ordering.field === 'updatedAt' && (
+                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tasks</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {groupProjects.map(renderProjectRow)}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </div>
     </div>
   );
