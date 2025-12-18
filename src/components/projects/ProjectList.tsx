@@ -123,19 +123,36 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
       filters.stages.length > 0 || filters.priorities.length > 0 || filters.owner || filters.search;
 
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="mb-4 text-4xl">📋</div>
-          <p className="text-lg font-medium text-muted-foreground mb-2">No projects found</p>
-          <p className="text-sm text-muted-foreground">
-            {hasActiveFilters
-              ? 'Try adjusting your filters to see more projects'
-              : 'Get started by creating your first project'}
-          </p>
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="text-center max-w-md space-y-4">
+          <div className="flex justify-center">
+            <div className="rounded-full bg-muted p-3">
+              <svg
+                className="h-6 w-6 text-muted-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">No projects found</p>
+            <p className="text-sm text-muted-foreground">
+              {hasActiveFilters
+                ? 'Try adjusting your filters to see more projects'
+                : 'Get started by creating your first project'}
+            </p>
+          </div>
           {!hasActiveFilters && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Press <kbd className="px-1 py-0.5 text-xs font-semibold bg-muted rounded">N</kbd> or click "New
-              Project" to create one
+            <p className="text-xs text-muted-foreground">
+              Press <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-muted border border-border rounded">N</kbd> or click New Project
             </p>
           )}
         </div>
