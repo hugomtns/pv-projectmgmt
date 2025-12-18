@@ -10,8 +10,12 @@ interface TaskListProps {
 export function TaskList({ tasks, onTaskClick, onStatusToggle }: TaskListProps) {
   if (tasks.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-border p-6 text-center">
-        <p className="text-sm text-muted-foreground">No tasks yet</p>
+      <div className="rounded-lg border border-dashed border-border p-8 text-center">
+        <div className="mb-3 text-3xl">✅</div>
+        <p className="text-sm font-medium text-muted-foreground mb-1">No tasks for this stage</p>
+        <p className="text-xs text-muted-foreground">
+          Tasks will be created automatically when a project enters this stage
+        </p>
       </div>
     );
   }

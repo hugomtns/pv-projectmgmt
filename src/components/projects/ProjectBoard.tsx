@@ -165,15 +165,25 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   };
 
   if (filteredProjects.length === 0) {
+    const hasActiveFilters =
+      filters.stages.length > 0 || filters.priorities.length > 0 || filters.owner || filters.search;
+
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">No projects found</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {filters.stages.length > 0 || filters.priorities.length > 0 || filters.owner || filters.search
-              ? 'Try adjusting your filters'
-              : 'Create your first project to get started'}
+        <div className="text-center max-w-md">
+          <div className="mb-4 text-4xl">📋</div>
+          <p className="text-lg font-medium text-muted-foreground mb-2">No projects found</p>
+          <p className="text-sm text-muted-foreground">
+            {hasActiveFilters
+              ? 'Try adjusting your filters to see more projects'
+              : 'Get started by creating your first project'}
           </p>
+          {!hasActiveFilters && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              Press <kbd className="px-1 py-0.5 text-xs font-semibold bg-muted rounded">N</kbd> or click "New
+              Project" to create one
+            </p>
+          )}
         </div>
       </div>
     );

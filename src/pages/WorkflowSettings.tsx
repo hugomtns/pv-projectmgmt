@@ -179,9 +179,13 @@ export function WorkflowSettings() {
           {/* Empty state */}
           {workflow.stages.length === 0 && !isAdding && (
             <div className="text-center py-12 border border-dashed rounded-lg">
-              <p className="text-muted-foreground">No workflow stages configured</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Add your first stage to get started
+              <div className="mb-4 text-4xl">⚙️</div>
+              <p className="text-lg font-medium text-muted-foreground mb-2">No workflow stages configured</p>
+              <p className="text-sm text-muted-foreground">
+                Add your first stage to define your project workflow, or use the default workflow
+              </p>
+              <p className="mt-4 text-xs text-muted-foreground">
+                Click "Add Stage" below or "Reset to Default" to restore the 8-stage PV workflow
               </p>
             </div>
           )}
