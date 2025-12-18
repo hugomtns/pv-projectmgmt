@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useUserStore } from '@/stores/userStore';
+import { usePermission } from '@/hooks/usePermission';
 import { toast } from 'sonner';
 import type { UserGroup } from '@/lib/types';
 
@@ -15,6 +16,9 @@ interface GroupListProps {
 export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }: GroupListProps) {
   const groups = useUserStore(state => state.groups);
   const deleteGroup = useUserStore(state => state.deleteGroup);
+
+  const canUpdateGroup = usePermission('user_management', 'update');
+  const canDeleteGroup = usePermission('user_management', 'delete');
 
   const handleDelete = (group: UserGroup) => {
     if (window.confirm(`Are you sure you want to delete the group "${group.name}"? This will remove all members from the group.`)) {
@@ -63,42 +67,50 @@ export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }:
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEditGroup?.(group)}
-                    className="justify-start"
-                  >
-                    <Pencil className="h-4 w-4 mr-1.5" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onManageMembers?.(group)}
-                    className="justify-start"
-                  >
-                    <UserCog className="h-4 w-4 mr-1.5" />
-                    Members
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onManagePermissions?.(group)}
-                    className="justify-start"
-                  >
-                    <Shield className="h-4 w-4 mr-1.5" />
-                    Permissions
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(group)}
-                    className="justify-start text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-1.5" />
-                    Delete
-                  </Button>
+                  {canUpdateGroup && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEditGroup?.(group)}
+                      className="justify-start"
+                    >
+                      <Pencil className="h-4 w-4 mr-1.5" />
+                      Edit
+                    </Button>
+                  )}
+                  {canUpdateGroup && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onManageMembers?.(group)}
+                      className="justify-start"
+                    >
+                      <UserCog className="h-4 w-4 mr-1.5" />
+                      Members
+                    </Button>
+                  )}
+                  {canUpdateGroup && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onManagePermissions?.(group)}
+                      className="justify-start"
+                    >
+                      <Shield className="h-4 w-4 mr-1.5" />
+                      Permissions
+                    </Button>
+                  )}
+                  {canDeleteGroup && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(group)}
+                      className="justify-start text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1.5" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

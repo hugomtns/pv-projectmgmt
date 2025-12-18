@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useUserStore } from '@/stores/userStore';
+import { usePermission } from '@/hooks/usePermission';
 import { toast } from 'sonner';
 import type { User } from '@/lib/types';
 
@@ -25,6 +26,9 @@ export function UserList({ onEditUser }: UserListProps) {
   const groups = useUserStore(state => state.groups);
   const roles = useUserStore(state => state.roles);
   const deleteUser = useUserStore(state => state.deleteUser);
+
+  const canUpdateUser = usePermission('user_management', 'update');
+  const canDeleteUser = usePermission('user_management', 'delete');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
@@ -220,23 +224,27 @@ export function UserList({ onEditUser }: UserListProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEditUser?.(user)}
-                      >
-                        <Pencil className="h-4 w-4 mr-1.5" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(user)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1.5" />
-                        Delete
-                      </Button>
+                      {canUpdateUser && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEditUser?.(user)}
+                        >
+                          <Pencil className="h-4 w-4 mr-1.5" />
+                          Edit
+                        </Button>
+                      )}
+                      {canDeleteUser && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(user)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1.5" />
+                          Delete
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

@@ -4,12 +4,15 @@ import { UserList } from '@/components/users/UserList';
 import { UserInviteDialog } from '@/components/users/UserInviteDialog';
 import { UserEditDialog } from '@/components/users/UserEditDialog';
 import { Button } from '@/components/ui/button';
+import { usePermission } from '@/hooks/usePermission';
 import type { User } from '@/lib/types';
 
 export function Users() {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  const canCreateUser = usePermission('user_management', 'create');
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
@@ -27,9 +30,11 @@ export function Users() {
     <div className="flex h-full flex-col">
       <Header title="User Management">
         <div className="flex gap-4 flex-1 max-w-4xl justify-end">
-          <Button onClick={() => setInviteDialogOpen(true)}>
-            Invite User
-          </Button>
+          {canCreateUser && (
+            <Button onClick={() => setInviteDialogOpen(true)}>
+              Invite User
+            </Button>
+          )}
         </div>
       </Header>
 

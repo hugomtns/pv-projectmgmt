@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { usePermission } from '@/hooks/usePermission';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -7,10 +8,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
-  const navItems = [
+  const canViewProjects = usePermission('projects', 'read');
+  const canViewWorkflows = usePermission('workflows', 'read');
+  const canViewUserManagement = usePermission('user_management', 'read');
+  const allNavItems = [
     {
       id: 'projects' as const,
       label: 'Projects',
+      hasPermission: canViewProjects,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -25,6 +30,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'workflow' as const,
       label: 'Workflow Settings',
+      hasPermission: canViewWorkflows,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -45,6 +51,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'users' as const,
       label: 'Users',
+      hasPermission: canViewUserManagement,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -59,6 +66,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'groups' as const,
       label: 'Groups',
+      hasPermission: canViewUserManagement,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -73,6 +81,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'permissions' as const,
       label: 'Permissions',
+      hasPermission: canViewUserManagement,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -85,6 +94,8 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
       )
     }
   ];
+
+  const navItems = allNavItems.filter(item => item.hasPermission);
 
   return (
     <nav className="flex flex-col gap-2">

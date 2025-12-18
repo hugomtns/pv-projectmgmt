@@ -5,9 +5,12 @@ import { GroupFormDialog } from '@/components/groups/GroupFormDialog';
 import { GroupMembersDialog } from '@/components/groups/GroupMembersDialog';
 import { GroupPermissionsDialog } from '@/components/groups/GroupPermissionsDialog';
 import { Button } from '@/components/ui/button';
+import { usePermission } from '@/hooks/usePermission';
 import type { UserGroup } from '@/lib/types';
 
 export function Groups() {
+  const canCreateGroup = usePermission('user_management', 'create');
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [membersDialogOpen, setMembersDialogOpen] = useState(false);
@@ -54,9 +57,11 @@ export function Groups() {
     <div className="flex h-full flex-col">
       <Header title="Group Management">
         <div className="flex gap-4 flex-1 max-w-4xl justify-end">
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            Create Group
-          </Button>
+          {canCreateGroup && (
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              Create Group
+            </Button>
+          )}
         </div>
       </Header>
 
