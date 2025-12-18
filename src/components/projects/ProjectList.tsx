@@ -13,6 +13,7 @@ interface ProjectListProps {
 export function ProjectList({ onProjectHover }: ProjectListProps) {
   const projects = useProjectStore((state) => state.projects);
   const updateProject = useProjectStore((state) => state.updateProject);
+  const selectProject = useProjectStore((state) => state.selectProject);
   const workflow = useWorkflowStore((state) => state.workflow);
   const filters = useFilterStore((state) => state.filters);
   const { settings } = useDisplayStore();
@@ -146,7 +147,6 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
     const stage = workflow.stages.find((s) => s.id === project.currentStageId);
     const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
     const completedTasks = currentStageTasks.filter((t) => t.status === 'complete').length;
-    const selectProject = useProjectStore((state) => state.selectProject);
 
     return (
       <tr
