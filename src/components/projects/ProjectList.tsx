@@ -2,9 +2,12 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useFilterStore } from '@/stores/filterStore';
 import { useDisplayStore } from '@/stores/displayStore';
+import { PriorityBadge } from './PriorityBadge';
+import type { Priority } from '@/lib/types';
 
 export function ProjectList() {
   const projects = useProjectStore((state) => state.projects);
+  const updateProject = useProjectStore((state) => state.updateProject);
   const workflow = useWorkflowStore((state) => state.workflow);
   const filters = useFilterStore((state) => state.filters);
   const { settings } = useDisplayStore();
@@ -107,7 +110,12 @@ export function ProjectList() {
                 <tr key={project.id} className="hover:bg-muted/50">
                   <td className="px-4 py-3 text-sm font-medium">{project.name}</td>
                   <td className="px-4 py-3 text-sm">{stage?.name || 'Unknown'}</td>
-                  <td className="px-4 py-3 text-sm">P{project.priority}</td>
+                  <td className="px-4 py-3">
+                    <PriorityBadge
+                      priority={project.priority}
+                      onChange={(newPriority: Priority) => updateProject(project.id, { priority: newPriority })}
+                    />
+                  </td>
                   <td className="px-4 py-3 text-sm">{project.owner}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{project.location}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
