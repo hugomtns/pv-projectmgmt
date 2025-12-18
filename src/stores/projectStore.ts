@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Project, Task, Comment } from '@/lib/types';
 import { useWorkflowStore } from './workflowStore';
+import { useUserStore } from './userStore';
+import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { toast } from 'sonner';
 
 interface ProjectState {
   projects: Project[];
@@ -26,28 +29,103 @@ export const useProjectStore = create<ProjectState>()(
       projects: [],
       selectedProjectId: null,
 
-      addProject: (project) => set((state) => {
-        const now = new Date().toISOString();
-        const newProject: Project = {
-          ...project,
-          id: crypto.randomUUID(),
-          createdAt: now,
-          updatedAt: now,
-          stages: project.stages || {}
-        };
-        return { projects: [...state.projects, newProject] };
-      }),
+      addProject: (project) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
 
-      updateProject: (id, updates) => set((state) => ({
-        projects: state.projects.map(p =>
-          p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
-        )
-      })),
+        if (!currentUser) {
+          toast.error('You must be logged in to create projects');
+          return;
+        }
 
-      deleteProject: (id) => set((state) => ({
-        projects: state.projects.filter(p => p.id !== id),
-        selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId
-      })),
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          undefined,
+          overrides,
+          roles
+        );
+
+        if (!permissions.create) {
+          toast.error('Permission denied: You do not have permission to create projects');
+          return;
+        }
+
+        set((state) => {
+          const now = new Date().toISOString();
+          const newProject: Project = {
+            ...project,
+            id: crypto.randomUUID(),
+            createdAt: now,
+            updatedAt: now,
+            stages: project.stages || {}
+          };
+          return { projects: [...state.projects, newProject] };
+        });
+      },
+
+      updateProject: (id, updates) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to update projects');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          id,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: You do not have permission to update projects');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map(p =>
+            p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
+          )
+        }));
+      },
+
+      deleteProject: (id) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to delete projects');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          id,
+          overrides,
+          roles
+        );
+
+        if (!permissions.delete) {
+          toast.error('Permission denied: You do not have permission to delete projects');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.filter(p => p.id !== id),
+          selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId
+        }));
+      },
 
       moveProjectToStage: (projectId, stageId) => {
         let success = false;
@@ -106,96 +184,196 @@ export const useProjectStore = create<ProjectState>()(
         return success;
       },
 
-      addTask: (projectId, stageId, task) => set((state) => ({
-        projects: state.projects.map(p =>
-          p.id === projectId
-            ? {
-                ...p,
-                updatedAt: new Date().toISOString(),
-                stages: {
-                  ...p.stages,
-                  [stageId]: {
-                    ...p.stages[stageId],
-                    tasks: [
-                      ...(p.stages[stageId]?.tasks || []),
-                      { ...task, id: crypto.randomUUID() }
-                    ]
-                  }
-                }
-              }
-            : p
-        )
-      })),
+      addTask: (projectId, stageId, task) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
 
-      updateTask: (projectId, stageId, taskId, updates) => set((state) => ({
-        projects: state.projects.map(p =>
-          p.id === projectId
-            ? {
-                ...p,
-                updatedAt: new Date().toISOString(),
-                stages: {
-                  ...p.stages,
-                  [stageId]: {
-                    ...p.stages[stageId],
-                    tasks: p.stages[stageId].tasks.map(t =>
-                      t.id === taskId ? { ...t, ...updates } : t
-                    )
-                  }
-                }
-              }
-            : p
-        )
-      })),
+        if (!currentUser) {
+          toast.error('You must be logged in to create tasks');
+          return;
+        }
 
-      deleteTask: (projectId, stageId, taskId) => set((state) => ({
-        projects: state.projects.map(p =>
-          p.id === projectId
-            ? {
-                ...p,
-                updatedAt: new Date().toISOString(),
-                stages: {
-                  ...p.stages,
-                  [stageId]: {
-                    ...p.stages[stageId],
-                    tasks: p.stages[stageId].tasks.filter(t => t.id !== taskId)
-                  }
-                }
-              }
-            : p
-        )
-      })),
+        const permissions = resolvePermissions(
+          currentUser,
+          'tasks',
+          undefined,
+          overrides,
+          roles
+        );
 
-      addComment: (projectId, stageId, taskId, comment) => set((state) => ({
-        projects: state.projects.map(p =>
-          p.id === projectId
-            ? {
-                ...p,
-                updatedAt: new Date().toISOString(),
-                stages: {
-                  ...p.stages,
-                  [stageId]: {
-                    ...p.stages[stageId],
-                    tasks: p.stages[stageId].tasks.map(t =>
-                      t.id === taskId
-                        ? {
-                            ...t,
-                            comments: [
-                              ...t.comments,
-                              {
-                                ...comment,
-                                id: crypto.randomUUID(),
-                                createdAt: new Date().toISOString()
-                              }
-                            ]
-                          }
-                        : t
-                    )
+        if (!permissions.create) {
+          toast.error('Permission denied: You do not have permission to create tasks');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map(p =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  updatedAt: new Date().toISOString(),
+                  stages: {
+                    ...p.stages,
+                    [stageId]: {
+                      ...p.stages[stageId],
+                      tasks: [
+                        ...(p.stages[stageId]?.tasks || []),
+                        { ...task, id: crypto.randomUUID() }
+                      ]
+                    }
                   }
                 }
-              }
-            : p
-        )
-      })),
+              : p
+          )
+        }));
+      },
+
+      updateTask: (projectId, stageId, taskId, updates) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to update tasks');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'tasks',
+          taskId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: You do not have permission to update tasks');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map(p =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  updatedAt: new Date().toISOString(),
+                  stages: {
+                    ...p.stages,
+                    [stageId]: {
+                      ...p.stages[stageId],
+                      tasks: p.stages[stageId].tasks.map(t =>
+                        t.id === taskId ? { ...t, ...updates } : t
+                      )
+                    }
+                  }
+                }
+              : p
+          )
+        }));
+      },
+
+      deleteTask: (projectId, stageId, taskId) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to delete tasks');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'tasks',
+          taskId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.delete) {
+          toast.error('Permission denied: You do not have permission to delete tasks');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map(p =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  updatedAt: new Date().toISOString(),
+                  stages: {
+                    ...p.stages,
+                    [stageId]: {
+                      ...p.stages[stageId],
+                      tasks: p.stages[stageId].tasks.filter(t => t.id !== taskId)
+                    }
+                  }
+                }
+              : p
+          )
+        }));
+      },
+
+      addComment: (projectId, stageId, taskId, comment) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to add comments');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'comments',
+          undefined,
+          overrides,
+          roles
+        );
+
+        if (!permissions.create) {
+          toast.error('Permission denied: You do not have permission to add comments');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map(p =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  updatedAt: new Date().toISOString(),
+                  stages: {
+                    ...p.stages,
+                    [stageId]: {
+                      ...p.stages[stageId],
+                      tasks: p.stages[stageId].tasks.map(t =>
+                        t.id === taskId
+                          ? {
+                              ...t,
+                              comments: [
+                                ...t.comments,
+                                {
+                                  ...comment,
+                                  id: crypto.randomUUID(),
+                                  createdAt: new Date().toISOString()
+                                }
+                              ]
+                            }
+                          : t
+                      )
+                    }
+                  }
+                }
+              : p
+          )
+        }));
+      },
 
       selectProject: (id) => set({ selectedProjectId: id })
     }),

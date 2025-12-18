@@ -1,11 +1,33 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUserStore } from '@/stores/userStore';
+import { seedRoles } from '@/data/seedUserData';
 import type { Project, Task, Comment } from '@/lib/types';
 
 describe('projectStore', () => {
   beforeEach(() => {
-    // Reset store before each test
+    // Reset project store before each test
     useProjectStore.setState({ projects: [], selectedProjectId: null });
+
+    // Set up user store with roles and a current admin user for testing
+    const adminUser = {
+      id: 'test-user-1',
+      firstName: 'Test',
+      lastName: 'Admin',
+      email: 'admin@test.com',
+      function: 'Administrator',
+      roleId: 'role-admin',
+      groupIds: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    useUserStore.setState({
+      currentUser: adminUser,
+      roles: seedRoles,
+      users: [adminUser],
+      groups: [],
+      permissionOverrides: []
+    });
   });
 
   describe('addProject', () => {
