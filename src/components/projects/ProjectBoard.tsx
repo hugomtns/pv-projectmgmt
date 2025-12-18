@@ -36,6 +36,10 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
 
+  // Determine column and row layout based on settings
+  const columnBy = settings.board.columns;
+  const rowBy = settings.board.rows;
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -157,10 +161,6 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
 
     setActiveProject(null);
   };
-
-  // Determine column and row layout based on settings
-  const columnBy = settings.board.columns;
-  const rowBy = settings.board.rows;
 
   // Get column definitions
   const getColumnDefs = () => {
