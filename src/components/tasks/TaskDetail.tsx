@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { CommentThread } from './CommentThread';
 import type { TaskStatus } from '@/lib/types';
 
 interface TaskDetailProps {
@@ -21,6 +22,7 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
   const projects = useProjectStore((state) => state.projects);
   const updateTask = useProjectStore((state) => state.updateTask);
   const deleteTask = useProjectStore((state) => state.deleteTask);
+  const addComment = useProjectStore((state) => state.addComment);
 
   const project = projects.find((p) => p.id === projectId);
   const task = project?.stages[stageId]?.tasks.find((t) => t.id === taskId);
@@ -52,6 +54,10 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
       deleteTask(projectId, stageId, taskId);
       onClose();
     }
+  };
+
+  const handleAddComment = (author: string, text: string) => {
+    addComment(projectId, stageId, taskId, { author, text });
   };
 
   const getStatusLabel = (status: TaskStatus) => {
@@ -160,6 +166,14 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+
+          {/* Comments */}
+          <div className="pt-4 border-t">
+            <CommentThread
+              comments={task.comments}
+              onAddComment={handleAddComment}
+            />
           </div>
 
           {/* Delete */}
