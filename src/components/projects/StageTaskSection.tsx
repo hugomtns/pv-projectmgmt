@@ -26,8 +26,7 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
   const stageData = project.stages[stageId];
   const workflowStage = workflow.stages.find((s) => s.id === stageId);
 
-  // Determine if this is the current stage or a future/past stage
-  const isCurrentStage = project.currentStageId === stageId;
+  // Determine if this stage has been entered yet
   const hasEnteredStage = !!stageData;
 
   const handleAddTask = () => {
