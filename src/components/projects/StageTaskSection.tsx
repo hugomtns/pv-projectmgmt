@@ -1,8 +1,14 @@
 import { useState } from 'react';
-import type { Project } from '@/lib/types';
+import type { Project, TaskStatus } from '@/lib/types';
 import { useProjectStore } from '@/stores/projectStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface StageTaskSectionProps {
   project: Project;
@@ -12,6 +18,7 @@ interface StageTaskSectionProps {
 
 export function StageTaskSection({ project, stageId, stageName }: StageTaskSectionProps) {
   const addTask = useProjectStore((state) => state.addTask);
+  const updateTask = useProjectStore((state) => state.updateTask);
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const stageData = project.stages[stageId];
@@ -39,6 +46,10 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
       setIsAdding(false);
       setNewTaskTitle('');
     }
+  };
+
+  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
+    updateTask(project.id, stageId, taskId, { status: newStatus });
   };
 
   if (!stageData || !stageData.tasks || stageData.tasks.length === 0) {
@@ -134,7 +145,7 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
             className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
           >
             <div
-              className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+              className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
                 task.status === 'complete'
                   ? 'bg-green-500 text-white'
                   : task.status === 'in_progress'
@@ -144,14 +155,47 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
             >
               {task.status === 'complete' ? '✓' : task.status === 'in_progress' ? '•' : '○'}
             </div>
-            <div className="flex-1">
-              <div className="text-sm font-medium" style={{ color: 'hsl(var(--foreground))' }}>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate" style={{ color: 'hsl(var(--foreground))' }}>
                 {task.title}
               </div>
             </div>
-            <div className={`text-xs px-2 py-1 rounded-full ${getStatusColor(task.status)}`}>
-              {getStatusLabel(task.status)}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={`text-xs px-3 py-1.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getStatusColor(task.status)}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {getStatusLabel(task.status)}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'not_started')}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600">
+                      ○
+                    </div>
+                    <span>Not Started</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'in_progress')}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-xs text-white">
+                      •
+                    </div>
+                    <span>In Progress</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'complete')}>
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center text-xs text-white">
+                      ✓
+                    </div>
+                    <span>Complete</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ))}
       </div>
