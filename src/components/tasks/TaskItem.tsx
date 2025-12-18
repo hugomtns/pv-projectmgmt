@@ -72,7 +72,7 @@ export function TaskItem({ task, onClick, onStatusToggle }: TaskItemProps) {
 
       {/* Task info */}
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate">{task.title}</div>
+        <div className="text-sm font-medium text-foreground truncate">{task.title}</div>
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
           {task.assignee && <span>Assigned to: {task.assignee}</span>}
           {task.dueDate && (
