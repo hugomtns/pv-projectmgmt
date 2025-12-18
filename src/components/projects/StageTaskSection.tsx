@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Project, TaskStatus } from '@/lib/types';
 import { useProjectStore } from '@/stores/projectStore';
+import { useWorkflowStore } from '@/stores/workflowStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,9 +20,15 @@ interface StageTaskSectionProps {
 export function StageTaskSection({ project, stageId, stageName }: StageTaskSectionProps) {
   const addTask = useProjectStore((state) => state.addTask);
   const updateTask = useProjectStore((state) => state.updateTask);
+  const workflow = useWorkflowStore((state) => state.workflow);
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const stageData = project.stages[stageId];
+  const workflowStage = workflow.stages.find((s) => s.id === stageId);
+
+  // Determine if this is the current stage or a future/past stage
+  const isCurrentStage = project.currentStageId === stageId;
+  const hasEnteredStage = !!stageData;
 
   const handleAddTask = () => {
     if (!newTaskTitle.trim()) return;
@@ -52,19 +59,56 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
     updateTask(project.id, stageId, taskId, { status: newStatus });
   };
 
-  if (!stageData || !stageData.tasks || stageData.tasks.length === 0) {
+  // If stage hasn't been entered yet, show task templates
+  if (!hasEnteredStage && workflowStage && workflowStage.taskTemplates.length > 0) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-4">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            Preview: These tasks will be created when the project enters this stage
+          </p>
+        </div>
+        <div className="space-y-2">
+          {workflowStage.taskTemplates.map((template) => (
+            <div
+              key={template.id}
+              className="flex items-center gap-3 rounded-lg border border-border p-3 bg-muted/30"
+            >
+              <div className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 bg-gray-300 text-gray-600">
+                ○
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate">{template.title}</div>
+                {template.description && (
+                  <div className="text-xs text-muted-foreground mt-1">{template.description}</div>
+                )}
+              </div>
+              <div className="text-xs px-3 py-1.5 rounded-full bg-gray-100 text-gray-600">
+                Not Started
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // If no tasks and no templates, show empty state
+  if ((!stageData || !stageData.tasks || stageData.tasks.length === 0) && (!workflowStage || workflowStage.taskTemplates.length === 0)) {
     return (
       <div className="space-y-3">
         <div className="rounded-lg border border-dashed border-border p-6 text-center">
           <p className="text-sm text-muted-foreground mb-3">
             No tasks for {stageName}
           </p>
-          <Button size="sm" onClick={() => setIsAdding(true)}>
-            Add Task
-          </Button>
+          {hasEnteredStage && (
+            <Button size="sm" onClick={() => setIsAdding(true)}>
+              Add Task
+            </Button>
+          )}
         </div>
 
-        {isAdding && (
+        {isAdding && hasEnteredStage && (
           <div className="flex gap-2">
             <Input
               autoFocus
