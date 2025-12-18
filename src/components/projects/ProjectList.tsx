@@ -1,3 +1,4 @@
+import React from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useFilterStore } from '@/stores/filterStore';
@@ -160,49 +161,6 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
     );
   }
 
-  const renderProjectRow = (project: Project) => {
-    const stage = workflow.stages.find((s) => s.id === project.currentStageId);
-    const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
-    const completedTasks = currentStageTasks.filter((t) => t.status === 'complete').length;
-
-    return (
-      <tr
-        key={project.id}
-        className="hover:bg-muted/50 cursor-pointer"
-        onClick={() => selectProject(project.id)}
-        onMouseEnter={() => onProjectHover?.(project.id)}
-        onMouseLeave={() => onProjectHover?.(null)}
-      >
-        <td className="px-4 py-3 text-sm font-medium">{project.name}</td>
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            {stage && (
-              <div
-                className="h-3 w-3 rounded-full shrink-0"
-                style={{ backgroundColor: stage.color }}
-              />
-            )}
-            <span className="text-sm">{stage?.name || 'Unknown'}</span>
-          </div>
-        </td>
-        <td className="px-4 py-3">
-          <PriorityBadge
-            priority={project.priority}
-            onChange={(newPriority: Priority) => updateProject(project.id, { priority: newPriority })}
-          />
-        </td>
-        <td className="px-4 py-3 text-sm">{project.owner}</td>
-        <td className="px-4 py-3 text-sm text-muted-foreground">{project.location}</td>
-        <td className="px-4 py-3 text-sm text-muted-foreground">
-          {new Date(project.updatedAt).toLocaleDateString()}
-        </td>
-        <td className="px-4 py-3 text-sm text-muted-foreground">
-          {completedTasks}/{currentStageTasks.length}
-        </td>
-      </tr>
-    );
-  };
-
   const getGroupLabel = (groupKey: string): string => {
     if (grouping === 'none') return '';
     if (grouping === 'stage') {
@@ -216,85 +174,132 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
     return groupKey; // owner name
   };
 
+  // Render header row
+  const renderHeaderRow = () => (
+    <div
+      className="grid border-b border-border bg-muted/50"
+      style={{ gridTemplateColumns: '300px 150px 120px 150px 200px 120px 80px' }}
+    >
+      <div className="px-4 py-3">
+        <button
+          onClick={() => handleSort('name')}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Name
+          {settings.list.ordering.field === 'name' && (
+            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      </div>
+      <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Stage</div>
+      <div className="px-4 py-3">
+        <button
+          onClick={() => handleSort('priority')}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Priority
+          {settings.list.ordering.field === 'priority' && (
+            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      </div>
+      <div className="px-4 py-3">
+        <button
+          onClick={() => handleSort('owner')}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Owner
+          {settings.list.ordering.field === 'owner' && (
+            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      </div>
+      <div className="px-4 py-3">
+        <button
+          onClick={() => handleSort('location')}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Location
+          {settings.list.ordering.field === 'location' && (
+            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      </div>
+      <div className="px-4 py-3">
+        <button
+          onClick={() => handleSort('updatedAt')}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Updated
+          {settings.list.ordering.field === 'updatedAt' && (
+            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      </div>
+      <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Tasks</div>
+    </div>
+  );
+
+  // Render project row with grid
+  const renderProjectRowGrid = (project: Project) => {
+    const stage = workflow.stages.find((s) => s.id === project.currentStageId);
+    const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
+    const completedTasks = currentStageTasks.filter((t) => t.status === 'complete').length;
+
+    return (
+      <div
+        key={project.id}
+        className="grid hover:bg-muted/50 cursor-pointer border-b border-border"
+        style={{ gridTemplateColumns: '300px 150px 120px 150px 200px 120px 80px' }}
+        onClick={() => selectProject(project.id)}
+        onMouseEnter={() => onProjectHover?.(project.id)}
+        onMouseLeave={() => onProjectHover?.(null)}
+      >
+        <div className="px-4 py-3 text-sm font-medium truncate" title={project.name}>{project.name}</div>
+        <div className="px-4 py-3 flex items-center gap-2 min-w-0">
+          {stage && (
+            <div
+              className="h-3 w-3 rounded-full shrink-0"
+              style={{ backgroundColor: stage.color }}
+            />
+          )}
+          <span className="text-sm truncate">{stage?.name || 'Unknown'}</span>
+        </div>
+        <div className="px-4 py-3">
+          <PriorityBadge
+            priority={project.priority}
+            onChange={(newPriority: Priority) => updateProject(project.id, { priority: newPriority })}
+          />
+        </div>
+        <div className="px-4 py-3 text-sm truncate" title={project.owner}>{project.owner}</div>
+        <div className="px-4 py-3 text-sm text-muted-foreground truncate" title={project.location}>{project.location}</div>
+        <div className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+          {new Date(project.updatedAt).toLocaleDateString()}
+        </div>
+        <div className="px-4 py-3 text-sm text-muted-foreground text-center whitespace-nowrap">
+          {completedTasks}/{currentStageTasks.length}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 overflow-auto p-3 md:p-6">
-      <div className="space-y-4 md:space-y-6">
-        {groupsToShow.map(([groupKey, groupProjects]) => (
-          <div key={groupKey} className="rounded-lg border border-border bg-card">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        {groupsToShow.map(([groupKey, groupProjects], groupIndex) => (
+          <React.Fragment key={groupKey}>
             {grouping !== 'none' && (
-              <div className="border-b border-border bg-muted/50 px-4 py-3">
+              <div className={`border-b border-border bg-muted/50 px-4 py-3 ${groupIndex > 0 ? 'border-t' : ''}`}>
                 <h3 className="text-sm font-semibold">
                   {getGroupLabel(groupKey)} <span className="text-muted-foreground">({groupProjects.length})</span>
                 </h3>
               </div>
             )}
-            <table className="w-full">
-              <thead className="border-b border-border bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('name')}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Name
-                      {settings.list.ordering.field === 'name' && (
-                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Stage</th>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('priority')}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Priority
-                      {settings.list.ordering.field === 'priority' && (
-                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('owner')}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Owner
-                      {settings.list.ordering.field === 'owner' && (
-                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('location')}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Location
-                      {settings.list.ordering.field === 'location' && (
-                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left">
-                    <button
-                      onClick={() => handleSort('updatedAt')}
-                      className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Updated
-                      {settings.list.ordering.field === 'updatedAt' && (
-                        <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-                      )}
-                    </button>
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Tasks</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {groupProjects.map(renderProjectRow)}
-              </tbody>
-            </table>
-          </div>
+            {renderHeaderRow()}
+            <div>
+              {groupProjects.map(renderProjectRowGrid)}
+            </div>
+          </React.Fragment>
         ))}
       </div>
     </div>
