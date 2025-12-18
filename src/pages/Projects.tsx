@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDisplayStore } from '@/stores/displayStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { usePermission } from '@/hooks/usePermission';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { Priority } from '@/lib/types';
 
@@ -24,6 +25,8 @@ export function Projects() {
 
   const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
   const updateProject = useProjectStore((state) => state.updateProject);
+
+  const canCreateProject = usePermission('projects', 'create');
 
   // Priority shortcuts: 0-4
   // Navigation shortcuts: N (new project), / (focus search), ? (shortcuts help)
@@ -51,7 +54,7 @@ export function Projects() {
       },
       {
         key: 'n',
-        handler: () => setCreateDialogOpen(true),
+        handler: () => canCreateProject && setCreateDialogOpen(true),
       },
       {
         key: '/',
@@ -82,16 +85,18 @@ export function Projects() {
           <SearchInput />
           <FilterBar />
           <DisplayPopover />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={() => setCreateDialogOpen(true)}>New Project</Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Press <kbd className="px-1 py-0.5 text-xs font-semibold bg-muted rounded">N</kbd> to create</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {canCreateProject && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button onClick={() => setCreateDialogOpen(true)}>New Project</Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Press <kbd className="px-1 py-0.5 text-xs font-semibold bg-muted rounded">N</kbd> to create</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </Header>
       <ActiveFilters />
