@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { PriorityBadge } from './PriorityBadge';
 import { StageStepper } from './StageStepper';
+import { StageTaskSection } from './StageTaskSection';
 import type { Priority } from '@/lib/types';
 
 export function ProjectDetail() {
@@ -101,6 +102,18 @@ export function ProjectDetail() {
               project={project}
               selectedStageId={selectedStageId}
               onStageSelect={setSelectedStageId}
+            />
+          </div>
+
+          {/* Selected Stage Tasks */}
+          <div>
+            <label className="text-sm font-medium block mb-3">
+              {workflow.stages.find((s) => s.id === selectedStageId)?.name || 'Stage'} Tasks
+            </label>
+            <StageTaskSection
+              project={project}
+              stageId={selectedStageId}
+              stageName={workflow.stages.find((s) => s.id === selectedStageId)?.name || 'Stage'}
             />
           </div>
         </div>
