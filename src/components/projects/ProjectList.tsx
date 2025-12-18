@@ -137,7 +137,17 @@ export function ProjectList() {
     return (
       <tr key={project.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => selectProject(project.id)}>
         <td className="px-4 py-3 text-sm font-medium">{project.name}</td>
-        <td className="px-4 py-3 text-sm">{stage?.name || 'Unknown'}</td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            {stage && (
+              <div
+                className="h-3 w-3 rounded-full shrink-0"
+                style={{ backgroundColor: stage.color }}
+              />
+            )}
+            <span className="text-sm">{stage?.name || 'Unknown'}</span>
+          </div>
+        </td>
         <td className="px-4 py-3">
           <PriorityBadge
             priority={project.priority}

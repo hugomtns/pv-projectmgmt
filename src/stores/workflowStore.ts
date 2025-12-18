@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Workflow, Stage, TaskTemplate } from '@/lib/types';
+import { defaultWorkflow } from '@/data/seedData';
 
 interface WorkflowState {
   workflow: Workflow;
@@ -82,7 +83,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         }
       })),
 
-      resetToDefault: () => set({ workflow: { stages: [] } })
+      resetToDefault: () => set({ workflow: defaultWorkflow })
     }),
     { name: 'workflow-storage-v2' }
   )

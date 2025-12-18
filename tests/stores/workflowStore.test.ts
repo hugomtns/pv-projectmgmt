@@ -148,14 +148,15 @@ describe('workflowStore', () => {
   });
 
   describe('resetToDefault', () => {
-    it('should reset workflow to empty state', () => {
-      const stage: Omit<Stage, 'id'> = { name: 'Design', color: '#3b82f6', taskTemplates: [] };
+    it('should reset workflow to default workflow', () => {
+      const stage: Omit<Stage, 'id'> = { name: 'Custom Stage', color: '#3b82f6', taskTemplates: [] };
       useWorkflowStore.getState().addStage(stage);
 
       useWorkflowStore.getState().resetToDefault();
 
       const { workflow } = useWorkflowStore.getState();
-      expect(workflow.stages).toHaveLength(0);
+      expect(workflow.stages).toHaveLength(8); // Default workflow has 8 stages
+      expect(workflow.stages[0].name).toBe('Initiation');
     });
   });
 });

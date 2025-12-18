@@ -5,6 +5,7 @@ import { StageCard } from '@/components/workflow/StageCard';
 import { StageEditor } from '@/components/workflow/StageEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { defaultWorkflow } from '@/data/seedData';
 import {
   DndContext,
   closestCenter,
@@ -28,6 +29,7 @@ export function WorkflowSettings() {
   const removeStage = useWorkflowStore((state) => state.removeStage);
   const reorderStages = useWorkflowStore((state) => state.reorderStages);
   const addStage = useWorkflowStore((state) => state.addStage);
+  const resetToDefault = useWorkflowStore((state) => state.resetToDefault);
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [newStageName, setNewStageName] = useState('');
@@ -77,17 +79,33 @@ export function WorkflowSettings() {
     setIsAdding(false);
   };
 
+  const handleResetToDefault = () => {
+    if (
+      confirm(
+        'Reset workflow to default?\n\nThis will restore the default 8-stage workflow. This change only affects new projects - existing projects will keep their current stage assignments.\n\nAre you sure you want to continue?'
+      )
+    ) {
+      resetToDefault();
+      useWorkflowStore.setState({ workflow: defaultWorkflow });
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
       <Header title="Workflow Settings" />
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header section */}
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Workflow Stages</h2>
-            <p className="text-sm text-muted-foreground">
-              Configure the stages that projects move through. Each stage can have task templates.
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold">Workflow Stages</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure the stages that projects move through. Each stage can have task templates.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleResetToDefault}>
+              Reset to Default
+            </Button>
           </div>
 
           {/* Workflow diagram */}
