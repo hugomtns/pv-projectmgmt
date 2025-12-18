@@ -10,9 +10,17 @@ interface ProjectCardProps {
   onUpdatePriority: (priority: Priority) => void;
   tasksCompleted: number;
   tasksTotal: number;
+  onProjectHover?: (projectId: string | null) => void;
 }
 
-export function ProjectCard({ project, stageName, onUpdatePriority, tasksCompleted, tasksTotal }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  stageName,
+  onUpdatePriority,
+  tasksCompleted,
+  tasksTotal,
+  onProjectHover,
+}: ProjectCardProps) {
   const selectProject = useProjectStore((state) => state.selectProject);
   const {
     attributes,
@@ -44,6 +52,8 @@ export function ProjectCard({ project, stageName, onUpdatePriority, tasksComplet
       {...attributes}
       {...listeners}
       onClick={handleClick}
+      onMouseEnter={() => onProjectHover?.(project.id)}
+      onMouseLeave={() => onProjectHover?.(null)}
       className="rounded-lg border border-border bg-card p-4 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
     >
       <div className="space-y-3">

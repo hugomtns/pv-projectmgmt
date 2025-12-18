@@ -17,7 +17,11 @@ import {
 import { useState } from 'react';
 import { ProjectCard } from './ProjectCard';
 
-export function ProjectBoard() {
+interface ProjectBoardProps {
+  onProjectHover?: (projectId: string | null) => void;
+}
+
+export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
   const projects = useProjectStore((state) => state.projects);
   const updateProject = useProjectStore((state) => state.updateProject);
   const workflow = useWorkflowStore((state) => state.workflow);
@@ -193,6 +197,7 @@ export function ProjectBoard() {
                   getStageName={getStageName}
                   onUpdatePriority={handleUpdatePriority}
                   getTasksInfo={getTasksInfo}
+                  onProjectHover={onProjectHover}
                 />
               );
             })}
@@ -242,6 +247,7 @@ export function ProjectBoard() {
                       getStageName={getStageName}
                       onUpdatePriority={handleUpdatePriority}
                       getTasksInfo={getTasksInfo}
+                      onProjectHover={onProjectHover}
                     />
                   );
                 })}

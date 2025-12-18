@@ -6,7 +6,11 @@ import { PriorityBadge } from './PriorityBadge';
 import { PRIORITY_LABELS } from '@/lib/constants';
 import type { Priority, Project } from '@/lib/types';
 
-export function ProjectList() {
+interface ProjectListProps {
+  onProjectHover?: (projectId: string | null) => void;
+}
+
+export function ProjectList({ onProjectHover }: ProjectListProps) {
   const projects = useProjectStore((state) => state.projects);
   const updateProject = useProjectStore((state) => state.updateProject);
   const workflow = useWorkflowStore((state) => state.workflow);
@@ -135,7 +139,13 @@ export function ProjectList() {
     const selectProject = useProjectStore((state) => state.selectProject);
 
     return (
-      <tr key={project.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => selectProject(project.id)}>
+      <tr
+        key={project.id}
+        className="hover:bg-muted/50 cursor-pointer"
+        onClick={() => selectProject(project.id)}
+        onMouseEnter={() => onProjectHover?.(project.id)}
+        onMouseLeave={() => onProjectHover?.(null)}
+      >
         <td className="px-4 py-3 text-sm font-medium">{project.name}</td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">

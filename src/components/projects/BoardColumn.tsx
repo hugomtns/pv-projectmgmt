@@ -11,6 +11,7 @@ interface BoardColumnProps {
   getStageName: (stageId: string) => string;
   onUpdatePriority: (projectId: string, priority: Priority) => void;
   getTasksInfo: (project: Project) => { completed: number; total: number };
+  onProjectHover?: (projectId: string | null) => void;
 }
 
 export function BoardColumn({
@@ -21,6 +22,7 @@ export function BoardColumn({
   getStageName,
   onUpdatePriority,
   getTasksInfo,
+  onProjectHover,
 }: BoardColumnProps) {
   const { setNodeRef } = useDroppable({
     id: columnId,
@@ -54,6 +56,7 @@ export function BoardColumn({
                   onUpdatePriority={(priority) => onUpdatePriority(project.id, priority)}
                   tasksCompleted={completed}
                   tasksTotal={total}
+                  onProjectHover={onProjectHover}
                 />
               );
             })
