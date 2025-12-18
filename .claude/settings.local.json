@@ -20,7 +20,8 @@
       "mcp__shadcn__getComponent",
       "Bash(Progress\", and \"Complete\". Each status option displays with a visual\nindicator \\(gray ○, blue •, green ✓\\) for clear identification.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(npx shadcn@latest add:*)",
-      "Skill(shadcn-ui)"
+      "Skill(shadcn-ui)",
+      "Bash(ls:*)"
     ]
   },
   "enabledMcpjsonServers": [
