@@ -7,12 +7,12 @@ import { PRIORITY_LABELS, PRIORITY_COLORS } from '@/lib/constants';
 import type { Project, Priority } from '@/lib/types';
 import {
   DndContext,
-  DragEndEvent,
   DragOverlay,
-  DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import { useState } from 'react';
 import { ProjectCard } from './ProjectCard';
