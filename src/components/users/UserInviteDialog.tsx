@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { useUserStore } from '@/stores/userStore';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -13,7 +19,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-export function UserInviteForm() {
+interface UserInviteDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function UserInviteDialog({ open, onOpenChange }: UserInviteDialogProps) {
   const addUser = useUserStore(state => state.addUser);
   const roles = useUserStore(state => state.roles);
 
@@ -54,21 +65,27 @@ export function UserInviteForm() {
       description: `${firstName} ${lastName} has been added to the system.`,
     });
 
-    // Clear form
+    // Clear form and close dialog
     setFirstName('');
     setLastName('');
     setEmail('');
     setFunctionTitle('');
     setRoleId('');
+    onOpenChange(false);
+  };
+
+  const handleCancel = () => {
+    onOpenChange(false);
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Invite New User</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Invite New User</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name *</Label>
@@ -128,11 +145,16 @@ export function UserInviteForm() {
             </Select>
           </div>
 
-          <Button type="submit" className="w-full">
-            Invite User
-          </Button>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              Invite User
+            </Button>
+          </DialogFooter>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }
