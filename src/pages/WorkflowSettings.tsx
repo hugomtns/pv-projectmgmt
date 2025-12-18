@@ -1,8 +1,21 @@
 import { Header } from '@/components/layout/Header';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import { StageCard } from '@/components/workflow/StageCard';
 
 export function WorkflowSettings() {
   const workflow = useWorkflowStore((state) => state.workflow);
+  const removeStage = useWorkflowStore((state) => state.removeStage);
+
+  const handleEdit = (stageId: string) => {
+    // Will be implemented in P9-4
+    console.log('Edit stage:', stageId);
+  };
+
+  const handleDelete = (stageId: string, stageName: string) => {
+    if (confirm(`Are you sure you want to delete the "${stageName}" stage? This will affect the workflow for new projects.`)) {
+      removeStage(stageId);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -20,29 +33,13 @@ export function WorkflowSettings() {
           {/* Workflow diagram */}
           <div className="space-y-3">
             {workflow.stages.map((stage, index) => (
-              <div
+              <StageCard
                 key={stage.id}
-                className="flex items-center gap-4 rounded-lg border border-border bg-card p-4"
-              >
-                {/* Stage number */}
-                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-muted text-sm font-semibold shrink-0">
-                  {index + 1}
-                </div>
-
-                {/* Stage color indicator */}
-                <div
-                  className="h-10 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: stage.color }}
-                />
-
-                {/* Stage info */}
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium">{stage.name}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {stage.taskTemplates.length} task template{stage.taskTemplates.length !== 1 ? 's' : ''}
-                  </div>
-                </div>
-              </div>
+                stage={stage}
+                index={index}
+                onEdit={() => handleEdit(stage.id)}
+                onDelete={() => handleDelete(stage.id, stage.name)}
+              />
             ))}
           </div>
 
