@@ -1,9 +1,11 @@
 import React from 'react';
+import { ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useFilterStore } from '@/stores/filterStore';
 import { useDisplayStore } from '@/stores/displayStore';
 import { useUserStore } from '@/stores/userStore';
+import { Button } from '@/components/ui/button';
 import { PriorityBadge } from './PriorityBadge';
 import { UserDisplay } from '@/components/users/UserDisplay';
 import { getUserDisplayName } from '@/lib/userUtils';
@@ -31,6 +33,18 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
     // Toggle direction if same field, otherwise default to asc
     const newDirection = currentField === field && currentDirection === 'asc' ? 'desc' : 'asc';
     updateListSettings({ ordering: { field, direction: newDirection } });
+  };
+
+  const getSortIcon = (field: string) => {
+    const currentField = settings.list.ordering.field;
+    const currentDirection = settings.list.ordering.direction;
+
+    if (currentField !== field) {
+      return <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />;
+    }
+    return currentDirection === 'asc'
+      ? <ArrowUp className="h-3.5 w-3.5" />
+      : <ArrowDown className="h-3.5 w-3.5" />;
   };
 
   // Apply filters
@@ -201,81 +215,81 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
       style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(80px, 0.67fr)' }}
     >
       <div className="px-4 py-3">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('name')}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto p-0 font-medium"
         >
           Name
-          {settings.list.ordering.field === 'name' && (
-            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-          )}
-        </button>
+          {getSortIcon('name')}
+        </Button>
       </div>
       <div className="px-4 py-3">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('stage')}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto p-0 font-medium"
         >
           Stage
-          {settings.list.ordering.field === 'stage' && (
-            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-          )}
-        </button>
+          {getSortIcon('stage')}
+        </Button>
       </div>
       <div className="px-4 py-3">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('priority')}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto p-0 font-medium"
         >
           Priority
-          {settings.list.ordering.field === 'priority' && (
-            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-          )}
-        </button>
+          {getSortIcon('priority')}
+        </Button>
       </div>
       <div className="px-4 py-3">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('owner')}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto p-0 font-medium"
         >
           Owner
-          {settings.list.ordering.field === 'owner' && (
-            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-          )}
-        </button>
+          {getSortIcon('owner')}
+        </Button>
       </div>
       <div className="px-4 py-3">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('location')}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto p-0 font-medium"
         >
           Location
-          {settings.list.ordering.field === 'location' && (
-            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-          )}
-        </button>
+          {getSortIcon('location')}
+        </Button>
       </div>
       <div className="px-4 py-3">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('updatedAt')}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto p-0 font-medium"
         >
           Updated
-          {settings.list.ordering.field === 'updatedAt' && (
-            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-          )}
-        </button>
+          {getSortIcon('updatedAt')}
+        </Button>
       </div>
       <div className="px-4 py-3">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('tasks')}
-          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto p-0 font-medium"
         >
           Tasks
-          {settings.list.ordering.field === 'tasks' && (
-            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
-          )}
-        </button>
+          {getSortIcon('tasks')}
+        </Button>
       </div>
     </div>
   );

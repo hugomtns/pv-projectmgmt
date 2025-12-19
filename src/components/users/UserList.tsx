@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores/userStore';
 import { useUserFilterStore } from '@/stores/userFilterStore';
 import { usePermission } from '@/hooks/usePermission';
 import { toast } from 'sonner';
+import { UserAvatar } from './UserAvatar';
 import type { User } from '@/lib/types';
 
 interface UserListProps {
@@ -225,11 +226,15 @@ export function UserList({ onEditUser }: UserListProps) {
             style={{ gridTemplateColumns: GRID_COLS }}
           >
             <div
-              className="px-4 py-3 text-sm font-medium truncate cursor-pointer"
-              title={`${user.firstName} ${user.lastName}`}
+              className="px-4 py-3 cursor-pointer"
               onClick={() => onEditUser?.(user)}
             >
-              {user.firstName} {user.lastName}
+              <div className="flex items-center gap-2">
+                <UserAvatar userId={user.id} size="sm" showTooltip={false} />
+                <span className="text-sm font-medium truncate" title={`${user.firstName} ${user.lastName}`}>
+                  {user.firstName} {user.lastName}
+                </span>
+              </div>
             </div>
             <div
               className="px-4 py-3 text-sm truncate cursor-pointer"
