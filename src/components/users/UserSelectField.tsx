@@ -32,7 +32,7 @@ export function UserSelectField({ value, onValueChange, placeholder = "Select us
               {selectedUser.firstName} {selectedUser.lastName}
             </span>
             {selectedRole && (
-              <span className="text-xs text-muted-foreground ml-auto">
+              <span className="text-xs text-muted-foreground shrink-0">
                 {selectedRole.name}
               </span>
             )}
