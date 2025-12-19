@@ -100,12 +100,14 @@ export function Projects() {
         </div>
       </Header>
       <ActiveFilters />
-      <div key={view} className="animate-in fade-in duration-300">
-        {view === 'list' ? (
-          <ProjectList onProjectHover={setHoveredProjectId} />
-        ) : (
-          <ProjectBoard onProjectHover={setHoveredProjectId} />
-        )}
+      <div className="flex-1 overflow-auto">
+        <div key={view} className="animate-in fade-in duration-300 h-full">
+          {view === 'list' ? (
+            <ProjectList onProjectHover={setHoveredProjectId} />
+          ) : (
+            <ProjectBoard onProjectHover={setHoveredProjectId} />
+          )}
+        </div>
       </div>
       <CreateProjectDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
       <ProjectDetail />
