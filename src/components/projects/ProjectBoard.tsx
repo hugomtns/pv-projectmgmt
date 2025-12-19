@@ -322,6 +322,8 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
                   />
                 );
               })}
+              {/* Spacer for right-side symmetry */}
+              <div className="w-3 md:w-6 shrink-0" aria-hidden="true" />
             </div>
           </div>
         </div>
