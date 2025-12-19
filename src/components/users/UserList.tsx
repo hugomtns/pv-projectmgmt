@@ -46,11 +46,11 @@ export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
 
   const getSortIcon = (key: SortKey) => {
     if (!sortConfig || sortConfig.key !== key) {
-      return <ChevronsUpDown className="h-3.5 w-3.5 ml-1 opacity-50" />;
+      return <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />;
     }
     return sortConfig.direction === 'asc'
-      ? <ArrowUp className="h-3.5 w-3.5 ml-1" />
-      : <ArrowDown className="h-3.5 w-3.5 ml-1" />;
+      ? <ArrowUp className="h-3.5 w-3.5" />
+      : <ArrowDown className="h-3.5 w-3.5" />;
   };
 
   const getGroupNames = (groupIds: string[]): string => {
@@ -141,49 +141,59 @@ export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
           <TableHeader>
             <TableRow>
               <TableHead>
-                <button
-                  className="flex items-center font-medium hover:text-foreground"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleSort('name')}
+                  className="h-auto p-0 font-medium"
                 >
                   Name
                   {getSortIcon('name')}
-                </button>
+                </Button>
               </TableHead>
               <TableHead>
-                <button
-                  className="flex items-center font-medium hover:text-foreground"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleSort('email')}
+                  className="h-auto p-0 font-medium"
                 >
                   Email
                   {getSortIcon('email')}
-                </button>
+                </Button>
               </TableHead>
               <TableHead>
-                <button
-                  className="flex items-center font-medium hover:text-foreground"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleSort('function')}
+                  className="h-auto p-0 font-medium"
                 >
                   Function
                   {getSortIcon('function')}
-                </button>
+                </Button>
               </TableHead>
               <TableHead>
-                <button
-                  className="flex items-center font-medium hover:text-foreground"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleSort('role')}
+                  className="h-auto p-0 font-medium"
                 >
                   Role
                   {getSortIcon('role')}
-                </button>
+                </Button>
               </TableHead>
               <TableHead>
-                <button
-                  className="flex items-center font-medium hover:text-foreground"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleSort('groups')}
+                  className="h-auto p-0 font-medium"
                 >
                   Groups
                   {getSortIcon('groups')}
-                </button>
+                </Button>
               </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -219,7 +229,7 @@ export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
                           size="sm"
                           onClick={() => onEditUser?.(user)}
                         >
-                          <Pencil className="h-4 w-4 mr-1.5" />
+                          <Pencil className="h-4 w-4" />
                           Edit
                         </Button>
                       )}
@@ -230,7 +240,7 @@ export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
                           onClick={() => handleDelete(user)}
                           className="text-destructive hover:text-destructive"
                         >
-                          <Trash2 className="h-4 w-4 mr-1.5" />
+                          <Trash2 className="h-4 w-4" />
                           Delete
                         </Button>
                       )}
