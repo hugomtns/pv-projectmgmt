@@ -61,6 +61,10 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
         aVal = a.name;
         bVal = b.name;
         break;
+      case 'stage':
+        aVal = workflow.stages.findIndex(s => s.id === a.currentStageId);
+        bVal = workflow.stages.findIndex(s => s.id === b.currentStageId);
+        break;
       case 'priority':
         aVal = a.priority;
         bVal = b.priority;
@@ -77,6 +81,15 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
         aVal = a.updatedAt;
         bVal = b.updatedAt;
         break;
+      case 'tasks': {
+        const aCurrentStageTasks = a.stages[a.currentStageId]?.tasks || [];
+        const bCurrentStageTasks = b.stages[b.currentStageId]?.tasks || [];
+        const aCompletedTasks = aCurrentStageTasks.filter(t => t.status === 'complete').length;
+        const bCompletedTasks = bCurrentStageTasks.filter(t => t.status === 'complete').length;
+        aVal = aCompletedTasks / (aCurrentStageTasks.length || 1);
+        bVal = bCompletedTasks / (bCurrentStageTasks.length || 1);
+        break;
+      }
       default:
         aVal = a.name;
         bVal = b.name;
@@ -191,7 +204,17 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
           )}
         </button>
       </div>
-      <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Stage</div>
+      <div className="px-4 py-3">
+        <button
+          onClick={() => handleSort('stage')}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Stage
+          {settings.list.ordering.field === 'stage' && (
+            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      </div>
       <div className="px-4 py-3">
         <button
           onClick={() => handleSort('priority')}
@@ -236,7 +259,17 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
           )}
         </button>
       </div>
-      <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Tasks</div>
+      <div className="px-4 py-3">
+        <button
+          onClick={() => handleSort('tasks')}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+        >
+          Tasks
+          {settings.list.ordering.field === 'tasks' && (
+            <span>{settings.list.ordering.direction === 'asc' ? '↑' : '↓'}</span>
+          )}
+        </button>
+      </div>
     </div>
   );
 
