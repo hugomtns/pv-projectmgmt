@@ -3,7 +3,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import { useUserStore } from '@/stores/userStore';
 import { UserAvatar } from './UserAvatar';
@@ -19,25 +18,45 @@ export function UserSelectField({ value, onValueChange, placeholder = "Select us
   const users = useUserStore(state => state.users);
   const roles = useUserStore(state => state.roles);
 
+  // Get selected user for custom trigger display
+  const selectedUser = users.find(u => u.id === value);
+  const selectedRole = selectedUser ? roles.find(r => r.id === selectedUser.roleId) : null;
+
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder} />
+        {selectedUser ? (
+          <div className="flex items-center gap-2 w-full">
+            <UserAvatar userId={selectedUser.id} size="sm" showTooltip={false} />
+            <span className="font-medium truncate">
+              {selectedUser.firstName} {selectedUser.lastName}
+            </span>
+            {selectedRole && (
+              <span className="text-xs text-muted-foreground ml-auto">
+                {selectedRole.name}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
+        )}
       </SelectTrigger>
       <SelectContent>
         {users.map((user) => {
           const role = roles.find(r => r.id === user.roleId);
           return (
             <SelectItem key={user.id} value={user.id}>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 py-1">
                 <UserAvatar userId={user.id} size="sm" showTooltip={false} />
-                <div className="flex flex-col">
-                  <span className="font-medium">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className="font-medium truncate">
                     {user.firstName} {user.lastName}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {role?.name || 'Unknown'} • {user.email}
-                  </span>
+                  {role && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {role.name}
+                    </span>
+                  )}
                 </div>
               </div>
             </SelectItem>
