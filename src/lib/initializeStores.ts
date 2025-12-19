@@ -1,9 +1,13 @@
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUserStore } from '@/stores/userStore';
+import { useFilterStore } from '@/stores/filterStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
 import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
+
+// Data version - increment this to force a data refresh
+const DATA_VERSION = 2;
 
 /**
  * Migrate old task data structure from 'name' to 'title' field
@@ -52,11 +56,78 @@ function migrateTaskData() {
 }
 
 /**
+ * Migrate filter store from old owner string to new owners array
+ */
+function migrateFilterStore() {
+  const filterState = useFilterStore.getState();
+  const filters = filterState.filters;
+
+  // Check if old schema with string owner exists
+  if (typeof (filters as any).owner === 'string') {
+    const oldOwner = (filters as any).owner;
+    useFilterStore.setState({
+      filters: {
+        ...filters,
+        owners: oldOwner ? [oldOwner] : [],
+      }
+    });
+    console.log('✓ Migrated filter store owner field to owners array');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
+ * Also checks data version and forces refresh if version has changed.
  */
 export function initializeStores() {
   try {
+    // Check stored data version
+    const storedVersion = localStorage.getItem('data-version');
+    const needsRefresh = !storedVersion || parseInt(storedVersion) < DATA_VERSION;
+
+    if (needsRefresh) {
+      console.log(`Data version mismatch (stored: ${storedVersion}, current: ${DATA_VERSION}). Refreshing seed data...`);
+
+      // Clear all stores and re-seed
+      useWorkflowStore.setState({ workflow: defaultWorkflow });
+
+      // Clear projects and re-add
+      useProjectStore.setState({ projects: [] });
+      mockProjects.forEach((project) => {
+        useProjectStore.getState().addProject(project);
+      });
+
+      // Clear and re-seed user store
+      useUserStore.setState({
+        users: seedUsers,
+        groups: seedGroups,
+        roles: seedRoles,
+        permissionOverrides: [],
+        currentUser: seedUsers[0], // Set admin as default current user
+      });
+
+      // Reset filters
+      useFilterStore.setState({
+        filters: {
+          stages: [],
+          priorities: [],
+          owners: [],
+          search: '',
+        },
+      });
+
+      // Update stored version
+      localStorage.setItem('data-version', DATA_VERSION.toString());
+
+      console.log('✓ All stores refreshed with new seed data (version ' + DATA_VERSION + ')');
+      toast.success('Data refreshed', {
+        description: 'Seed data has been updated to the latest version.',
+      });
+
+      return;
+    }
+
     const workflowState = useWorkflowStore.getState();
     const projectState = useProjectStore.getState();
 
@@ -76,6 +147,7 @@ export function initializeStores() {
     } else {
       // Run migrations on existing data
       migrateTaskData();
+      migrateFilterStore();
     }
 
     // Initialize user store if empty
@@ -93,6 +165,11 @@ export function initializeStores() {
         currentUser: seedUsers[0], // Set admin as default current user
       });
       console.log('✓ User store initialized with seed data');
+    }
+
+    // Store current version if not set
+    if (!storedVersion) {
+      localStorage.setItem('data-version', DATA_VERSION.toString());
     }
   } catch (error) {
     console.error('Failed to initialize stores:', error);

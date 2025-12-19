@@ -1,27 +1,35 @@
 import { useFilterStore } from '@/stores/filterStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUserStore } from '@/stores/userStore';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
+import { UserAvatar } from '@/components/users/UserAvatar';
+import { getUserDisplayName } from '@/lib/userUtils';
 import { PRIORITY_LABELS } from '@/lib/constants';
 import type { Priority } from '@/lib/types';
 
 export function FilterBar() {
   const filters = useFilterStore((state) => state.filters);
-  const { setStageFilter, setPriorityFilter, setOwnerFilter } = useFilterStore();
+  const { setStageFilter, setPriorityFilter, setOwnersFilter } = useFilterStore();
   const workflow = useWorkflowStore((state) => state.workflow);
   const projects = useProjectStore((state) => state.projects);
+  const users = useUserStore((state) => state.users);
 
-  // Calculate counts for each stage and priority
+  // Calculate counts for each stage, priority, and owner
   const stageCounts = new Map<string, number>();
   const priorityCounts = new Map<Priority, number>();
+  const ownerCounts = new Map<string, number>();
 
   projects.forEach((project) => {
     stageCounts.set(project.currentStageId, (stageCounts.get(project.currentStageId) || 0) + 1);
     priorityCounts.set(project.priority, (priorityCounts.get(project.priority) || 0) + 1);
+    ownerCounts.set(project.owner, (ownerCounts.get(project.owner) || 0) + 1);
   });
+
+  // Get unique owners from projects
+  const uniqueOwners = Array.from(new Set(projects.map(p => p.owner)));
 
   const handleStageToggle = (stageId: string) => {
     const newStages = filters.stages.includes(stageId)
@@ -37,8 +45,15 @@ export function FilterBar() {
     setPriorityFilter(newPriorities);
   };
 
+  const handleOwnerToggle = (ownerId: string) => {
+    const newOwners = filters.owners.includes(ownerId)
+      ? filters.owners.filter((id) => id !== ownerId)
+      : [...filters.owners, ownerId];
+    setOwnersFilter(newOwners);
+  };
+
   const activeFilterCount =
-    filters.stages.length + filters.priorities.length + (filters.owner ? 1 : 0);
+    filters.stages.length + filters.priorities.length + filters.owners.length;
 
   return (
     <Popover>
@@ -108,11 +123,31 @@ export function FilterBar() {
 
           <div>
             <h4 className="font-medium text-sm mb-3">Owner</h4>
-            <Input
-              placeholder="Filter by owner..."
-              value={filters.owner}
-              onChange={(e) => setOwnerFilter(e.target.value)}
-            />
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {uniqueOwners.map((ownerId) => {
+                const displayName = getUserDisplayName(ownerId, users);
+                const count = ownerCounts.get(ownerId) || 0;
+                return (
+                  <div key={ownerId} className="flex items-center justify-between space-x-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`owner-${ownerId}`}
+                        checked={filters.owners.includes(ownerId)}
+                        onCheckedChange={() => handleOwnerToggle(ownerId)}
+                      />
+                      <UserAvatar userId={ownerId} size="xs" showTooltip={false} />
+                      <label
+                        htmlFor={`owner-${ownerId}`}
+                        className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {displayName}
+                      </label>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </PopoverContent>

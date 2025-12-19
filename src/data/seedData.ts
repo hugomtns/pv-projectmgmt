@@ -166,7 +166,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     name: 'Sunnyvale Community Center',
     location: 'Sunnyvale, CA',
     priority: 1,
-    owner: 'Sarah Johnson',
+    owner: 'user-jessica-martinez',
     currentStageId: 'stage-5-construction',
     stages: {
       'stage-1-initiation': {
@@ -176,7 +176,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-1',
             title: 'Initial site assessment',
             description: 'Conduct preliminary site visit and feasibility analysis',
-            assignee: 'Site Team',
+            assignee: 'user-alex-johnson',
             dueDate: '2024-01-20',
             status: 'complete' as const,
             comments: []
@@ -185,7 +185,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-2',
             title: 'Project charter creation',
             description: 'Draft and approve project charter with stakeholders',
-            assignee: 'Sarah Johnson',
+            assignee: 'user-jessica-martinez',
             dueDate: '2024-01-25',
             status: 'complete' as const,
             comments: []
@@ -199,7 +199,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-3',
             title: 'Site preparation',
             description: 'Prepare site and install mounting structures',
-            assignee: 'Construction Crew',
+            assignee: 'user-liam-miller',
             dueDate: '2024-11-10',
             status: 'complete' as const,
             comments: []
@@ -208,7 +208,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-4',
             title: 'Panel installation',
             description: 'Install solar panels and complete wiring',
-            assignee: 'Installation Team',
+            assignee: 'user-liam-miller',
             dueDate: '2024-11-20',
             status: 'in_progress' as const,
             comments: []
@@ -217,7 +217,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-5',
             title: 'Inverter and electrical',
             description: 'Install inverters and complete electrical connections',
-            assignee: 'Electrical Team',
+            assignee: 'user-alex-johnson',
             dueDate: null,
             status: 'not_started' as const,
             comments: []
@@ -230,7 +230,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     name: 'Green Valley Industrial Park',
     location: 'Phoenix, AZ',
     priority: 2,
-    owner: 'James Martinez',
+    owner: 'user-david-thompson',
     currentStageId: 'stage-3-permitting',
     stages: {
       'stage-3-permitting': {
@@ -240,7 +240,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-6',
             title: 'Submit permit applications',
             description: 'Submit all required building and electrical permits',
-            assignee: 'Permitting Team',
+            assignee: 'user-grace-lee',
             dueDate: '2024-10-20',
             status: 'complete' as const,
             comments: []
@@ -249,7 +249,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-7',
             title: 'Utility interconnection agreement',
             description: 'Secure utility approval for grid connection',
-            assignee: 'James Martinez',
+            assignee: 'user-david-thompson',
             dueDate: '2024-11-01',
             status: 'in_progress' as const,
             comments: []
@@ -258,7 +258,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-8',
             title: 'Obtain permits',
             description: 'Receive all approved permits from authorities',
-            assignee: 'Permitting Team',
+            assignee: '',
             dueDate: null,
             status: 'not_started' as const,
             comments: []
@@ -271,7 +271,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     name: 'Riverside Office Complex',
     location: 'Austin, TX',
     priority: 3,
-    owner: 'Emily Rodriguez',
+    owner: 'user-rachel-kim',
     currentStageId: 'stage-2-design',
     stages: {
       'stage-2-design': {
@@ -281,7 +281,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-9',
             title: 'System design',
             description: 'Design PV system layout and electrical specifications',
-            assignee: 'Design Team',
+            assignee: 'user-alex-johnson',
             dueDate: '2024-11-25',
             status: 'complete' as const,
             comments: []
@@ -290,7 +290,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-10',
             title: 'Engineering drawings',
             description: 'Create detailed engineering and CAD drawings',
-            assignee: 'Emily Rodriguez',
+            assignee: 'user-emma-wilson',
             dueDate: '2024-12-05',
             status: 'in_progress' as const,
             comments: []
@@ -299,7 +299,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-11',
             title: 'Design review',
             description: 'Conduct internal design review and approval',
-            assignee: 'Senior Engineer',
+            assignee: 'user-olivia-brown',
             dueDate: null,
             status: 'not_started' as const,
             comments: []
@@ -312,7 +312,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     name: 'Mountain View Residence',
     location: 'Denver, CO',
     priority: 4,
-    owner: 'David Kim',
+    owner: 'user-sarah-chen',
     currentStageId: 'stage-1-initiation',
     stages: {
       'stage-1-initiation': {
@@ -322,7 +322,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-12',
             title: 'Initial site assessment',
             description: 'Conduct preliminary site visit and feasibility analysis',
-            assignee: 'David Kim',
+            assignee: 'user-james-anderson',
             dueDate: '2024-12-15',
             status: 'in_progress' as const,
             comments: []
@@ -331,7 +331,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-13',
             title: 'Project charter creation',
             description: 'Draft and approve project charter with stakeholders',
-            assignee: 'Project Manager',
+            assignee: 'user-sarah-chen',
             dueDate: null,
             status: 'not_started' as const,
             comments: []
@@ -344,7 +344,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     name: 'Harbor Bay Warehouse',
     location: 'Seattle, WA',
     priority: 0,
-    owner: 'Lisa Anderson',
+    owner: 'user-william-davis',
     currentStageId: 'stage-4-procurement',
     stages: {
       'stage-4-procurement': {
@@ -354,7 +354,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-14',
             title: 'Equipment ordering',
             description: 'Order solar panels, inverters, and mounting hardware',
-            assignee: 'Procurement Team',
+            assignee: 'user-sophia-garcia',
             dueDate: null,
             status: 'not_started' as const,
             comments: []
@@ -363,7 +363,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-15',
             title: 'Delivery coordination',
             description: 'Coordinate delivery schedule with site readiness',
-            assignee: 'Lisa Anderson',
+            assignee: 'user-william-davis',
             dueDate: null,
             status: 'not_started' as const,
             comments: []
@@ -376,7 +376,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     name: 'Oak Street Apartments',
     location: 'Portland, OR',
     priority: 2,
-    owner: 'Robert Taylor',
+    owner: 'user-michael-roberts',
     currentStageId: 'stage-6-commissioning',
     stages: {
       'stage-6-commissioning': {
@@ -386,7 +386,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-16',
             title: 'System testing',
             description: 'Test all electrical systems and performance',
-            assignee: 'QA Team',
+            assignee: 'user-james-anderson',
             dueDate: '2024-12-05',
             status: 'complete' as const,
             comments: []
@@ -395,7 +395,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-17',
             title: 'Final inspection',
             description: 'Pass final inspection from building department',
-            assignee: 'Inspector',
+            assignee: 'user-grace-lee',
             dueDate: '2024-12-10',
             status: 'complete' as const,
             comments: []
@@ -404,7 +404,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             id: 'task-18',
             title: 'Utility approval',
             description: 'Obtain permission to operate from utility',
-            assignee: 'Robert Taylor',
+            assignee: 'user-michael-roberts',
             dueDate: '2024-12-18',
             status: 'in_progress' as const,
             comments: []

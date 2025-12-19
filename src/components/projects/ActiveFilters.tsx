@@ -1,19 +1,22 @@
 import { useFilterStore } from '@/stores/filterStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import { useUserStore } from '@/stores/userStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { getUserDisplayName } from '@/lib/userUtils';
 import { PRIORITY_LABELS } from '@/lib/constants';
 import type { Priority } from '@/lib/types';
 
 export function ActiveFilters() {
   const filters = useFilterStore((state) => state.filters);
-  const { setStageFilter, setPriorityFilter, setOwnerFilter, setSearch, clearFilters } = useFilterStore();
+  const { setStageFilter, setPriorityFilter, setOwnersFilter, setSearch, clearFilters } = useFilterStore();
   const workflow = useWorkflowStore((state) => state.workflow);
+  const users = useUserStore((state) => state.users);
 
   const hasActiveFilters =
     filters.stages.length > 0 ||
     filters.priorities.length > 0 ||
-    filters.owner !== '' ||
+    filters.owners.length > 0 ||
     filters.search !== '';
 
   if (!hasActiveFilters) return null;
@@ -26,8 +29,8 @@ export function ActiveFilters() {
     setPriorityFilter(filters.priorities.filter((p) => p !== priority));
   };
 
-  const removeOwner = () => {
-    setOwnerFilter('');
+  const removeOwner = (ownerId: string) => {
+    setOwnersFilter(filters.owners.filter((id) => id !== ownerId));
   };
 
   const removeSearch = () => {
@@ -67,14 +70,21 @@ export function ActiveFilters() {
         </Badge>
       ))}
 
-      {filters.owner && (
-        <Badge variant="secondary" className="gap-1">
-          Owner: {filters.owner}
-          <button onClick={removeOwner} className="ml-1 hover:text-foreground" aria-label="Remove owner filter">
-            ×
-          </button>
-        </Badge>
-      )}
+      {filters.owners.map((ownerId) => {
+        const ownerName = getUserDisplayName(ownerId, users);
+        return (
+          <Badge key={ownerId} variant="secondary" className="gap-1">
+            Owner: {ownerName}
+            <button
+              onClick={() => removeOwner(ownerId)}
+              className="ml-1 hover:text-foreground"
+              aria-label={`Remove ${ownerName} filter`}
+            >
+              ×
+            </button>
+          </Badge>
+        );
+      })}
 
       {filters.search && (
         <Badge variant="secondary" className="gap-1">

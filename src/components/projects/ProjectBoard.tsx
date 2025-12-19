@@ -98,7 +98,7 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
     if (filters.priorities.length > 0 && !filters.priorities.includes(project.priority)) {
       return false;
     }
-    if (filters.owner && !project.owner.toLowerCase().includes(filters.owner.toLowerCase())) {
+    if (filters.owners.length > 0 && !filters.owners.includes(project.owner)) {
       return false;
     }
     if (filters.search) {
@@ -223,7 +223,7 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
 
   if (filteredProjects.length === 0) {
     const hasActiveFilters =
-      filters.stages.length > 0 || filters.priorities.length > 0 || filters.owner || filters.search;
+      filters.stages.length > 0 || filters.priorities.length > 0 || filters.owners.length > 0 || filters.search;
 
     return (
       <div className="flex h-full items-center justify-center p-8">

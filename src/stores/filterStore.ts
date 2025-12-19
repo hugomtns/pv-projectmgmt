@@ -6,7 +6,7 @@ interface FilterState {
   // Actions
   setStageFilter: (stages: string[]) => void;
   setPriorityFilter: (priorities: Priority[]) => void;
-  setOwnerFilter: (owner: string) => void;
+  setOwnersFilter: (owners: string[]) => void;
   setSearch: (search: string) => void;
   clearFilters: () => void;
 }
@@ -14,7 +14,7 @@ interface FilterState {
 const defaultFilters: Filters = {
   stages: [],
   priorities: [],
-  owner: '',
+  owners: [],
   search: ''
 };
 
@@ -29,8 +29,8 @@ export const useFilterStore = create<FilterState>()((set) => ({
     filters: { ...state.filters, priorities }
   })),
 
-  setOwnerFilter: (owner) => set((state) => ({
-    filters: { ...state.filters, owner }
+  setOwnersFilter: (owners) => set((state) => ({
+    filters: { ...state.filters, owners }
   })),
 
   setSearch: (search) => set((state) => ({

@@ -85,7 +85,7 @@ export interface DisplaySettings {
 export interface Filters {
   stages: string[];
   priorities: Priority[];
-  owner: string;
+  owners: string[];
   search: string;
 }
 

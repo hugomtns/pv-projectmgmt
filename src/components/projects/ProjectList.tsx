@@ -3,7 +3,10 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useFilterStore } from '@/stores/filterStore';
 import { useDisplayStore } from '@/stores/displayStore';
+import { useUserStore } from '@/stores/userStore';
 import { PriorityBadge } from './PriorityBadge';
+import { UserDisplay } from '@/components/users/UserDisplay';
+import { getUserDisplayName } from '@/lib/userUtils';
 import { PRIORITY_LABELS } from '@/lib/constants';
 import type { Priority, Project } from '@/lib/types';
 
@@ -16,6 +19,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
   const updateProject = useProjectStore((state) => state.updateProject);
   const selectProject = useProjectStore((state) => state.selectProject);
   const workflow = useWorkflowStore((state) => state.workflow);
+  const users = useUserStore((state) => state.users);
   const filters = useFilterStore((state) => state.filters);
   const { settings } = useDisplayStore();
   const updateListSettings = useDisplayStore((state) => state.updateListSettings);
@@ -37,7 +41,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
     if (filters.priorities.length > 0 && !filters.priorities.includes(project.priority)) {
       return false;
     }
-    if (filters.owner && !project.owner.toLowerCase().includes(filters.owner.toLowerCase())) {
+    if (filters.owners.length > 0 && !filters.owners.includes(project.owner)) {
       return false;
     }
     if (filters.search) {
@@ -70,8 +74,8 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
         bVal = b.priority;
         break;
       case 'owner':
-        aVal = a.owner;
-        bVal = b.owner;
+        aVal = getUserDisplayName(a.owner, users).toLowerCase();
+        bVal = getUserDisplayName(b.owner, users).toLowerCase();
         break;
       case 'location':
         aVal = a.location;
@@ -134,7 +138,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
 
   if (sortedProjects.length === 0) {
     const hasActiveFilters =
-      filters.stages.length > 0 || filters.priorities.length > 0 || filters.owner || filters.search;
+      filters.stages.length > 0 || filters.priorities.length > 0 || filters.owners.length > 0 || filters.search;
 
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -184,7 +188,10 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
       const priority = parseInt(groupKey.split('-')[1]) as Priority;
       return PRIORITY_LABELS[priority];
     }
-    return groupKey; // owner name
+    if (grouping === 'owner') {
+      return getUserDisplayName(groupKey, users);
+    }
+    return groupKey;
   };
 
   // Render header row
@@ -304,7 +311,9 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
             onChange={(newPriority: Priority) => updateProject(project.id, { priority: newPriority })}
           />
         </div>
-        <div className="px-4 py-3 text-sm truncate" title={project.owner}>{project.owner}</div>
+        <div className="px-4 py-3">
+          <UserDisplay userId={project.owner} variant="compact" />
+        </div>
         <div className="px-4 py-3 text-sm text-muted-foreground truncate" title={project.location}>{project.location}</div>
         <div className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
           {new Date(project.updatedAt).toLocaleDateString()}

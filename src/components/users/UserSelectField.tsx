@@ -6,6 +6,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useUserStore } from '@/stores/userStore';
+import { UserAvatar } from './UserAvatar';
 
 interface UserSelectFieldProps {
   value: string;
@@ -28,13 +29,16 @@ export function UserSelectField({ value, onValueChange, placeholder = "Select us
           const role = roles.find(r => r.id === user.roleId);
           return (
             <SelectItem key={user.id} value={user.id}>
-              <div className="flex flex-col">
-                <span className="font-medium">
-                  {user.firstName} {user.lastName}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {role?.name || 'Unknown'} • {user.email}
-                </span>
+              <div className="flex items-center gap-2">
+                <UserAvatar userId={user.id} size="sm" showTooltip={false} />
+                <div className="flex flex-col">
+                  <span className="font-medium">
+                    {user.firstName} {user.lastName}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {role?.name || 'Unknown'} • {user.email}
+                  </span>
+                </div>
               </div>
             </SelectItem>
           );

@@ -1,4 +1,5 @@
 import { PriorityBadge } from './PriorityBadge';
+import { UserDisplay } from '@/components/users/UserDisplay';
 import { useProjectStore } from '@/stores/projectStore';
 import type { Project, Priority } from '@/lib/types';
 import { useSortable } from '@dnd-kit/sortable';
@@ -69,9 +70,9 @@ export function ProjectCard({
           </span>
         </div>
 
-        <div className="text-xs text-muted-foreground">
-          <div>{project.owner}</div>
-          <div className="mt-1">{stageName}</div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <UserDisplay userId={project.owner} variant="avatar-only" showRole />
+          <span>{stageName}</span>
         </div>
       </div>
     </div>

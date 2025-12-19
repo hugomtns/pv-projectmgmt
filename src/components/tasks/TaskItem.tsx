@@ -1,5 +1,6 @@
 import type { Task } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
+import { UserDisplay } from '@/components/users/UserDisplay';
 
 interface TaskItemProps {
   task: Task;
@@ -74,7 +75,14 @@ export function TaskItem({ task, onClick, onStatusToggle }: TaskItemProps) {
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium text-foreground truncate">{task.title}</div>
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-          {task.assignee && <span>Assigned to: {task.assignee}</span>}
+          {task.assignee ? (
+            <span className="flex items-center gap-1">
+              <span>Assigned:</span>
+              <UserDisplay userId={task.assignee} variant="compact" />
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Unassigned</span>
+          )}
           {task.dueDate && (
             <span className="flex items-center gap-1">
               Due: {formatDueDate(task.dueDate)}
