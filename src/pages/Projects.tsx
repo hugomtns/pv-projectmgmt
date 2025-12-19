@@ -79,7 +79,7 @@ export function Projects() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Projects">
         <div className="flex gap-2 flex-1 max-w-2xl">
           <SearchInput />

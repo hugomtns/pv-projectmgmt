@@ -54,7 +54,7 @@ export function Groups() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Group Management">
         <div className="flex gap-4 flex-1 max-w-4xl justify-end">
           {canCreateGroup && (

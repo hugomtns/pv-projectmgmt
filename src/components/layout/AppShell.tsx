@@ -95,7 +95,7 @@ export function AppShell({ children, currentPage, onNavigate }: AppShellProps) {
           <span className="text-lg font-semibold">PV Workflow</span>
         </div>
 
-        <div key={currentPage} className="flex flex-1 flex-col animate-in fade-in duration-300">
+        <div key={currentPage} className="flex flex-1 flex-col overflow-hidden animate-in fade-in duration-300">
           {children}
         </div>
       </main>

@@ -3,7 +3,7 @@ import { RoleDefaults } from '@/components/permissions/RoleDefaults';
 
 export function Permissions() {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Permissions Management">
         <div className="flex gap-4 flex-1 max-w-4xl justify-end">
           {/* Future: Add button for creating custom roles */}
