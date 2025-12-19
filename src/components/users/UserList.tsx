@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { Pencil, Trash2, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
+import { Pencil, Trash2, ArrowUp, ArrowDown, ChevronsUpDown, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useUserStore } from '@/stores/userStore';
+import { useUserFilterStore } from '@/stores/userFilterStore';
 import { usePermission } from '@/hooks/usePermission';
 import { toast } from 'sonner';
 import type { User } from '@/lib/types';
 
 interface UserListProps {
-  searchQuery?: string;
   onEditUser?: (user: User) => void;
 }
 
@@ -21,11 +20,14 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
+const GRID_COLS = 'minmax(200px, 2fr) minmax(250px, 2.5fr) minmax(180px, 1.5fr) minmax(120px, 1fr) minmax(180px, 1.5fr) minmax(150px, 1.25fr)';
+
+export function UserList({ onEditUser }: UserListProps) {
   const users = useUserStore(state => state.users);
   const groups = useUserStore(state => state.groups);
   const roles = useUserStore(state => state.roles);
   const deleteUser = useUserStore(state => state.deleteUser);
+  const filters = useUserFilterStore(state => state.filters);
 
   const canUpdateUser = usePermission('user_management', 'update');
   const canDeleteUser = usePermission('user_management', 'delete');
@@ -77,15 +79,23 @@ export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
     }
   };
 
-  const filteredUsers = users.filter(user => {
-    const query = searchQuery.toLowerCase();
-    return (
-      user.firstName.toLowerCase().includes(query) ||
-      user.lastName.toLowerCase().includes(query) ||
-      user.email.toLowerCase().includes(query)
-    );
+  // Apply filters
+  const filteredUsers = users.filter((user) => {
+    if (filters.roles.length > 0 && !filters.roles.includes(user.roleId)) return false;
+    if (filters.groups.length > 0 && !user.groupIds.some(gid => filters.groups.includes(gid))) return false;
+    if (filters.function && !user.function.toLowerCase().includes(filters.function.toLowerCase())) return false;
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      return (
+        user.firstName.toLowerCase().includes(searchLower) ||
+        user.lastName.toLowerCase().includes(searchLower) ||
+        user.email.toLowerCase().includes(searchLower)
+      );
+    }
+    return true;
   });
 
+  // Apply sorting
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (!sortConfig) return 0;
 
@@ -130,128 +140,160 @@ export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
     }
   };
 
+  const hasActiveFilters = filters.search || filters.roles.length > 0 || filters.groups.length > 0 || filters.function;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-semibold">Users</h2>
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* Header Row */}
+      <div
+        className="grid border-b border-border bg-muted/50"
+        style={{ gridTemplateColumns: GRID_COLS }}
+      >
+        <div className="px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleSort('name')}
+            className="h-auto p-0 font-medium"
+          >
+            Name
+            {getSortIcon('name')}
+          </Button>
+        </div>
+        <div className="px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleSort('email')}
+            className="h-auto p-0 font-medium"
+          >
+            Email
+            {getSortIcon('email')}
+          </Button>
+        </div>
+        <div className="px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleSort('function')}
+            className="h-auto p-0 font-medium"
+          >
+            Function
+            {getSortIcon('function')}
+          </Button>
+        </div>
+        <div className="px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleSort('role')}
+            className="h-auto p-0 font-medium"
+          >
+            Role
+            {getSortIcon('role')}
+          </Button>
+        </div>
+        <div className="px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleSort('groups')}
+            className="h-auto p-0 font-medium"
+          >
+            Groups
+            {getSortIcon('groups')}
+          </Button>
+        </div>
+        <div className="px-4 py-3 text-sm font-medium text-muted-foreground text-right">Actions</div>
       </div>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('name')}
-                  className="h-auto p-0 font-medium"
-                >
-                  Name
-                  {getSortIcon('name')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('email')}
-                  className="h-auto p-0 font-medium"
-                >
-                  Email
-                  {getSortIcon('email')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('function')}
-                  className="h-auto p-0 font-medium"
-                >
-                  Function
-                  {getSortIcon('function')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('role')}
-                  className="h-auto p-0 font-medium"
-                >
-                  Role
-                  {getSortIcon('role')}
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSort('groups')}
-                  className="h-auto p-0 font-medium"
-                >
-                  Groups
-                  {getSortIcon('groups')}
-                </Button>
-              </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedUsers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  {searchQuery ? 'No users found matching your search.' : 'No users yet. Invite your first user!'}
-                </TableCell>
-              </TableRow>
-            ) : (
-              sortedUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    {user.firstName} {user.lastName}
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.function}</TableCell>
-                  <TableCell>
-                    <Badge variant={getRoleBadgeVariant(getRoleName(user.roleId))}>
-                      {getRoleName(user.roleId)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {getGroupNames(user.groupIds)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-2">
-                      {canUpdateUser && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEditUser?.(user)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Edit
-                        </Button>
-                      )}
-                      {canDeleteUser && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(user)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {/* Data Rows or Empty State */}
+      {sortedUsers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24">
+          <Users className="h-16 w-16 text-muted-foreground mb-4" />
+          <p className="text-lg font-medium text-muted-foreground">
+            {hasActiveFilters
+              ? 'No users found matching your filters.'
+              : 'No users yet. Invite your first user!'}
+          </p>
+        </div>
+      ) : (
+        sortedUsers.map((user) => (
+          <div
+            key={user.id}
+            className="grid hover:bg-muted/50 border-b border-border last:border-b-0"
+            style={{ gridTemplateColumns: GRID_COLS }}
+          >
+            <div
+              className="px-4 py-3 text-sm font-medium truncate cursor-pointer"
+              title={`${user.firstName} ${user.lastName}`}
+              onClick={() => onEditUser?.(user)}
+            >
+              {user.firstName} {user.lastName}
+            </div>
+            <div
+              className="px-4 py-3 text-sm truncate cursor-pointer"
+              title={user.email}
+              onClick={() => onEditUser?.(user)}
+            >
+              {user.email}
+            </div>
+            <div
+              className="px-4 py-3 text-sm truncate cursor-pointer"
+              title={user.function}
+              onClick={() => onEditUser?.(user)}
+            >
+              {user.function}
+            </div>
+            <div
+              className="px-4 py-3 text-sm cursor-pointer"
+              onClick={() => onEditUser?.(user)}
+            >
+              <Badge variant={getRoleBadgeVariant(getRoleName(user.roleId))}>
+                {getRoleName(user.roleId)}
+              </Badge>
+            </div>
+            <div
+              className="px-4 py-3 text-sm text-muted-foreground truncate cursor-pointer"
+              title={getGroupNames(user.groupIds)}
+              onClick={() => onEditUser?.(user)}
+            >
+              {getGroupNames(user.groupIds)}
+            </div>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-end gap-2">
+                {canUpdateUser && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditUser?.(user);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                )}
+                {canDeleteUser && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(user);
+                    }}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
