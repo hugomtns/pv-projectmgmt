@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { UserSelectField } from '@/components/users/UserSelectField';
 import { PRIORITY_LABELS, PRIORITY_COLORS } from '@/lib/constants';
 import { z } from 'zod';
 import type { Priority } from '@/lib/types';
@@ -146,16 +148,16 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
           </div>
 
           <div>
-            <label htmlFor="owner" className="text-sm font-medium">
+            <Label htmlFor="owner" className="text-sm font-medium">
               Owner *
-            </label>
-            <Input
-              id="owner"
-              value={owner}
-              onChange={(e) => setOwner(e.target.value)}
-              placeholder="Enter owner name"
-              className="mt-1"
-            />
+            </Label>
+            <div className="mt-1">
+              <UserSelectField
+                value={owner}
+                onValueChange={setOwner}
+                placeholder="Select project owner"
+              />
+            </div>
             {errors.owner && <p className="text-sm text-red-500 mt-1">{errors.owner}</p>}
           </div>
 
