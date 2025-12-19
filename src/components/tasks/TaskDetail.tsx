@@ -2,6 +2,8 @@ import { useProjectStore } from '@/stores/projectStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { UserSelectField } from '@/components/users/UserSelectField';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,13 +115,14 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
 
           {/* Assignee */}
           <div>
-            <label className="text-sm font-medium">Assignee</label>
-            <Input
-              value={task.assignee}
-              onChange={(e) => handleAssigneeChange(e.target.value)}
-              className="mt-1"
-              placeholder="Assign to..."
-            />
+            <Label className="text-sm font-medium">Assignee</Label>
+            <div className="mt-1">
+              <UserSelectField
+                value={task.assignee}
+                onValueChange={handleAssigneeChange}
+                placeholder="Assign to..."
+              />
+            </div>
           </div>
 
           {/* Due Date */}
