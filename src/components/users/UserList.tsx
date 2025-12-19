@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Pencil, Trash2, Search, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
+import { Pencil, Trash2, ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useUserStore } from '@/stores/userStore';
@@ -10,6 +9,7 @@ import { toast } from 'sonner';
 import type { User } from '@/lib/types';
 
 interface UserListProps {
+  searchQuery?: string;
   onEditUser?: (user: User) => void;
 }
 
@@ -21,7 +21,7 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-export function UserList({ onEditUser }: UserListProps) {
+export function UserList({ searchQuery = '', onEditUser }: UserListProps) {
   const users = useUserStore(state => state.users);
   const groups = useUserStore(state => state.groups);
   const roles = useUserStore(state => state.roles);
@@ -30,7 +30,6 @@ export function UserList({ onEditUser }: UserListProps) {
   const canUpdateUser = usePermission('user_management', 'update');
   const canDeleteUser = usePermission('user_management', 'delete');
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
 
   const handleSort = (key: SortKey) => {
@@ -133,18 +132,8 @@ export function UserList({ onEditUser }: UserListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div>
         <h2 className="text-2xl font-semibold">Users</h2>
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
       </div>
 
       <div className="border rounded-lg">
