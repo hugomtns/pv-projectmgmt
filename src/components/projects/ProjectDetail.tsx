@@ -13,6 +13,7 @@ import {
 import { PriorityBadge } from './PriorityBadge';
 import { StageStepper } from './StageStepper';
 import { StageTaskSection } from './StageTaskSection';
+import { UserSelectField } from '@/components/users/UserSelectField';
 import type { Priority } from '@/lib/types';
 
 export function ProjectDetail() {
@@ -111,11 +112,11 @@ export function ProjectDetail() {
 
           {/* Owner */}
           <div>
-            <label className="text-sm font-medium">Owner</label>
-            <Input
+            <label className="text-sm font-medium block mb-1">Owner</label>
+            <UserSelectField
               value={project.owner}
-              onChange={(e) => handleOwnerChange(e.target.value)}
-              className="mt-1"
+              onValueChange={handleOwnerChange}
+              placeholder="Select owner"
             />
           </div>
 
