@@ -72,9 +72,8 @@ export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }:
                       variant="outline"
                       size="sm"
                       onClick={() => onEditGroup?.(group)}
-                      className="justify-start"
                     >
-                      <Pencil className="h-4 w-4 mr-1.5" />
+                      <Pencil className="h-4 w-4" />
                       Edit
                     </Button>
                   )}
@@ -83,9 +82,8 @@ export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }:
                       variant="outline"
                       size="sm"
                       onClick={() => onManageMembers?.(group)}
-                      className="justify-start"
                     >
-                      <UserCog className="h-4 w-4 mr-1.5" />
+                      <UserCog className="h-4 w-4" />
                       Members
                     </Button>
                   )}
@@ -94,9 +92,8 @@ export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }:
                       variant="outline"
                       size="sm"
                       onClick={() => onManagePermissions?.(group)}
-                      className="justify-start"
                     >
-                      <Shield className="h-4 w-4 mr-1.5" />
+                      <Shield className="h-4 w-4" />
                       Permissions
                     </Button>
                   )}
@@ -105,9 +102,9 @@ export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }:
                       variant="outline"
                       size="sm"
                       onClick={() => handleDelete(group)}
-                      className="justify-start text-destructive hover:text-destructive"
+                      className="text-destructive hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4 mr-1.5" />
+                      <Trash2 className="h-4 w-4" />
                       Delete
                     </Button>
                   )}
