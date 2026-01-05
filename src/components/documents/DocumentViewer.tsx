@@ -43,7 +43,7 @@ export function DocumentViewer({
   onClose,
 }: DocumentViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [zoom, setZoom] = useState<ZoomLevel>('fit-width');
   const [containerWidth, setContainerWidth] = useState<number>(800);
   const [annotationMode, setAnnotationMode] = useState(false);
@@ -66,12 +66,21 @@ export function DocumentViewer({
     setNumPages(numPages);
   };
 
+  // Generate array of page numbers for rendering
+  const pageNumbers = Array.from({ length: numPages }, (_, i) => i + 1);
+
   const goToPrevPage = () => {
-    setPageNumber((prev) => Math.max(1, prev - 1));
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+    // Scroll to previous page
+    const pageElement = document.querySelector(`[data-page-number="${currentPage - 1}"]`);
+    pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const goToNextPage = () => {
-    setPageNumber((prev) => Math.min(numPages, prev + 1));
+    setCurrentPage((prev) => Math.min(numPages, prev + 1));
+    // Scroll to next page
+    const pageElement = document.querySelector(`[data-page-number="${currentPage + 1}"]`);
+    pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleZoomIn = () => {
@@ -110,8 +119,11 @@ export function DocumentViewer({
   };
 
   const handleLocationCommentClick = (commentId: string, page: number) => {
-    setPageNumber(page);
+    setCurrentPage(page);
     setHighlightedCommentId(commentId);
+    // Scroll to the page
+    const pageElement = document.querySelector(`[data-page-number="${page}"]`);
+    pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const getPageWidth = () => {
@@ -182,18 +194,18 @@ export function DocumentViewer({
                 variant="ghost"
                 size="icon"
                 onClick={goToPrevPage}
-                disabled={pageNumber <= 1}
+                disabled={currentPage <= 1}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="text-sm text-muted-foreground min-w-[5rem] text-center">
-                {pageNumber} / {numPages}
+                {currentPage} / {numPages}
               </span>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={goToNextPage}
-                disabled={pageNumber >= numPages}
+                disabled={currentPage >= numPages}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -218,23 +230,28 @@ export function DocumentViewer({
             }
           }}
         >
-          <div className="flex justify-center p-8">
-            <div className="relative">
-              <Document
-                file={fileUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={
-                  <div className="flex items-center justify-center h-96">
-                    <div className="text-muted-foreground">Loading PDF...</div>
-                  </div>
-                }
-                error={
-                  <div className="flex items-center justify-center h-96">
-                    <div className="text-destructive">Failed to load PDF</div>
-                  </div>
-                }
-              >
-                <div className="relative">
+          <div className="flex flex-col items-center p-8 space-y-4">
+            <Document
+              file={fileUrl}
+              onLoadSuccess={onDocumentLoadSuccess}
+              loading={
+                <div className="flex items-center justify-center h-96">
+                  <div className="text-muted-foreground">Loading PDF...</div>
+                </div>
+              }
+              error={
+                <div className="flex items-center justify-center h-96">
+                  <div className="text-destructive">Failed to load PDF</div>
+                </div>
+              }
+            >
+              {/* Render all pages */}
+              {pageNumbers.map((pageNumber) => (
+                <div
+                  key={pageNumber}
+                  data-page-number={pageNumber}
+                  className="relative mb-4 shadow-lg"
+                >
                   <Page
                     pageNumber={pageNumber}
                     width={getPageWidth()}
@@ -242,7 +259,7 @@ export function DocumentViewer({
                     renderAnnotationLayer={true}
                     loading={
                       <div className="flex items-center justify-center h-96 bg-white">
-                        <div className="text-muted-foreground">Loading page...</div>
+                        <div className="text-muted-foreground">Loading page {pageNumber}...</div>
                       </div>
                     }
                   />
@@ -259,9 +276,13 @@ export function DocumentViewer({
                       onAddComment={handleAddLocationComment}
                     />
                   </div>
+                  {/* Page number indicator */}
+                  <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs">
+                    Page {pageNumber}
+                  </div>
                 </div>
-              </Document>
-            </div>
+              ))}
+            </Document>
           </div>
         </div>
 
