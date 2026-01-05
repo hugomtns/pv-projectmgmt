@@ -20,6 +20,7 @@ export interface Task {
   dueDate: string | null;
   status: TaskStatus;
   comments: Comment[];
+  attachments: string[]; // Document IDs
 }
 
 export interface TaskTemplate {
@@ -54,6 +55,7 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   stages: Record<string, ProjectStageData>;
+  attachments: string[]; // Document IDs
 }
 
 export type ViewType = 'list' | 'board';
@@ -102,3 +104,14 @@ export type {
   CustomRole,
   GroupPermissionOverride,
 } from './types/permission';
+
+// Document Management
+export type {
+  Document,
+  DocumentVersion,
+  DocumentStatus,
+  DocumentComment,
+  LocationAnchor,
+  Drawing,
+  WorkflowEvent,
+} from './types/document';

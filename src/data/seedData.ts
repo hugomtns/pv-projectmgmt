@@ -167,6 +167,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     location: 'Sunnyvale, CA',
     priority: 1,
     owner: 'user-jessica-martinez',
+    attachments: [],
     currentStageId: 'stage-5-construction',
     stages: {
       'stage-1-initiation': {
@@ -179,7 +180,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-alex-johnson',
             dueDate: '2024-01-20',
             status: 'complete' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-2',
@@ -188,7 +190,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-jessica-martinez',
             dueDate: '2024-01-25',
             status: 'complete' as const,
-            comments: []
+            comments: [],
+            attachments: []
           }
         ]
       },
@@ -202,7 +205,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-liam-miller',
             dueDate: '2024-11-10',
             status: 'complete' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-4',
@@ -211,7 +215,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-liam-miller',
             dueDate: '2024-11-20',
             status: 'in_progress' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-5',
@@ -220,7 +225,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-alex-johnson',
             dueDate: null,
             status: 'not_started' as const,
-            comments: []
+            comments: [],
+            attachments: []
           }
         ]
       }
@@ -231,6 +237,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     location: 'Phoenix, AZ',
     priority: 2,
     owner: 'user-david-thompson',
+    attachments: [],
     currentStageId: 'stage-3-permitting',
     stages: {
       'stage-3-permitting': {
@@ -243,7 +250,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-grace-lee',
             dueDate: '2024-10-20',
             status: 'complete' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-7',
@@ -252,7 +260,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-david-thompson',
             dueDate: '2024-11-01',
             status: 'in_progress' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-8',
@@ -261,7 +270,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: '',
             dueDate: null,
             status: 'not_started' as const,
-            comments: []
+            comments: [],
+            attachments: []
           }
         ]
       }
@@ -272,6 +282,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     location: 'Austin, TX',
     priority: 3,
     owner: 'user-rachel-kim',
+    attachments: [],
     currentStageId: 'stage-2-design',
     stages: {
       'stage-2-design': {
@@ -284,7 +295,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-alex-johnson',
             dueDate: '2024-11-25',
             status: 'complete' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-10',
@@ -293,7 +305,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-emma-wilson',
             dueDate: '2024-12-05',
             status: 'in_progress' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-11',
@@ -302,7 +315,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-olivia-brown',
             dueDate: null,
             status: 'not_started' as const,
-            comments: []
+            comments: [],
+            attachments: []
           }
         ]
       }
@@ -313,6 +327,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     location: 'Denver, CO',
     priority: 4,
     owner: 'user-sarah-chen',
+    attachments: [],
     currentStageId: 'stage-1-initiation',
     stages: {
       'stage-1-initiation': {
@@ -325,7 +340,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-james-anderson',
             dueDate: '2024-12-15',
             status: 'in_progress' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-13',
@@ -334,7 +350,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-sarah-chen',
             dueDate: null,
             status: 'not_started' as const,
-            comments: []
+            comments: [],
+            attachments: []
           }
         ]
       }
@@ -345,6 +362,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     location: 'Seattle, WA',
     priority: 0,
     owner: 'user-william-davis',
+    attachments: [],
     currentStageId: 'stage-4-procurement',
     stages: {
       'stage-4-procurement': {
@@ -357,7 +375,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-sophia-garcia',
             dueDate: null,
             status: 'not_started' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-15',
@@ -366,7 +385,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-william-davis',
             dueDate: null,
             status: 'not_started' as const,
-            comments: []
+            comments: [],
+            attachments: []
           }
         ]
       }
@@ -377,6 +397,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     location: 'Portland, OR',
     priority: 2,
     owner: 'user-michael-roberts',
+    attachments: [],
     currentStageId: 'stage-6-commissioning',
     stages: {
       'stage-6-commissioning': {
@@ -389,7 +410,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-james-anderson',
             dueDate: '2024-12-05',
             status: 'complete' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-17',
@@ -398,7 +420,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-grace-lee',
             dueDate: '2024-12-10',
             status: 'complete' as const,
-            comments: []
+            comments: [],
+            attachments: []
           },
           {
             id: 'task-18',
@@ -407,7 +430,8 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
             assignee: 'user-michael-roberts',
             dueDate: '2024-12-18',
             status: 'in_progress' as const,
-            comments: []
+            comments: [],
+            attachments: []
           }
         ]
       }

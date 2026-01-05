@@ -39,6 +39,7 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
       dueDate: null,
       status: 'not_started',
       comments: [],
+      attachments: [],
     });
 
     setNewTaskTitle('');

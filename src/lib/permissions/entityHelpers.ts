@@ -12,6 +12,7 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     tasks: 'Tasks',
     comments: 'Comments',
     user_management: 'User Management',
+    documents: 'Documents',
   };
   return labels[entityType];
 }
@@ -70,6 +71,12 @@ export function getEntityName(entityType: EntityType, entityId: string): string 
     case 'user_management':
       // User management has no specific entities
       return null;
+
+    case 'documents': {
+      // Documents would need to be looked up from documentStore
+      // For now, return null - can be implemented when documentStore is available
+      return null;
+    }
 
     default:
       return null;

@@ -105,6 +105,7 @@ export function resolveAllPermissions(
     'tasks',
     'comments',
     'user_management',
+    'documents',
   ];
 
   const permissions: Record<string, PermissionSet> = {};

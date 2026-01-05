@@ -1,0 +1,605 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { Document, DocumentStatus, DocumentComment, Drawing } from '@/lib/types';
+import { db, storeBlob, deleteBlob } from '@/lib/db';
+import { useUserStore } from './userStore';
+import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
+import { toast } from 'sonner';
+
+// Helper to get user's full name
+function getUserFullName(user: { firstName: string; lastName: string }): string {
+  return `${user.firstName} ${user.lastName}`;
+}
+
+interface DocumentState {
+  // State - Document metadata only (blobs in IndexedDB)
+  documents: Document[];
+
+  // Document CRUD
+  uploadDocument: (
+    file: File,
+    name: string,
+    description: string,
+    projectId?: string,
+    taskId?: string
+  ) => Promise<string | null>; // Returns document ID
+
+  uploadVersion: (documentId: string, file: File) => Promise<string | null>; // Returns version ID
+
+  updateDocument: (id: string, updates: Partial<Pick<Document, 'name' | 'description'>>) => void;
+
+  updateDocumentStatus: (
+    id: string,
+    status: DocumentStatus,
+    note?: string
+  ) => Promise<boolean>;
+
+  deleteDocument: (id: string) => Promise<boolean>;
+
+  getDocument: (id: string) => Document | null;
+
+  // Comments
+  addComment: (
+    documentId: string,
+    versionId: string,
+    text: string,
+    location?: { x: number; y: number; page: number }
+  ) => Promise<string | null>; // Returns comment ID
+
+  resolveComment: (commentId: string) => Promise<boolean>;
+
+  deleteComment: (commentId: string) => Promise<boolean>;
+
+  // Drawings
+  addDrawing: (drawing: Omit<Drawing, 'id' | 'createdAt' | 'createdBy'>) => Promise<string | null>;
+
+  deleteDrawing: (drawingId: string) => Promise<boolean>;
+}
+
+export const useDocumentStore = create<DocumentState>()(
+  persist(
+    (set, get) => ({
+      documents: [],
+
+      // Upload new document
+      uploadDocument: async (file, name, description, projectId, taskId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to upload documents');
+          return null;
+        }
+
+        // Permission check
+        const permissions = getDocumentPermissions(
+          currentUser,
+          undefined,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.create) {
+          toast.error('You do not have permission to upload documents');
+          return null;
+        }
+
+        try {
+          // Store file blob
+          const originalBlobId = await storeBlob(file);
+
+          // Create document and version
+          const documentId = crypto.randomUUID();
+          const versionId = crypto.randomUUID();
+          const now = new Date().toISOString();
+
+          const userFullName = getUserFullName(currentUser);
+
+          // Store version in IndexedDB
+          await db.documentVersions.add({
+            id: versionId,
+            documentId,
+            versionNumber: 1,
+            uploadedBy: userFullName,
+            uploadedAt: now,
+            fileSize: file.size,
+            pageCount: 1, // TODO: Calculate from PDF
+            originalFileBlob: originalBlobId,
+          });
+
+          // Create document metadata
+          const document: Document = {
+            id: documentId,
+            name,
+            description,
+            status: 'draft',
+            projectId,
+            taskId,
+            versions: [versionId],
+            currentVersionId: versionId,
+            createdBy: userFullName,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          // Store workflow event
+          await db.workflowEvents.add({
+            id: crypto.randomUUID(),
+            documentId,
+            action: 'created',
+            actor: userFullName,
+            timestamp: now,
+          });
+
+          set((state) => ({
+            documents: [...state.documents, document],
+          }));
+
+          toast.success('Document uploaded successfully');
+          return documentId;
+        } catch (error) {
+          console.error('Failed to upload document:', error);
+          toast.error('Failed to upload document');
+          return null;
+        }
+      },
+
+      // Upload new version
+      uploadVersion: async (documentId, file) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return null;
+        }
+
+        // Permission check
+        const permissions = getDocumentPermissions(
+          currentUser,
+          documentId,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.update) {
+          toast.error('You do not have permission to upload versions');
+          return null;
+        }
+
+        const document = get().documents.find((d) => d.id === documentId);
+        if (!document) {
+          toast.error('Document not found');
+          return null;
+        }
+
+        try {
+          // Store file blob
+          const originalBlobId = await storeBlob(file);
+
+          // Create version
+          const versionId = crypto.randomUUID();
+          const versionNumber = document.versions.length + 1;
+          const now = new Date().toISOString();
+          const userFullName = getUserFullName(currentUser);
+
+          await db.documentVersions.add({
+            id: versionId,
+            documentId,
+            versionNumber,
+            uploadedBy: userFullName,
+            uploadedAt: now,
+            fileSize: file.size,
+            pageCount: 1, // TODO: Calculate from PDF
+            originalFileBlob: originalBlobId,
+          });
+
+          // Update document
+          set((state) => ({
+            documents: state.documents.map((d) =>
+              d.id === documentId
+                ? {
+                    ...d,
+                    versions: [...d.versions, versionId],
+                    currentVersionId: versionId,
+                    updatedAt: now,
+                  }
+                : d
+            ),
+          }));
+
+          // Log workflow event
+          await db.workflowEvents.add({
+            id: crypto.randomUUID(),
+            documentId,
+            action: 'version_uploaded',
+            actor: userFullName,
+            timestamp: now,
+          });
+
+          toast.success(`Version ${versionNumber} uploaded`);
+          return versionId;
+        } catch (error) {
+          console.error('Failed to upload version:', error);
+          toast.error('Failed to upload version');
+          return null;
+        }
+      },
+
+      // Update document metadata
+      updateDocument: (id, updates) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = getDocumentPermissions(
+          currentUser,
+          id,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.update) {
+          toast.error('You do not have permission to update this document');
+          return;
+        }
+
+        set((state) => ({
+          documents: state.documents.map((d) =>
+            d.id === id
+              ? {
+                  ...d,
+                  ...updates,
+                  updatedAt: new Date().toISOString(),
+                }
+              : d
+          ),
+        }));
+
+        toast.success('Document updated');
+      },
+
+      // Update document status
+      updateDocumentStatus: async (id, status, note) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return false;
+        }
+
+        const permissions = getDocumentPermissions(
+          currentUser,
+          id,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.update) {
+          toast.error('You do not have permission to change document status');
+          return false;
+        }
+
+        const document = get().documents.find((d) => d.id === id);
+        if (!document) {
+          toast.error('Document not found');
+          return false;
+        }
+
+        const now = new Date().toISOString();
+        const userFullName = getUserFullName(currentUser);
+
+        // Log workflow event
+        await db.workflowEvents.add({
+          id: crypto.randomUUID(),
+          documentId: id,
+          action: 'status_changed',
+          actor: userFullName,
+          timestamp: now,
+          fromStatus: document.status,
+          toStatus: status,
+          note,
+        });
+
+        set((state) => ({
+          documents: state.documents.map((d) =>
+            d.id === id
+              ? {
+                  ...d,
+                  status,
+                  updatedAt: now,
+                }
+              : d
+          ),
+        }));
+
+        toast.success(`Document ${status.replace('_', ' ')}`);
+        return true;
+      },
+
+      // Delete document
+      deleteDocument: async (id) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return false;
+        }
+
+        const permissions = getDocumentPermissions(
+          currentUser,
+          id,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.delete) {
+          toast.error('You do not have permission to delete this document');
+          return false;
+        }
+
+        const document = get().documents.find((d) => d.id === id);
+        if (!document) {
+          toast.error('Document not found');
+          return false;
+        }
+
+        try {
+          // Delete all versions and blobs
+          const versions = await db.documentVersions
+            .where('documentId')
+            .equals(id)
+            .toArray();
+
+          for (const version of versions) {
+            await deleteBlob(version.originalFileBlob);
+            if (version.pdfFileBlob) {
+              await deleteBlob(version.pdfFileBlob);
+            }
+            await db.documentVersions.delete(version.id);
+          }
+
+          // Delete comments and drawings
+          await db.documentComments.where('documentId').equals(id).delete();
+          await db.drawings.where('documentId').equals(id).delete();
+          await db.workflowEvents.where('documentId').equals(id).delete();
+
+          // Remove from store
+          set((state) => ({
+            documents: state.documents.filter((d) => d.id !== id),
+          }));
+
+          toast.success('Document deleted');
+          return true;
+        } catch (error) {
+          console.error('Failed to delete document:', error);
+          toast.error('Failed to delete document');
+          return false;
+        }
+      },
+
+      // Get document by ID
+      getDocument: (id) => {
+        return get().documents.find((d) => d.id === id) || null;
+      },
+
+      // Add comment
+      addComment: async (documentId, versionId, text, location) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return null;
+        }
+
+        const permissions = getDocumentPermissions(
+          currentUser,
+          documentId,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.update) {
+          toast.error('You do not have permission to comment');
+          return null;
+        }
+
+        try {
+          const commentId = crypto.randomUUID();
+          const userFullName = getUserFullName(currentUser);
+          const comment: DocumentComment = {
+            id: commentId,
+            documentId,
+            versionId,
+            type: location ? 'location' : 'document',
+            text,
+            author: userFullName,
+            createdAt: new Date().toISOString(),
+            location,
+            resolved: false,
+          };
+
+          await db.documentComments.add(comment);
+
+          toast.success('Comment added');
+          return commentId;
+        } catch (error) {
+          console.error('Failed to add comment:', error);
+          toast.error('Failed to add comment');
+          return null;
+        }
+      },
+
+      // Resolve comment
+      resolveComment: async (commentId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return false;
+        }
+
+        try {
+          const comment = await db.documentComments.get(commentId);
+          if (!comment) {
+            toast.error('Comment not found');
+            return false;
+          }
+
+          const permissions = getDocumentPermissions(
+            currentUser,
+            comment.documentId,
+            userState.permissionOverrides,
+            userState.roles
+          );
+
+          if (!permissions.update) {
+            toast.error('You do not have permission to resolve comments');
+            return false;
+          }
+
+          await db.documentComments.update(commentId, { resolved: true });
+          return true;
+        } catch (error) {
+          console.error('Failed to resolve comment:', error);
+          toast.error('Failed to resolve comment');
+          return false;
+        }
+      },
+
+      // Delete comment
+      deleteComment: async (commentId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return false;
+        }
+
+        try {
+          const comment = await db.documentComments.get(commentId);
+          if (!comment) {
+            toast.error('Comment not found');
+            return false;
+          }
+
+          const permissions = getDocumentPermissions(
+            currentUser,
+            comment.documentId,
+            userState.permissionOverrides,
+            userState.roles
+          );
+
+          if (!permissions.delete) {
+            toast.error('You do not have permission to delete comments');
+            return false;
+          }
+
+          await db.documentComments.delete(commentId);
+          toast.success('Comment deleted');
+          return true;
+        } catch (error) {
+          console.error('Failed to delete comment:', error);
+          toast.error('Failed to delete comment');
+          return false;
+        }
+      },
+
+      // Add drawing
+      addDrawing: async (drawing) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return null;
+        }
+
+        const permissions = getDocumentPermissions(
+          currentUser,
+          drawing.documentId,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.update) {
+          toast.error('You do not have permission to draw on this document');
+          return null;
+        }
+
+        try {
+          const drawingId = crypto.randomUUID();
+          const userFullName = getUserFullName(currentUser);
+          const fullDrawing: Drawing = {
+            ...drawing,
+            id: drawingId,
+            createdBy: userFullName,
+            createdAt: new Date().toISOString(),
+          };
+
+          await db.drawings.add(fullDrawing);
+          return drawingId;
+        } catch (error) {
+          console.error('Failed to add drawing:', error);
+          toast.error('Failed to add drawing');
+          return null;
+        }
+      },
+
+      // Delete drawing
+      deleteDrawing: async (drawingId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return false;
+        }
+
+        try {
+          const drawing = await db.drawings.get(drawingId);
+          if (!drawing) {
+            toast.error('Drawing not found');
+            return false;
+          }
+
+          const permissions = getDocumentPermissions(
+            currentUser,
+            drawing.documentId,
+            userState.permissionOverrides,
+            userState.roles
+          );
+
+          const userFullName = getUserFullName(currentUser);
+          if (!permissions.delete && drawing.createdBy !== userFullName) {
+            toast.error('You can only delete your own drawings');
+            return false;
+          }
+
+          await db.drawings.delete(drawingId);
+          return true;
+        } catch (error) {
+          console.error('Failed to delete drawing:', error);
+          toast.error('Failed to delete drawing');
+          return false;
+        }
+      },
+    }),
+    {
+      name: 'document-storage-v1',
+      // Only persist metadata, not IndexedDB data
+      partialize: (state) => ({
+        documents: state.documents,
+      }),
+    }
+  )
+);

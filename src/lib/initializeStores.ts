@@ -7,7 +7,7 @@ import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
 
 // Data version - increment this to force a data refresh
-const DATA_VERSION = 2;
+const DATA_VERSION = 3;
 
 /**
  * Migrate old task data structure from 'name' to 'title' field
@@ -72,6 +72,77 @@ function migrateFilterStore() {
       }
     });
     console.log('✓ Migrated filter store owner field to owners array');
+  }
+}
+
+/**
+ * Add attachments field to existing projects
+ */
+function migrateProjectsForAttachments() {
+  const projectState = useProjectStore.getState();
+  let migrated = false;
+
+  const updatedProjects = projectState.projects.map((project: any) => {
+    // If project doesn't have attachments field, add it
+    if (!project.attachments) {
+      migrated = true;
+      return {
+        ...project,
+        attachments: [],
+      };
+    }
+    return project;
+  });
+
+  if (migrated) {
+    useProjectStore.setState({ projects: updatedProjects });
+    console.log('✓ Migrated projects to include attachments field');
+  }
+}
+
+/**
+ * Add attachments field to existing tasks in all stages
+ */
+function migrateTasksForAttachments() {
+  const projectState = useProjectStore.getState();
+  let migrated = false;
+
+  const updatedProjects = projectState.projects.map((project) => {
+    const updatedStages: typeof project.stages = {};
+    let projectMigrated = false;
+
+    Object.entries(project.stages).forEach(([stageId, stageData]) => {
+      const updatedTasks = stageData.tasks.map((task: any) => {
+        // If task doesn't have attachments field, add it
+        if (!task.attachments) {
+          migrated = true;
+          projectMigrated = true;
+          return {
+            ...task,
+            attachments: [],
+          };
+        }
+        return task;
+      });
+
+      updatedStages[stageId] = {
+        ...stageData,
+        tasks: updatedTasks,
+      };
+    });
+
+    if (projectMigrated) {
+      return {
+        ...project,
+        stages: updatedStages,
+      };
+    }
+    return project;
+  });
+
+  if (migrated) {
+    useProjectStore.setState({ projects: updatedProjects });
+    console.log('✓ Migrated tasks to include attachments field');
   }
 }
 
@@ -148,6 +219,8 @@ export function initializeStores() {
       // Run migrations on existing data
       migrateTaskData();
       migrateFilterStore();
+      migrateProjectsForAttachments();
+      migrateTasksForAttachments();
     }
 
     // Initialize user store if empty

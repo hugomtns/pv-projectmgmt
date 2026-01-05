@@ -62,6 +62,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       dueDate: null,
       status: 'not_started' as const,
       comments: [],
+      attachments: [],
     }));
 
     // Create project with initial stage data
@@ -71,6 +72,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       priority: result.data.priority as Priority,
       owner: result.data.owner,
       currentStageId: firstStage.id,
+      attachments: [],
       stages: {
         [firstStage.id]: {
           enteredAt: new Date().toISOString(),

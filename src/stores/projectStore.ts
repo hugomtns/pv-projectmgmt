@@ -60,7 +60,8 @@ export const useProjectStore = create<ProjectState>()(
             id: crypto.randomUUID(),
             createdAt: now,
             updatedAt: now,
-            stages: project.stages || {}
+            stages: project.stages || {},
+            attachments: project.attachments || []
           };
           return { projects: [...state.projects, newProject] };
         });
@@ -156,7 +157,8 @@ export const useProjectStore = create<ProjectState>()(
                 assignee: '',
                 dueDate: null,
                 status: 'not_started' as const,
-                comments: []
+                comments: [],
+                attachments: []
               }))
             };
           }
@@ -220,7 +222,7 @@ export const useProjectStore = create<ProjectState>()(
                       ...p.stages[stageId],
                       tasks: [
                         ...(p.stages[stageId]?.tasks || []),
-                        { ...task, id: crypto.randomUUID() }
+                        { ...task, id: crypto.randomUUID(), attachments: task.attachments || [] }
                       ]
                     }
                   }

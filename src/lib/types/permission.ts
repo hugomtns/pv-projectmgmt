@@ -3,7 +3,8 @@ export type EntityType =
   | 'workflows'
   | 'tasks'
   | 'comments'
-  | 'user_management';
+  | 'user_management'
+  | 'documents';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 
