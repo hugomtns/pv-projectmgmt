@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import { useUserStore } from '@/stores/userStore';
+import { useDocumentStore } from '@/stores/documentStore';
+import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,6 +17,8 @@ import { PriorityBadge } from './PriorityBadge';
 import { StageStepper } from './StageStepper';
 import { StageTaskSection } from './StageTaskSection';
 import { UserSelectField } from '@/components/users/UserSelectField';
+import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
+import { Upload } from 'lucide-react';
 import type { Priority } from '@/lib/types';
 
 export function ProjectDetail() {
@@ -23,9 +28,25 @@ export function ProjectDetail() {
   const moveProjectToStage = useProjectStore((state) => state.moveProjectToStage);
   const selectProject = useProjectStore((state) => state.selectProject);
   const workflow = useWorkflowStore((state) => state.workflow);
+  const currentUser = useUserStore((state) => state.currentUser);
+  const roles = useUserStore((state) => state.roles);
+  const permissionOverrides = useUserStore((state) => state.permissionOverrides);
+  const documents = useDocumentStore((state) => state.documents);
 
   const project = projects.find((p) => p.id === selectedProjectId);
   const [selectedStageId, setSelectedStageId] = useState(project?.currentStageId || '');
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
+  // Get document permissions
+  const documentPermissions = getDocumentPermissions(
+    currentUser,
+    undefined,
+    permissionOverrides,
+    roles
+  );
+
+  // Get project documents
+  const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
 
   // Update selected stage when project changes
   useEffect(() => {
@@ -174,8 +195,41 @@ export function ProjectDetail() {
               stageName={workflow.stages.find((s) => s.id === selectedStageId)?.name || 'Stage'}
             />
           </div>
+
+          {/* Documents Section */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium">Documents</label>
+              {documentPermissions.create && (
+                <Button
+                  size="sm"
+                  onClick={() => setUploadDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload
+                </Button>
+              )}
+            </div>
+            {projectDocuments.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
+                No documents yet. Upload your first document to get started.
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                {projectDocuments.length} document{projectDocuments.length !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
         </div>
       </SheetContent>
+
+      {/* Upload Dialog */}
+      <DocumentUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        projectId={selectedProjectId || undefined}
+      />
     </Sheet>
   );
 }

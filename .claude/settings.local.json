@@ -22,7 +22,20 @@
       "Bash(npx shadcn@latest add:*)",
       "Skill(shadcn-ui)",
       "Bash(ls:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(npx:*)",
+      "Bash(node --version)",
+      "Bash(cmd /c \"npx -y mcp-remote --help\")",
+      "WebFetch(domain:www.shadcn.io)",
+      "Bash(curl:*)",
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(cat:*)",
+      "Bash(tree:*)",
+      "Bash(git checkout:*)",
+      "Bash(node:*)",
+      "Bash(git restore:*)"
     ]
   },
   "enabledMcpjsonServers": [
