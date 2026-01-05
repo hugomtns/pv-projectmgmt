@@ -159,13 +159,13 @@ export function DocumentUploadDialog({
             >
               {file ? (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-center gap-2 min-w-0">
+                  <div className="flex items-center justify-center gap-2">
                     <Upload className="h-5 w-5 text-primary flex-shrink-0" />
-                    <span className="font-medium truncate max-w-full" title={file.name}>
+                    <span className="font-medium truncate block max-w-[300px]" title={file.name}>
                       {file.name}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground text-center">
                     {formatFileSize(file.size)}
                   </p>
                   <Button
