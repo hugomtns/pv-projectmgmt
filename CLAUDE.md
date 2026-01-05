@@ -32,13 +32,14 @@ npm run preview
 
 ### State Management (Zustand with Persistence)
 
-The application uses three main Zustand stores with localStorage persistence:
+The application uses several Zustand stores with localStorage persistence:
 
 1. **projectStore** (`src/stores/projectStore.ts`)
    - Manages projects and their stage-specific tasks
    - Each project has a `stages` record keyed by stage ID containing `ProjectStageData` (tasks entered when project reaches that stage)
    - Key action: `moveProjectToStage(projectId, stageId)` - enforces gate logic (all tasks in current stage must be complete before advancing)
    - Tasks are instantiated from workflow templates when a project enters a stage for the first time
+   - Includes permission checks on all CRUD operations via `resolvePermissions()`
    - Storage key: `project-storage-v2`
 
 2. **workflowStore** (`src/stores/workflowStore.ts`)
@@ -46,8 +47,15 @@ The application uses three main Zustand stores with localStorage persistence:
    - Task templates define tasks that will be created when projects enter a stage
    - Storage key: `workflow-storage-v2`
 
-3. **displayStore** & **filterStore**
-   - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search)
+3. **userStore** (`src/stores/userStore.ts`)
+   - Manages users, groups, custom roles, and permission overrides
+   - Handles authentication state (`currentUser`)
+   - Provides role-based access control (RBAC) with group-level permission overrides
+   - Used by other stores to enforce permissions via `resolvePermissions()` helper
+   - Storage key: `user-storage`
+
+4. **displayStore** & **filterStore** & **userFilterStore**
+   - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search, user filters)
 
 ### Key Architecture Patterns
 
@@ -60,7 +68,7 @@ The application uses three main Zustand stores with localStorage persistence:
 **Stage Task Instantiation:**
 - Workflow defines stages with task templates (`Stage.taskTemplates: TaskTemplate[]`)
 - When `moveProjectToStage()` is called, if the project hasn't entered that stage before, tasks are created from templates
-- See `projectStore.ts:69-84` for template instantiation logic
+- Template instantiation creates new tasks with unique IDs, default status, and empty assignee/dates (see `moveProjectToStage` in `projectStore.ts`)
 
 **Drag & Drop:**
 - Uses `@dnd-kit/core` and `@dnd-kit/sortable` for project board interactions
@@ -76,6 +84,14 @@ The application uses three main Zustand stores with localStorage persistence:
 - Custom hook `useKeyboardShortcuts` supports both single keys and sequences
 - Global shortcuts: `g+p` (projects page), `g+w` (workflow page)
 - Context shortcuts: `0-4` (set priority), `n` (new project), `/` (search), `?` (help)
+
+**Permission System:**
+- Role-based access control (RBAC) via `userStore` with custom roles and group overrides
+- All CRUD operations in `projectStore` check permissions via `resolvePermissions()` helper
+- Permission structure: `{ create, read, update, delete }` booleans per resource type
+- Users must be logged in (`currentUser` set) to perform most operations
+- Failed permission checks show toast error notifications
+- See `src/lib/permissions/permissionResolver.ts` for resolution logic
 
 ### Component Organization
 
@@ -96,15 +112,16 @@ components/
 
 ### Testing
 
-- Test files in `tests/` mirror `src/` structure
-- Setup: `tests/setup.ts` (imported by `vitest.config.ts`)
+- Test files in `tests/` mirror `src/` structure (e.g., `tests/stores/projectStore.test.ts` mirrors `src/stores/projectStore.ts`)
+- Setup: `tests/setup.ts` (imported via `vite.config.ts` test configuration)
 - Store tests cover state mutations and persistence
-- Use Vitest with jsdom environment
+- Uses Vitest with jsdom environment and globals enabled
+- Test configuration is in `vite.config.ts` under the `test` property (not a separate vitest config file)
 
 ## Important Implementation Details
 
-**Gate Logic (src/stores/projectStore.ts:52-107):**
-When moving a project to a new stage, all tasks in the current stage must have `status: 'complete'`. If not, `moveProjectToStage` returns `false` and the UI shows an error toast.
+**Gate Logic:**
+When moving a project to a new stage via `moveProjectToStage()`, all tasks in the current stage must have `status: 'complete'`. If not, the function returns `false` and the UI shows an error toast. This ensures projects cannot skip stages or advance with incomplete work.
 
 **Task Template Pattern:**
 Workflow stages define templates. When a project enters a stage, templates become actual tasks with IDs, assignees, due dates, and status tracking. Templates are read-only definitions; tasks are mutable instances.
@@ -117,9 +134,12 @@ App shows a loading screen for 300ms on mount to ensure Zustand persistence has 
 
 ## Key Files for Understanding the System
 
-- `src/stores/projectStore.ts` - Project state and stage transition logic
+- `src/stores/projectStore.ts` - Project state, stage transition logic, and permission checks
 - `src/stores/workflowStore.ts` - Workflow/stage/template management
+- `src/stores/userStore.ts` - User/group/role management and authentication
+- `src/lib/permissions/permissionResolver.ts` - RBAC permission resolution logic
 - `src/lib/initializeStores.ts` - Seed data and migrations
 - `src/lib/types.ts` - Type definitions
 - `src/components/projects/ProjectBoard.tsx` - Board view with drag-drop
 - `src/pages/Projects.tsx` - Main project page with keyboard shortcuts
+- `vite.config.ts` - Vite and Vitest configuration with path aliases
