@@ -18,6 +18,7 @@ import { StageStepper } from './StageStepper';
 import { StageTaskSection } from './StageTaskSection';
 import { UserSelectField } from '@/components/users/UserSelectField';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
+import { DocumentList } from '@/components/documents/DocumentList';
 import { Upload } from 'lucide-react';
 import type { Priority } from '@/lib/types';
 
@@ -211,15 +212,7 @@ export function ProjectDetail() {
                 </Button>
               )}
             </div>
-            {projectDocuments.length === 0 ? (
-              <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
-                No documents yet. Upload your first document to get started.
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">
-                {projectDocuments.length} document{projectDocuments.length !== 1 ? 's' : ''}
-              </div>
-            )}
+            <DocumentList documents={projectDocuments} />
           </div>
         </div>
       </SheetContent>

@@ -120,6 +120,8 @@ export const useDocumentStore = create<DocumentState>()(
             createdBy: userFullName,
             createdAt: now,
             updatedAt: now,
+            fileSize: file.size,
+            uploadedBy: userFullName,
           };
 
           // Store workflow event
@@ -203,6 +205,8 @@ export const useDocumentStore = create<DocumentState>()(
                     versions: [...d.versions, versionId],
                     currentVersionId: versionId,
                     updatedAt: now,
+                    fileSize: file.size,
+                    uploadedBy: userFullName,
                   }
                 : d
             ),

@@ -65,6 +65,9 @@ export interface Document {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  // Denormalized from current version for easy display
+  fileSize: number;
+  uploadedBy: string;
 }
 
 export interface WorkflowEvent {
