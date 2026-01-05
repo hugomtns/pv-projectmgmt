@@ -7,7 +7,6 @@ import { FilterBar } from '@/components/projects/FilterBar';
 import { SearchInput } from '@/components/projects/SearchInput';
 import { ActiveFilters } from '@/components/projects/ActiveFilters';
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog';
-import { ProjectDetail } from '@/components/projects/ProjectDetail';
 import { KeyboardShortcutsDialog } from '@/components/layout/KeyboardShortcutsDialog';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -23,7 +22,6 @@ export function Projects() {
   const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
 
-  const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
   const updateProject = useProjectStore((state) => state.updateProject);
 
   const canCreateProject = usePermission('projects', 'create');
@@ -71,10 +69,9 @@ export function Projects() {
   });
 
   const handlePriorityShortcut = (priority: Priority) => {
-    // Prefer selected project, fall back to hovered project
-    const targetProjectId = selectedProjectId || hoveredProjectId;
-    if (targetProjectId) {
-      updateProject(targetProjectId, { priority });
+    // Use hovered project for priority shortcuts
+    if (hoveredProjectId) {
+      updateProject(hoveredProjectId, { priority });
     }
   };
 
@@ -110,7 +107,6 @@ export function Projects() {
         </div>
       </div>
       <CreateProjectDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
-      <ProjectDetail />
       <KeyboardShortcutsDialog open={shortcutsDialogOpen} onOpenChange={setShortcutsDialogOpen} />
     </div>
   );

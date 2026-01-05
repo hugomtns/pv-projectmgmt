@@ -1,16 +1,16 @@
 import { useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Sidebar } from './Sidebar';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 
-interface AppShellProps {
-  children: React.ReactNode;
-  currentPage: 'projects' | 'workflow' | 'users' | 'groups' | 'permissions';
-  onNavigate: (page: 'projects' | 'workflow' | 'users' | 'groups' | 'permissions') => void;
-}
-
-export function AppShell({ children, currentPage }: AppShellProps) {
+export function RootLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  // Set up global keyboard shortcuts for navigation
+  useGlobalShortcuts();
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -73,7 +73,7 @@ export function AppShell({ children, currentPage }: AppShellProps) {
         <div className="flex-1 overflow-y-auto p-4">
           <Sidebar
             isOpen={sidebarOpen}
-            currentPath={`/${currentPage}`}
+            currentPath={location.pathname}
           />
         </div>
       </aside>
@@ -94,8 +94,8 @@ export function AppShell({ children, currentPage }: AppShellProps) {
           <span className="text-lg font-semibold">PV Workflow</span>
         </div>
 
-        <div key={currentPage} className="flex flex-1 flex-col overflow-hidden animate-in fade-in duration-300">
-          {children}
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Outlet />
         </div>
       </main>
     </div>

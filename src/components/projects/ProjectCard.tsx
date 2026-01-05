@@ -1,6 +1,6 @@
+import { useNavigate } from 'react-router-dom';
 import { PriorityBadge } from './PriorityBadge';
 import { UserDisplay } from '@/components/users/UserDisplay';
-import { useProjectStore } from '@/stores/projectStore';
 import type { Project, Priority } from '@/lib/types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -22,7 +22,7 @@ export function ProjectCard({
   tasksTotal,
   onProjectHover,
 }: ProjectCardProps) {
-  const selectProject = useProjectStore((state) => state.selectProject);
+  const navigate = useNavigate();
   const {
     attributes,
     listeners,
@@ -43,7 +43,7 @@ export function ProjectCard({
     if ((e.target as HTMLElement).closest('[role="button"]')) {
       return;
     }
-    selectProject(project.id);
+    navigate(`/projects/${project.id}`);
   };
 
   return (

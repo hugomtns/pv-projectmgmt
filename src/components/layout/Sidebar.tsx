@@ -1,13 +1,13 @@
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { usePermission } from '@/hooks/usePermission';
 
 interface SidebarProps {
   isOpen: boolean;
-  currentPage: 'projects' | 'workflow' | 'users' | 'groups' | 'permissions';
-  onNavigate: (page: 'projects' | 'workflow' | 'users' | 'groups' | 'permissions') => void;
+  currentPath: string;
 }
 
-export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
+export function Sidebar({ isOpen, currentPath }: SidebarProps) {
   const canViewProjects = usePermission('projects', 'read');
   const canViewWorkflows = usePermission('workflows', 'read');
   const canViewUserManagement = usePermission('user_management', 'read');
@@ -15,6 +15,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'projects' as const,
       label: 'Projects',
+      path: '/projects',
       hasPermission: canViewProjects,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,6 +31,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'workflow' as const,
       label: 'Workflow Settings',
+      path: '/workflow',
       hasPermission: canViewWorkflows,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,6 +53,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'users' as const,
       label: 'Users',
+      path: '/users',
       hasPermission: canViewUserManagement,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,6 +69,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'groups' as const,
       label: 'Groups',
+      path: '/groups',
       hasPermission: canViewUserManagement,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,6 +85,7 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
     {
       id: 'permissions' as const,
       label: 'Permissions',
+      path: '/permissions',
       hasPermission: canViewUserManagement,
       icon: (
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,23 +104,27 @@ export function Sidebar({ isOpen, currentPage, onNavigate }: SidebarProps) {
 
   return (
     <nav className="flex flex-col gap-2">
-      {navItems.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => onNavigate(item.id)}
-          className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-            currentPage === item.id
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-            !isOpen && 'justify-center'
-          )}
-          title={!isOpen ? item.label : undefined}
-        >
-          {item.icon}
-          {isOpen && <span>{item.label}</span>}
-        </button>
-      ))}
+      {navItems.map((item) => {
+        const isActive = currentPath === item.path || currentPath.startsWith(item.path + '/');
+
+        return (
+          <Link
+            key={item.id}
+            to={item.path}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              !isOpen && 'justify-center'
+            )}
+            title={!isOpen ? item.label : undefined}
+          >
+            {item.icon}
+            {isOpen && <span>{item.label}</span>}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
@@ -17,9 +18,9 @@ interface ProjectListProps {
 }
 
 export function ProjectList({ onProjectHover }: ProjectListProps) {
+  const navigate = useNavigate();
   const projects = useProjectStore((state) => state.projects);
   const updateProject = useProjectStore((state) => state.updateProject);
-  const selectProject = useProjectStore((state) => state.selectProject);
   const workflow = useWorkflowStore((state) => state.workflow);
   const users = useUserStore((state) => state.users);
   const filters = useFilterStore((state) => state.filters);
@@ -305,7 +306,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
         key={project.id}
         className="grid hover:bg-muted/50 cursor-pointer border-b border-border"
         style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(80px, 0.67fr)' }}
-        onClick={() => selectProject(project.id)}
+        onClick={() => navigate(`/projects/${project.id}`)}
         onMouseEnter={() => onProjectHover?.(project.id)}
         onMouseLeave={() => onProjectHover?.(null)}
       >
