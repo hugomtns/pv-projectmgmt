@@ -1,4 +1,8 @@
+import { useState } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUserStore } from '@/stores/userStore';
+import { useDocumentStore } from '@/stores/documentStore';
+import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +15,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { CommentThread } from './CommentThread';
+import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
+import { DocumentList } from '@/components/documents/DocumentList';
+import { Upload } from 'lucide-react';
 import type { TaskStatus } from '@/lib/types';
 
 interface TaskDetailProps {
@@ -25,9 +32,26 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
   const updateTask = useProjectStore((state) => state.updateTask);
   const deleteTask = useProjectStore((state) => state.deleteTask);
   const addComment = useProjectStore((state) => state.addComment);
+  const currentUser = useUserStore((state) => state.currentUser);
+  const roles = useUserStore((state) => state.roles);
+  const permissionOverrides = useUserStore((state) => state.permissionOverrides);
+  const documents = useDocumentStore((state) => state.documents);
+
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const project = projects.find((p) => p.id === projectId);
   const task = project?.stages[stageId]?.tasks.find((t) => t.id === taskId);
+
+  // Get document permissions
+  const documentPermissions = getDocumentPermissions(
+    currentUser,
+    undefined,
+    permissionOverrides,
+    roles
+  );
+
+  // Get task documents
+  const taskDocuments = documents.filter((doc) => doc.taskId === taskId);
 
   if (!task || !taskId) return null;
 
@@ -171,6 +195,24 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
             </DropdownMenu>
           </div>
 
+          {/* Attachments */}
+          <div className="pt-4 border-t">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium">Attachments</label>
+              {documentPermissions.create && (
+                <Button
+                  size="sm"
+                  onClick={() => setUploadDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Attach
+                </Button>
+              )}
+            </div>
+            <DocumentList documents={taskDocuments} />
+          </div>
+
           {/* Comments */}
           <div className="pt-4 border-t">
             <CommentThread
@@ -187,6 +229,13 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
           </div>
         </div>
       </SheetContent>
+
+      {/* Upload Dialog */}
+      <DocumentUploadDialog
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        taskId={taskId || undefined}
+      />
     </Sheet>
   );
 }
