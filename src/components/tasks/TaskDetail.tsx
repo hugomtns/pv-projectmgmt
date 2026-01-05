@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUserStore } from '@/stores/userStore';
 import { useDocumentStore } from '@/stores/documentStore';
@@ -28,6 +29,7 @@ interface TaskDetailProps {
 }
 
 export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailProps) {
+  const navigate = useNavigate();
   const projects = useProjectStore((state) => state.projects);
   const updateTask = useProjectStore((state) => state.updateTask);
   const deleteTask = useProjectStore((state) => state.deleteTask);
@@ -210,7 +212,10 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
                 </Button>
               )}
             </div>
-            <DocumentList documents={taskDocuments} />
+            <DocumentList
+              documents={taskDocuments}
+              onDocumentClick={(documentId) => navigate(`/documents/${documentId}`)}
+            />
           </div>
 
           {/* Comments */}

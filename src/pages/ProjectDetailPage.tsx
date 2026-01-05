@@ -228,7 +228,10 @@ export default function ProjectDetailPage() {
                 </Button>
               )}
             </div>
-            <DocumentList documents={projectDocuments} />
+            <DocumentList
+              documents={projectDocuments}
+              onDocumentClick={(documentId) => navigate(`/documents/${documentId}`)}
+            />
           </div>
         </div>
       </div>

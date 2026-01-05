@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RootLayout } from './RootLayout';
 import { Projects } from '@/pages/Projects';
 import ProjectDetailPage from '@/pages/ProjectDetailPage';
+import DocumentViewerPage from '@/pages/DocumentViewerPage';
 import { WorkflowSettings } from '@/pages/WorkflowSettings';
 import { Users } from '@/pages/Users';
 import { Groups } from '@/pages/Groups';
@@ -16,6 +17,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/projects" replace /> },
       { path: 'projects', element: <Projects /> },
       { path: 'projects/:projectId', element: <ProjectDetailPage /> },
+      { path: 'documents/:documentId', element: <DocumentViewerPage /> },
       { path: 'workflow', element: <WorkflowSettings /> },
       { path: 'users', element: <Users /> },
       { path: 'groups', element: <Groups /> },
