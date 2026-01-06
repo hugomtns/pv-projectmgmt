@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { DocumentCard } from './DocumentCard';
 import { Input } from '@/components/ui/input';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { useDocumentStore } from '@/stores/documentStore';
 import type { Document } from '@/lib/types/document';
 import { Search } from 'lucide-react';
 
@@ -12,6 +14,10 @@ interface DocumentListProps {
 
 export function DocumentList({ documents, onDocumentClick, showSearch = false }: DocumentListProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
+
+  const deleteDocument = useDocumentStore((state) => state.deleteDocument);
 
   // Filter documents based on search query
   const filteredDocuments = searchQuery
@@ -23,6 +29,21 @@ export function DocumentList({ documents, onDocumentClick, showSearch = false }:
         );
       })
     : documents;
+
+  const handleDeleteClick = (documentId: string) => {
+    const doc = documents.find((d) => d.id === documentId);
+    if (doc) {
+      setDocumentToDelete(doc);
+      setDeleteConfirmOpen(true);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (documentToDelete) {
+      await deleteDocument(documentToDelete.id);
+      setDocumentToDelete(null);
+    }
+  };
 
   if (documents.length === 0) {
     return (
@@ -58,10 +79,23 @@ export function DocumentList({ documents, onDocumentClick, showSearch = false }:
               key={doc.id}
               document={doc}
               onClick={() => onDocumentClick?.(doc.id)}
+              onDelete={handleDeleteClick}
             />
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={handleConfirmDelete}
+        title={`Delete "${documentToDelete?.name}"?`}
+        description="This action cannot be undone. The document and all its versions, comments, and annotations will be permanently deleted."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }
