@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useDocumentStore } from '@/stores/documentStore';
@@ -34,6 +34,7 @@ export function CommentPanel({
 }: CommentPanelProps) {
   const [newCommentText, setNewCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const highlightedCommentRef = useRef<HTMLDivElement>(null);
 
   const addComment = useDocumentStore((state) => state.addComment);
   const resolveComment = useDocumentStore((state) => state.resolveComment);
@@ -50,6 +51,16 @@ export function CommentPanel({
     permissionOverrides,
     roles
   );
+
+  // Auto-scroll to highlighted comment
+  useEffect(() => {
+    if (highlightedCommentId && highlightedCommentRef.current) {
+      highlightedCommentRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [highlightedCommentId]);
 
   // Fetch comments from IndexedDB
   const comments = useLiveQuery(
@@ -115,8 +126,9 @@ export function CommentPanel({
     return (
       <div
         key={comment.id}
+        ref={comment.id === highlightedCommentId ? highlightedCommentRef : null}
         className={cn(
-          'p-3 rounded-lg border transition-colors',
+          'p-3 rounded-lg border transition-colors cursor-pointer hover:bg-muted/50',
           isHighlighted
             ? 'border-primary bg-primary/5'
             : 'border-border bg-card',
