@@ -5,6 +5,7 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 import { useUserStore } from '@/stores/userStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,6 +50,22 @@ export default function ProjectDetailPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('properties');
 
+  // Form state for Properties tab
+  const [formValues, setFormValues] = useState({
+    name: project?.name || '',
+    location: project?.location || '',
+    priority: (project?.priority || 3) as Priority,
+    owner: project?.owner || '',
+  });
+
+  // Track if form has unsaved changes
+  const isDirty = project ? (
+    formValues.name !== project.name ||
+    formValues.location !== project.location ||
+    formValues.priority !== project.priority ||
+    formValues.owner !== project.owner
+  ) : false;
+
   // Get document permissions
   const documentPermissions = getDocumentPermissions(
     currentUser,
@@ -67,26 +84,70 @@ export default function ProjectDetailPage() {
     }
   }, [project?.id, project?.currentStageId]);
 
+  // Reset form when project changes
+  useEffect(() => {
+    if (project) {
+      setFormValues({
+        name: project.name,
+        location: project.location,
+        priority: project.priority as Priority,
+        owner: project.owner,
+      });
+    }
+  }, [project?.id]);
+
+  // Keyboard shortcuts for save/cancel
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if Properties tab is active and form is dirty
+      if (activeTab !== 'properties' || !isDirty) return;
+
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        handleSaveChanges();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancelChanges();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, isDirty, formValues]);
+
   if (!project) {
     return <NotFound message="Project not found" />;
   }
 
   const currentStage = workflow.stages.find((s) => s.id === project.currentStageId);
 
-  const handleNameChange = (name: string) => {
-    updateProject(project.id, { name });
+  // Form change handler for Properties tab
+  const handleFormChange = (field: string, value: string | Priority) => {
+    setFormValues(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleLocationChange = (location: string) => {
-    updateProject(project.id, { location });
+  // Save changes handler
+  const handleSaveChanges = () => {
+    updateProject(project.id, {
+      name: formValues.name,
+      location: formValues.location,
+      priority: formValues.priority,
+      owner: formValues.owner,
+    });
+
+    toast.success('Project updated successfully', {
+      description: `Changes to ${formValues.name} have been saved.`,
+    });
   };
 
-  const handleOwnerChange = (owner: string) => {
-    updateProject(project.id, { owner });
-  };
-
-  const handlePriorityChange = (priority: Priority) => {
-    updateProject(project.id, { priority });
+  // Cancel changes handler
+  const handleCancelChanges = () => {
+    setFormValues({
+      name: project.name,
+      location: project.location,
+      priority: project.priority as Priority,
+      owner: project.owner,
+    });
   };
 
   const currentStageIndex = workflow.stages.findIndex((s) => s.id === project.currentStageId);
@@ -145,8 +206,8 @@ export default function ProjectDetailPage() {
               <div>
                 <label className="text-sm font-medium">Project Name</label>
                 <Input
-                  value={project.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
+                  value={formValues.name}
+                  onChange={(e) => handleFormChange('name', e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -155,8 +216,8 @@ export default function ProjectDetailPage() {
               <div>
                 <label className="text-sm font-medium">Location</label>
                 <Input
-                  value={project.location}
-                  onChange={(e) => handleLocationChange(e.target.value)}
+                  value={formValues.location}
+                  onChange={(e) => handleFormChange('location', e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -164,18 +225,40 @@ export default function ProjectDetailPage() {
               {/* Priority */}
               <div>
                 <label className="text-sm font-medium block mb-2">Priority</label>
-                <PriorityBadge priority={project.priority} onChange={handlePriorityChange} />
+                <PriorityBadge
+                  priority={formValues.priority}
+                  onChange={(p) => handleFormChange('priority', p)}
+                />
               </div>
 
               {/* Owner */}
               <div>
                 <label className="text-sm font-medium block mb-1">Owner</label>
                 <UserSelectField
-                  value={project.owner}
-                  onValueChange={handleOwnerChange}
+                  value={formValues.owner}
+                  onValueChange={(v) => handleFormChange('owner', v)}
                   placeholder="Select owner"
                 />
               </div>
+
+              {/* Save/Cancel Buttons (only show when dirty) */}
+              {isDirty && (
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancelChanges}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveChanges}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              )}
             </TabsContent>
 
             {/* Status Tab */}
