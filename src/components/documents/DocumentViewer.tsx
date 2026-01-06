@@ -11,6 +11,8 @@ import { DrawingToolbar, type DrawingTool, type DrawingColor, type StrokeWidth }
 import { DrawingLayer } from './DrawingLayer';
 import { VersionHistory } from './VersionHistory';
 import { VersionUploadDialog } from './VersionUploadDialog';
+import { WorkflowActions } from './WorkflowActions';
+import { WorkflowHistory } from './WorkflowHistory';
 import {
   ZoomIn,
   ZoomOut,
@@ -22,6 +24,7 @@ import {
   MapPin,
   Pencil,
   History,
+  ListTodo,
 } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -63,6 +66,7 @@ export function DocumentViewer({
   const [selectedVersionId, setSelectedVersionId] = useState<string>(versionId);
   const [selectedVersionFileUrl, setSelectedVersionFileUrl] = useState<string | null>(null);
   const [showVersionUpload, setShowVersionUpload] = useState(false);
+  const [showWorkflowHistory, setShowWorkflowHistory] = useState(false);
 
   const addComment = useDocumentStore((state) => state.addComment);
   const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
@@ -216,6 +220,7 @@ export function DocumentViewer({
             {documentName}
           </h2>
           <DocumentStatusBadge status={status} />
+          <WorkflowActions documentId={documentId} currentStatus={status} />
         </div>
 
         <div className="flex items-center gap-2">
@@ -261,6 +266,14 @@ export function DocumentViewer({
               title="Toggle version history"
             >
               <History className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={showWorkflowHistory ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => setShowWorkflowHistory(!showWorkflowHistory)}
+              title="Toggle workflow history"
+            >
+              <ListTodo className="h-4 w-4" />
             </Button>
           </div>
 
@@ -451,6 +464,11 @@ export function DocumentViewer({
             onUploadVersion={() => setShowVersionUpload(true)}
             canUpload={true} // TODO: Add permission check
           />
+        )}
+
+        {/* Workflow History Panel */}
+        {showWorkflowHistory && (
+          <WorkflowHistory documentId={documentId} />
         )}
       </div>
 
