@@ -12,6 +12,7 @@ import { DrawingToolbar, type DrawingTool, type DrawingColor, type StrokeWidth }
 import { DrawingLayer } from './DrawingLayer';
 import { VersionHistory } from './VersionHistory';
 import { VersionUploadDialog } from './VersionUploadDialog';
+import { AddLocationCommentDialog } from './AddLocationCommentDialog';
 import { WorkflowActions } from './WorkflowActions';
 import { WorkflowHistory } from './WorkflowHistory';
 import {
@@ -68,6 +69,12 @@ export function DocumentViewer({
   const [selectedVersionFileUrl, setSelectedVersionFileUrl] = useState<string | null>(null);
   const [showVersionUpload, setShowVersionUpload] = useState(false);
   const [showWorkflowHistory, setShowWorkflowHistory] = useState(false);
+  const [showAddCommentDialog, setShowAddCommentDialog] = useState(false);
+  const [pendingCommentLocation, setPendingCommentLocation] = useState<{
+    x: number;
+    y: number;
+    page: number;
+  } | null>(null);
 
   const addComment = useDocumentStore((state) => state.addComment);
   const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
@@ -170,15 +177,25 @@ export function DocumentViewer({
     setZoom('fit-width');
   };
 
-  const handleAddLocationComment = async (x: number, y: number, page: number) => {
-    const text = prompt('Enter comment:');
-    if (text) {
-      const commentId = await addComment(documentId, versionId, text, { x, y, page });
-      if (commentId) {
-        setHighlightedCommentId(commentId);
-        setAnnotationMode(false);
-      }
+  const handleAddLocationComment = (x: number, y: number, page: number) => {
+    // Store the location and show dialog
+    setPendingCommentLocation({ x, y, page });
+    setShowAddCommentDialog(true);
+  };
+
+  const handleCommentSubmit = async (comment: string) => {
+    if (!pendingCommentLocation) return;
+
+    const { x, y, page } = pendingCommentLocation;
+    const commentId = await addComment(documentId, versionId, comment, { x, y, page });
+
+    if (commentId) {
+      setHighlightedCommentId(commentId);
+      setAnnotationMode(false);
     }
+
+    // Clean up
+    setPendingCommentLocation(null);
   };
 
   const handlePinClick = (commentId: string) => {
@@ -497,6 +514,14 @@ export function DocumentViewer({
           currentVersionNumber={doc.versions.length}
         />
       )}
+
+      {/* Add Location Comment Dialog */}
+      <AddLocationCommentDialog
+        open={showAddCommentDialog}
+        onOpenChange={setShowAddCommentDialog}
+        onSubmit={handleCommentSubmit}
+        pageNumber={pendingCommentLocation?.page ?? 1}
+      />
     </div>
   );
 }
