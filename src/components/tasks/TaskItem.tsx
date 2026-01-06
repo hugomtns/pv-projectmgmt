@@ -1,6 +1,7 @@
 import type { Task } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserDisplay } from '@/components/users/UserDisplay';
+import { Paperclip } from 'lucide-react';
 
 interface TaskItemProps {
   task: Task;
@@ -90,6 +91,14 @@ export function TaskItem({ task, onClick, onStatusToggle }: TaskItemProps) {
           )}
         </div>
       </div>
+
+      {/* Attachment indicator */}
+      {task.attachments && task.attachments.length > 0 && (
+        <div className="flex items-center gap-1 text-muted-foreground shrink-0" title={`${task.attachments.length} attachment(s)`}>
+          <Paperclip className="h-3.5 w-3.5" />
+          <span className="text-xs">{task.attachments.length}</span>
+        </div>
+      )}
 
       {/* Status badge */}
       <div className={`text-xs px-2 py-1 rounded-full shrink-0 ${getStatusColor(task.status)}`}>

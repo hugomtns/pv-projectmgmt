@@ -212,7 +212,7 @@ export function ProjectDetail() {
                 </Button>
               )}
             </div>
-            <DocumentList documents={projectDocuments} />
+            <DocumentList documents={projectDocuments} showSearch />
           </div>
         </div>
       </SheetContent>

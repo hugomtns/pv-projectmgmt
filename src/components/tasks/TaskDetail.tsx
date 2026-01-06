@@ -215,6 +215,7 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
             <DocumentList
               documents={taskDocuments}
               onDocumentClick={(documentId) => navigate(`/documents/${documentId}`)}
+              showSearch
             />
           </div>
 

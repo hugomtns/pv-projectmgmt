@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { PriorityBadge } from './PriorityBadge';
 import { UserDisplay } from '@/components/users/UserDisplay';
+import { Badge } from '@/components/ui/badge';
 import type { Project, Priority } from '@/lib/types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { FileText } from 'lucide-react';
 
 interface ProjectCardProps {
   project: Project;
@@ -70,9 +72,18 @@ export function ProjectCard({
           </span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <UserDisplay userId={project.owner} variant="avatar-only" showRole />
-          <span>{stageName}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <UserDisplay userId={project.owner} variant="avatar-only" showRole />
+            <span>{stageName}</span>
+          </div>
+
+          {project.attachments && project.attachments.length > 0 && (
+            <Badge variant="secondary" className="gap-1 h-5 px-1.5">
+              <FileText className="h-3 w-3" />
+              <span className="text-xs">{project.attachments.length}</span>
+            </Badge>
+          )}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { Document, DocumentStatus, DocumentComment, Drawing } from '@/lib/types';
 import { db, storeBlob, deleteBlob } from '@/lib/db';
 import { useUserStore } from './userStore';
+import { useProjectStore } from './projectStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { getFileType, convertImageToPdf } from '@/components/documents/utils/fileConversion';
 import { toast } from 'sonner';
@@ -411,6 +412,34 @@ export const useDocumentStore = create<DocumentState>()(
           set((state) => ({
             documents: state.documents.filter((d) => d.id !== id),
           }));
+
+          // Cascade delete: Remove from project/task attachments
+          const projectStore = useProjectStore.getState();
+          if (document.projectId) {
+            // Remove from project attachments
+            const project = projectStore.projects.find(p => p.id === document.projectId);
+            if (project && project.attachments) {
+              projectStore.updateProject(document.projectId, {
+                attachments: project.attachments.filter(docId => docId !== id)
+              });
+            }
+          }
+          if (document.taskId && document.projectId) {
+            // Remove from task attachments
+            const project = projectStore.projects.find(p => p.id === document.projectId);
+            if (project) {
+              // Find the task in project stages
+              for (const [stageId, stageData] of Object.entries(project.stages)) {
+                const task = stageData.tasks.find(t => t.id === document.taskId);
+                if (task && task.attachments) {
+                  projectStore.updateTask(document.projectId, stageId, document.taskId, {
+                    attachments: task.attachments.filter(docId => docId !== id)
+                  });
+                  break;
+                }
+              }
+            }
+          }
 
           toast.success('Document deleted');
           return true;
