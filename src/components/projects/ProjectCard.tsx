@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { PriorityBadge } from './PriorityBadge';
 import { UserDisplay } from '@/components/users/UserDisplay';
 import { Badge } from '@/components/ui/badge';
-import type { Project, Priority } from '@/lib/types';
+import type { Project } from '@/lib/types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FileText } from 'lucide-react';
@@ -10,7 +10,6 @@ import { FileText } from 'lucide-react';
 interface ProjectCardProps {
   project: Project;
   stageName: string;
-  onUpdatePriority: (priority: Priority) => void;
   tasksCompleted: number;
   tasksTotal: number;
   onProjectHover?: (projectId: string | null) => void;
@@ -19,7 +18,6 @@ interface ProjectCardProps {
 export function ProjectCard({
   project,
   stageName,
-  onUpdatePriority,
   tasksCompleted,
   tasksTotal,
   onProjectHover,
@@ -40,11 +38,7 @@ export function ProjectCard({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Don't open detail if clicking on priority badge
-    if ((e.target as HTMLElement).closest('[role="button"]')) {
-      return;
-    }
+  const handleClick = () => {
     navigate(`/projects/${project.id}`);
   };
 
@@ -66,7 +60,7 @@ export function ProjectCard({
         </div>
 
         <div className="flex items-center justify-between">
-          <PriorityBadge priority={project.priority} onChange={onUpdatePriority} />
+          <PriorityBadge priority={project.priority} readonly />
           <span className="text-xs text-muted-foreground">
             {tasksCompleted}/{tasksTotal} tasks
           </span>

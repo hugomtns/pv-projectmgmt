@@ -122,10 +122,6 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
     return { completed, total: currentStageTasks.length };
   };
 
-  const handleUpdatePriority = (projectId: string, priority: Priority) => {
-    updateProject(projectId, { priority });
-  };
-
   const handleDragStart = (event: DragStartEvent) => {
     const project = projects.find((p) => p.id === event.active.id);
     setActiveProject(project || null);
@@ -316,7 +312,6 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
                     color={col.color}
                     projects={projects}
                     getStageName={getStageName}
-                    onUpdatePriority={handleUpdatePriority}
                     getTasksInfo={getTasksInfo}
                     onProjectHover={onProjectHover}
                   />
@@ -332,7 +327,6 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
             <ProjectCard
               project={activeProject}
               stageName={getStageName(activeProject.currentStageId)}
-              onUpdatePriority={(priority) => handleUpdatePriority(activeProject.id, priority)}
               tasksCompleted={getTasksInfo(activeProject).completed}
               tasksTotal={getTasksInfo(activeProject).total}
             />
@@ -371,7 +365,6 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
                       color={col.color}
                       projects={projects}
                       getStageName={getStageName}
-                      onUpdatePriority={handleUpdatePriority}
                       getTasksInfo={getTasksInfo}
                       onProjectHover={onProjectHover}
                     />
@@ -387,7 +380,6 @@ export function ProjectBoard({ onProjectHover }: ProjectBoardProps) {
           <ProjectCard
             project={activeProject}
             stageName={getStageName(activeProject.currentStageId)}
-            onUpdatePriority={(priority) => handleUpdatePriority(activeProject.id, priority)}
             tasksCompleted={getTasksInfo(activeProject).completed}
             tasksTotal={getTasksInfo(activeProject).total}
           />

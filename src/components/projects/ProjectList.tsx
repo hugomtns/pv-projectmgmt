@@ -20,7 +20,6 @@ interface ProjectListProps {
 export function ProjectList({ onProjectHover }: ProjectListProps) {
   const navigate = useNavigate();
   const projects = useProjectStore((state) => state.projects);
-  const updateProject = useProjectStore((state) => state.updateProject);
   const workflow = useWorkflowStore((state) => state.workflow);
   const users = useUserStore((state) => state.users);
   const filters = useFilterStore((state) => state.filters);
@@ -321,10 +320,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
           <span className="text-sm truncate">{stage?.name || 'Unknown'}</span>
         </div>
         <div className="px-4 py-3">
-          <PriorityBadge
-            priority={project.priority}
-            onChange={(newPriority: Priority) => updateProject(project.id, { priority: newPriority })}
-          />
+          <PriorityBadge priority={project.priority} readonly />
         </div>
         <div className="px-4 py-3">
           <UserDisplay userId={project.owner} variant="compact" />

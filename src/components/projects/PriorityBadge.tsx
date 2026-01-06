@@ -9,12 +9,30 @@ import type { Priority } from '@/lib/types';
 
 interface PriorityBadgeProps {
   priority: Priority;
-  onChange: (priority: Priority) => void;
+  onChange?: (priority: Priority) => void;
+  readonly?: boolean;
 }
 
-export function PriorityBadge({ priority, onChange }: PriorityBadgeProps) {
+export function PriorityBadge({ priority, onChange, readonly = false }: PriorityBadgeProps) {
   const priorityOptions: Priority[] = [0, 1, 2, 3, 4];
 
+  // Readonly mode: display as static badge
+  if (readonly) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium"
+        style={{
+          backgroundColor: `${PRIORITY_COLORS[priority]}20`,
+          color: PRIORITY_COLORS[priority],
+        }}
+      >
+        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_COLORS[priority] }} />
+        {PRIORITY_LABELS[priority]}
+      </span>
+    );
+  }
+
+  // Interactive mode: dropdown menu
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -33,7 +51,7 @@ export function PriorityBadge({ priority, onChange }: PriorityBadgeProps) {
         {priorityOptions.map((p) => (
           <DropdownMenuItem
             key={p}
-            onClick={() => onChange(p)}
+            onClick={() => onChange?.(p)}
             className="flex items-center gap-2"
           >
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PRIORITY_COLORS[p] }} />

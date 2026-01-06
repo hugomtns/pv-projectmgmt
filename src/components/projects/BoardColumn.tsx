@@ -1,5 +1,5 @@
 import { ProjectCard } from './ProjectCard';
-import type { Project, Priority } from '@/lib/types';
+import type { Project } from '@/lib/types';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
@@ -9,7 +9,6 @@ interface BoardColumnProps {
   color?: string;
   projects: Project[];
   getStageName: (stageId: string) => string;
-  onUpdatePriority: (projectId: string, priority: Priority) => void;
   getTasksInfo: (project: Project) => { completed: number; total: number };
   onProjectHover?: (projectId: string | null) => void;
 }
@@ -20,7 +19,6 @@ export function BoardColumn({
   color,
   projects,
   getStageName,
-  onUpdatePriority,
   getTasksInfo,
   onProjectHover,
 }: BoardColumnProps) {
@@ -53,7 +51,6 @@ export function BoardColumn({
                   key={project.id}
                   project={project}
                   stageName={getStageName(project.currentStageId)}
-                  onUpdatePriority={(priority) => onUpdatePriority(project.id, priority)}
                   tasksCompleted={completed}
                   tasksTotal={total}
                   onProjectHover={onProjectHover}
