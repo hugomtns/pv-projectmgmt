@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDocumentStore } from '@/stores/documentStore';
 import { db, getBlob } from '@/lib/db';
+import { blobCache } from '@/lib/blobCache';
 import { DocumentViewer } from '@/components/documents/DocumentViewer';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import NotFound from './NotFound';
@@ -36,15 +37,15 @@ export default function DocumentViewerPage() {
           return;
         }
 
-        // Load blob and create URL
-        const blob = await getBlob(version.pdfFileBlob || version.originalFileBlob);
-        if (!blob) {
+        // Load blob from cache or create new URL
+        const blobId = version.pdfFileBlob || version.originalFileBlob;
+        const url = await blobCache.get(blobId, getBlob);
+        if (!url) {
           setError('Failed to load document file');
           setLoading(false);
           return;
         }
 
-        const url = URL.createObjectURL(blob);
         setFileUrl(url);
         setLoading(false);
       } catch (err) {
@@ -56,10 +57,16 @@ export default function DocumentViewerPage() {
 
     loadDocument();
 
-    // Cleanup blob URL on unmount
+    // Cleanup: release blob from cache on unmount
     return () => {
-      if (fileUrl) {
-        URL.revokeObjectURL(fileUrl);
+      if (document) {
+        const version = document.currentVersionId;
+        db.documentVersions.get(version).then((v) => {
+          if (v) {
+            const blobId = v.pdfFileBlob || v.originalFileBlob;
+            blobCache.release(blobId);
+          }
+        });
       }
     };
   }, [document?.currentVersionId, documentId]);

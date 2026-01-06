@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getBlob } from '@/lib/db';
+import { blobCache } from '@/lib/blobCache';
 import { useDocumentStore } from '@/stores/documentStore';
 import { Button } from '@/components/ui/button';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
@@ -86,6 +87,8 @@ export function DocumentViewer({
 
   // Load file when selected version changes
   useEffect(() => {
+    let previousBlobId: string | null = null;
+
     const loadVersionFile = async () => {
       if (!selectedVersionId) return;
 
@@ -93,16 +96,19 @@ export function DocumentViewer({
         const version = await db.documentVersions.get(selectedVersionId);
         if (!version) return;
 
-        const blob = await getBlob(version.pdfFileBlob || version.originalFileBlob);
-        if (!blob) return;
+        const blobId = version.pdfFileBlob || version.originalFileBlob;
 
-        // Revoke old URL if exists
-        if (selectedVersionFileUrl) {
-          URL.revokeObjectURL(selectedVersionFileUrl);
+        // Release previous blob from cache
+        if (previousBlobId && previousBlobId !== blobId) {
+          blobCache.release(previousBlobId);
         }
 
-        const url = URL.createObjectURL(blob);
+        // Get URL from cache
+        const url = await blobCache.get(blobId, getBlob);
+        if (!url) return;
+
         setSelectedVersionFileUrl(url);
+        previousBlobId = blobId;
       } catch (err) {
         console.error('Failed to load version file:', err);
       }
@@ -112,8 +118,8 @@ export function DocumentViewer({
 
     // Cleanup on unmount
     return () => {
-      if (selectedVersionFileUrl) {
-        URL.revokeObjectURL(selectedVersionFileUrl);
+      if (previousBlobId) {
+        blobCache.release(previousBlobId);
       }
     };
   }, [selectedVersionId]);
