@@ -7,6 +7,7 @@ import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { MapPin, MessageSquare, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DocumentComment } from '@/lib/types';
@@ -34,6 +35,8 @@ export function CommentPanel({
 }: CommentPanelProps) {
   const [newCommentText, setNewCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const highlightedCommentRef = useRef<HTMLDivElement>(null);
 
   const addComment = useDocumentStore((state) => state.addComment);
@@ -112,9 +115,15 @@ export function CommentPanel({
     }
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (confirm('Delete this comment?')) {
-      await deleteComment(commentId);
+  const handleDeleteComment = (commentId: string) => {
+    setCommentToDelete(commentId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (commentToDelete) {
+      await deleteComment(commentToDelete);
+      setCommentToDelete(null);
     }
   };
 
@@ -279,6 +288,18 @@ export function CommentPanel({
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={handleConfirmDelete}
+        title="Delete this comment?"
+        description="This action cannot be undone. The comment will be permanently deleted."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }
