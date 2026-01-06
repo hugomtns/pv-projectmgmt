@@ -4,6 +4,7 @@ import type { Document, DocumentStatus, DocumentComment, Drawing } from '@/lib/t
 import { db, storeBlob, deleteBlob } from '@/lib/db';
 import { useUserStore } from './userStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
+import { getFileType, convertImageToPdf } from '@/components/documents/utils/fileConversion';
 import { toast } from 'sonner';
 
 // Helper to get user's full name
@@ -88,6 +89,21 @@ export const useDocumentStore = create<DocumentState>()(
           // Store file blob
           const originalBlobId = await storeBlob(file);
 
+          // Check if image needs conversion to PDF
+          const fileType = getFileType(file);
+          let pdfBlobId: string | undefined;
+
+          if (fileType === 'image') {
+            try {
+              const pdfBlob = await convertImageToPdf(file);
+              pdfBlobId = await storeBlob(pdfBlob);
+            } catch (err) {
+              console.error('Failed to convert image to PDF:', err);
+              toast.error('Failed to convert image. Please try again.');
+              return null;
+            }
+          }
+
           // Create document and version
           const documentId = crypto.randomUUID();
           const versionId = crypto.randomUUID();
@@ -105,6 +121,7 @@ export const useDocumentStore = create<DocumentState>()(
             fileSize: file.size,
             pageCount: 1, // TODO: Calculate from PDF
             originalFileBlob: originalBlobId,
+            pdfFileBlob: pdfBlobId,
           });
 
           // Create document metadata
@@ -179,6 +196,21 @@ export const useDocumentStore = create<DocumentState>()(
           // Store file blob
           const originalBlobId = await storeBlob(file);
 
+          // Check if image needs conversion to PDF
+          const fileType = getFileType(file);
+          let pdfBlobId: string | undefined;
+
+          if (fileType === 'image') {
+            try {
+              const pdfBlob = await convertImageToPdf(file);
+              pdfBlobId = await storeBlob(pdfBlob);
+            } catch (err) {
+              console.error('Failed to convert image to PDF:', err);
+              toast.error('Failed to convert image. Please try again.');
+              return null;
+            }
+          }
+
           // Create version
           const versionId = crypto.randomUUID();
           const versionNumber = document.versions.length + 1;
@@ -194,6 +226,7 @@ export const useDocumentStore = create<DocumentState>()(
             fileSize: file.size,
             pageCount: 1, // TODO: Calculate from PDF
             originalFileBlob: originalBlobId,
+            pdfFileBlob: pdfBlobId,
           });
 
           // Update document
