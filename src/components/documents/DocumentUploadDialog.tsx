@@ -37,7 +37,7 @@ export function DocumentUploadDialog({
 
     // Validate file type
     if (!validateFileType(selectedFile)) {
-      setError('Invalid file type. Please upload PDF, PNG, JPG, or DOCX files.');
+      setError('Invalid file type. Please upload PDF, PNG, or JPG files.');
       return;
     }
 
@@ -186,12 +186,12 @@ export function DocumentUploadDialog({
                     Drag and drop a file here, or click to browse
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Supported: PDF, PNG, JPG, DOCX (max 50MB)
+                    Supported: PDF, PNG, JPG (max 50MB)
                   </p>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.docx"
+                    accept=".pdf,.png,.jpg,.jpeg"
                     onChange={handleFileInputChange}
                     className="hidden"
                   />

@@ -1,7 +1,7 @@
 import mammoth from 'mammoth';
 import { jsPDF } from 'jspdf';
 
-export type SupportedFileType = 'pdf' | 'image' | 'docx';
+export type SupportedFileType = 'pdf' | 'image';
 
 /**
  * Determine file type from blob's MIME type
@@ -15,13 +15,6 @@ export function getFileType(blob: Blob): SupportedFileType | null {
 
   if (type.startsWith('image/')) {
     return 'image';
-  }
-
-  if (
-    type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-    type === 'application/msword'
-  ) {
-    return 'docx';
   }
 
   return null;
