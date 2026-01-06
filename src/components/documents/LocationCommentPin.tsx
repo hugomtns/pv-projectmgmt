@@ -52,8 +52,8 @@ export function LocationCommentPin({
   };
 
   const colors = getColors();
-  const radius = highlighted ? 3 : 2.5;
-  const strokeWidth = highlighted ? 0.6 : 0.5;
+  const radius = highlighted ? 1.5 : 1.25;
+  const strokeWidth = highlighted ? 0.3 : 0.25;
 
   return (
     <>
@@ -91,9 +91,9 @@ export function LocationCommentPin({
           <circle
             cx={0}
             cy={0}
-            r={4.5}
+            r={2.25}
             className="fill-none stroke-indigo-400 animate-pulse"
-            strokeWidth={0.4}
+            strokeWidth={0.2}
             opacity={0.6}
           />
         )}
@@ -118,7 +118,7 @@ export function LocationCommentPin({
             colors.textFill,
             'pointer-events-none select-none'
           )}
-          fontSize="2.8"
+          fontSize="1.4"
           fontWeight="700"
         >
           {number}
