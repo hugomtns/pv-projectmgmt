@@ -29,6 +29,15 @@ class DocumentDatabase extends Dexie {
       workflowEvents: 'id, documentId, timestamp',
       blobs: 'id'
     });
+
+    // Version 2: Add compound index for drawings query optimization
+    this.version(2).stores({
+      documentVersions: 'id, documentId, versionNumber, uploadedAt',
+      drawings: 'id, [documentId+page], documentId, page, createdBy',
+      documentComments: 'id, documentId, versionId, type, createdAt',
+      workflowEvents: 'id, documentId, timestamp',
+      blobs: 'id'
+    });
   }
 }
 
