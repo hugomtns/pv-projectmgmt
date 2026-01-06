@@ -89,18 +89,6 @@ export function AnnotationLayer({
           />
         );
       })}
-
-      {/* Annotation mode hint */}
-      {annotationMode && pageComments.length === 0 && (
-        <text
-          x={50}
-          y={50}
-          textAnchor="middle"
-          className="text-[3px] fill-muted-foreground select-none pointer-events-none"
-        >
-          Click anywhere to add a comment
-        </text>
-      )}
     </svg>
   );
 }

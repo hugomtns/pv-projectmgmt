@@ -159,28 +159,6 @@ describe('AnnotationLayer', () => {
     expect(svg?.className.baseVal).toContain('cursor-default');
   });
 
-  it('shows annotation mode hint when annotation mode is active and no comments', () => {
-    render(
-      <AnnotationLayer
-        {...defaultProps}
-        annotationMode={true}
-        comments={[]}
-      />
-    );
-
-    expect(screen.getByText('Click anywhere to add a comment')).toBeInTheDocument();
-  });
-
-  it('hides annotation mode hint when comments exist', () => {
-    render(
-      <AnnotationLayer
-        {...defaultProps}
-        annotationMode={true}
-      />
-    );
-
-    expect(screen.queryByText('Click anywhere to add a comment')).not.toBeInTheDocument();
-  });
 
   it('calls onAddComment with coordinates when SVG is clicked in annotation mode', () => {
     const onAddComment = vi.fn();

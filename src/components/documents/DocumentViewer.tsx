@@ -374,6 +374,15 @@ export function DocumentViewer({
             </div>
           )}
 
+          {/* Annotation Mode Banner */}
+          {annotationMode && (
+            <div className="bg-blue-500/20 border-b border-blue-500/50 p-3 text-center">
+              <p className="text-sm text-blue-900 dark:text-blue-100">
+                Click anywhere on the document to add a location comment
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col items-center p-8 space-y-4">
             <Document
               file={activeFileUrl}
