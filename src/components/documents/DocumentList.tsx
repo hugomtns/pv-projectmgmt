@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DocumentCard } from './DocumentCard';
+import { DocumentCardCompact } from './DocumentCardCompact';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useDocumentStore } from '@/stores/documentStore';
@@ -10,9 +11,10 @@ interface DocumentListProps {
   documents: Document[];
   onDocumentClick?: (documentId: string) => void;
   showSearch?: boolean;
+  variant?: 'default' | 'compact';
 }
 
-export function DocumentList({ documents, onDocumentClick, showSearch = false }: DocumentListProps) {
+export function DocumentList({ documents, onDocumentClick, showSearch = false, variant = 'default' }: DocumentListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<Document | null>(null);
@@ -71,6 +73,17 @@ export function DocumentList({ documents, onDocumentClick, showSearch = false }:
       {filteredDocuments.length === 0 && searchQuery ? (
         <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
           No documents found matching "{searchQuery}"
+        </div>
+      ) : variant === 'compact' ? (
+        <div className="flex flex-col gap-2">
+          {filteredDocuments.map((doc) => (
+            <DocumentCardCompact
+              key={doc.id}
+              document={doc}
+              onClick={() => onDocumentClick?.(doc.id)}
+              onDelete={handleDeleteClick}
+            />
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
