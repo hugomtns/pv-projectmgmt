@@ -199,7 +199,8 @@ export function DocumentViewer({
   };
 
   const handlePinClick = (commentId: string) => {
-    setHighlightedCommentId(commentId);
+    // Toggle selection: if already highlighted, deselect it
+    setHighlightedCommentId((prev) => (prev === commentId ? undefined : commentId));
   };
 
   const handleLocationCommentClick = (commentId: string, page: number) => {

@@ -82,7 +82,8 @@ export function LocationCommentPin({
           colors.opacity
         )}
         style={{
-          transform: `translate(${location.x}%, ${location.y}%)`,
+          transform: `translate(${location.x}%, ${location.y}%) scale(1, 0.77)`,
+          transformOrigin: '0 0',
         }}
       >
         {/* Animated pulse ring for highlighted state */}
