@@ -106,3 +106,21 @@ export function isPointInBounds(
     point.y <= bounds.y + bounds.height
   );
 }
+
+/**
+ * Normalize bounds to ensure width and height are always positive
+ * Takes start and end points and returns a properly oriented bounding box
+ */
+export function normalizeBounds(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): { x: number; y: number; width: number; height: number } {
+  return {
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    width: Math.abs(x2 - x1),
+    height: Math.abs(y2 - y1),
+  };
+}

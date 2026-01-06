@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { AnnotationLayer } from './AnnotationLayer';
 import { CommentPanel } from './CommentPanel';
+import { DrawingToolbar, type DrawingTool, type DrawingColor, type StrokeWidth } from './DrawingToolbar';
+import { DrawingLayer } from './DrawingLayer';
 import {
   ZoomIn,
   ZoomOut,
@@ -16,6 +18,7 @@ import {
   X,
   MessageSquare,
   MapPin,
+  Pencil,
 } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -49,8 +52,13 @@ export function DocumentViewer({
   const [annotationMode, setAnnotationMode] = useState(false);
   const [highlightedCommentId, setHighlightedCommentId] = useState<string>();
   const [showComments, setShowComments] = useState(true);
+  const [drawingMode, setDrawingMode] = useState(false);
+  const [drawingTool, setDrawingTool] = useState<DrawingTool>('select');
+  const [drawingColor, setDrawingColor] = useState<DrawingColor>('#EF4444');
+  const [drawingStrokeWidth, setDrawingStrokeWidth] = useState<StrokeWidth>(4);
 
   const addComment = useDocumentStore((state) => state.addComment);
+  const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
 
   // Fetch comments from IndexedDB
   const comments = useLiveQuery(
@@ -126,6 +134,19 @@ export function DocumentViewer({
     pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const handleClearAllDrawings = async () => {
+    if (!confirm('Clear all drawings on this document? This cannot be undone.')) return;
+
+    const pageDrawings = await db.drawings
+      .where('documentId')
+      .equals(documentId)
+      .toArray();
+
+    for (const drawing of pageDrawings) {
+      await deleteDrawing(drawing.id);
+    }
+  };
+
   const getPageWidth = () => {
     if (zoom === 'fit-width') {
       return containerWidth;
@@ -149,15 +170,32 @@ export function DocumentViewer({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Annotation Mode */}
+          {/* Annotation & Drawing Mode */}
           <div className="flex items-center gap-1 border-r pr-2">
             <Button
               variant={annotationMode ? 'default' : 'ghost'}
               size="icon"
-              onClick={() => setAnnotationMode(!annotationMode)}
-              title="Add location comment (A)"
+              onClick={() => {
+                setAnnotationMode(!annotationMode);
+                if (!annotationMode) setDrawingMode(false);
+              }}
+              title="Add location comment"
             >
               <MapPin className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={drawingMode ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => {
+                setDrawingMode(!drawingMode);
+                if (!drawingMode) {
+                  setAnnotationMode(false);
+                  setDrawingTool('rectangle');
+                }
+              }}
+              title="Drawing mode"
+            >
+              <Pencil className="h-4 w-4" />
             </Button>
             <Button
               variant={showComments ? 'default' : 'ghost'}
@@ -219,6 +257,19 @@ export function DocumentViewer({
         </div>
       </div>
 
+      {/* Drawing Toolbar */}
+      {drawingMode && (
+        <DrawingToolbar
+          activeTool={drawingTool}
+          activeColor={drawingColor}
+          activeStrokeWidth={drawingStrokeWidth}
+          onToolChange={setDrawingTool}
+          onColorChange={setDrawingColor}
+          onStrokeWidthChange={setDrawingStrokeWidth}
+          onClearAll={handleClearAllDrawings}
+        />
+      )}
+
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* PDF Viewer */}
@@ -264,18 +315,36 @@ export function DocumentViewer({
                     }
                   />
                   {/* Annotation Layer Overlay */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    <AnnotationLayer
-                      documentId={documentId}
-                      versionId={versionId}
-                      currentPage={pageNumber}
-                      comments={comments}
-                      highlightedCommentId={highlightedCommentId}
-                      annotationMode={annotationMode}
-                      onPinClick={handlePinClick}
-                      onAddComment={handleAddLocationComment}
-                    />
-                  </div>
+                  {!drawingMode && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <AnnotationLayer
+                        documentId={documentId}
+                        versionId={versionId}
+                        currentPage={pageNumber}
+                        comments={comments}
+                        highlightedCommentId={highlightedCommentId}
+                        annotationMode={annotationMode}
+                        onPinClick={handlePinClick}
+                        onAddComment={handleAddLocationComment}
+                      />
+                    </div>
+                  )}
+
+                  {/* Drawing Layer Overlay */}
+                  {drawingMode && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      <DrawingLayer
+                        documentId={documentId}
+                        versionId={versionId}
+                        currentPage={pageNumber}
+                        activeTool={drawingTool}
+                        activeColor={drawingColor}
+                        activeStrokeWidth={drawingStrokeWidth}
+                        onDisableDrawing={() => setDrawingMode(false)}
+                      />
+                    </div>
+                  )}
+
                   {/* Page number indicator */}
                   <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs">
                     Page {pageNumber}
