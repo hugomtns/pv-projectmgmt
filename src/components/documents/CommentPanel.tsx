@@ -61,6 +61,19 @@ export function CommentPanel({
     [documentId]
   );
 
+  // Fetch all versions to get version numbers
+  const versions = useLiveQuery(
+    () =>
+      db.documentVersions
+        .where('documentId')
+        .equals(documentId)
+        .toArray(),
+    [documentId]
+  );
+
+  // Create version ID to version number map
+  const versionMap = new Map(versions?.map(v => [v.id, v.versionNumber]) || []);
+
   const filteredComments = comments || [];
 
   // Group comments by type
@@ -97,6 +110,7 @@ export function CommentPanel({
   const renderComment = (comment: DocumentComment) => {
     const isHighlighted = comment.id === highlightedCommentId;
     const canModify = permissions.update;
+    const commentVersionNumber = versionMap.get(comment.versionId);
 
     return (
       <div
@@ -123,6 +137,11 @@ export function CommentPanel({
               <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
             )}
             <span className="text-sm font-medium truncate">{comment.author}</span>
+            {commentVersionNumber && (
+              <Badge variant="outline" className="shrink-0 text-xs">
+                v{commentVersionNumber}
+              </Badge>
+            )}
           </div>
           {comment.resolved && (
             <Badge variant="secondary" className="shrink-0">

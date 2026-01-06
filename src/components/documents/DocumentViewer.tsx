@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db, getBlob } from '@/lib/db';
 import { useDocumentStore } from '@/stores/documentStore';
 import { Button } from '@/components/ui/button';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
@@ -9,6 +9,8 @@ import { AnnotationLayer } from './AnnotationLayer';
 import { CommentPanel } from './CommentPanel';
 import { DrawingToolbar, type DrawingTool, type DrawingColor, type StrokeWidth } from './DrawingToolbar';
 import { DrawingLayer } from './DrawingLayer';
+import { VersionHistory } from './VersionHistory';
+import { VersionUploadDialog } from './VersionUploadDialog';
 import {
   ZoomIn,
   ZoomOut,
@@ -19,6 +21,7 @@ import {
   MessageSquare,
   MapPin,
   Pencil,
+  History,
 } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -56,9 +59,16 @@ export function DocumentViewer({
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('select');
   const [drawingColor, setDrawingColor] = useState<DrawingColor>('#EF4444');
   const [drawingStrokeWidth, setDrawingStrokeWidth] = useState<StrokeWidth>(4);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [selectedVersionId, setSelectedVersionId] = useState<string>(versionId);
+  const [selectedVersionFileUrl, setSelectedVersionFileUrl] = useState<string | null>(null);
+  const [showVersionUpload, setShowVersionUpload] = useState(false);
 
   const addComment = useDocumentStore((state) => state.addComment);
   const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
+  const getDocument = useDocumentStore((state) => state.getDocument);
+
+  const doc = getDocument(documentId);
 
   // Fetch comments from IndexedDB
   const comments = useLiveQuery(
@@ -69,6 +79,45 @@ export function DocumentViewer({
         .toArray(),
     [documentId]
   ) || [];
+
+  // Load file when selected version changes
+  useEffect(() => {
+    const loadVersionFile = async () => {
+      if (!selectedVersionId) return;
+
+      try {
+        const version = await db.documentVersions.get(selectedVersionId);
+        if (!version) return;
+
+        const blob = await getBlob(version.pdfFileBlob || version.originalFileBlob);
+        if (!blob) return;
+
+        // Revoke old URL if exists
+        if (selectedVersionFileUrl) {
+          URL.revokeObjectURL(selectedVersionFileUrl);
+        }
+
+        const url = URL.createObjectURL(blob);
+        setSelectedVersionFileUrl(url);
+      } catch (err) {
+        console.error('Failed to load version file:', err);
+      }
+    };
+
+    loadVersionFile();
+
+    // Cleanup on unmount
+    return () => {
+      if (selectedVersionFileUrl) {
+        URL.revokeObjectURL(selectedVersionFileUrl);
+      }
+    };
+  }, [selectedVersionId]);
+
+  // Determine which file URL to use (selected version or prop)
+  const activeFileUrl = selectedVersionFileUrl || fileUrl;
+  const activeVersionId = selectedVersionId;
+  const isViewingOldVersion = selectedVersionId !== versionId;
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -205,6 +254,14 @@ export function DocumentViewer({
             >
               <MessageSquare className="h-4 w-4" />
             </Button>
+            <Button
+              variant={showVersionHistory ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => setShowVersionHistory(!showVersionHistory)}
+              title="Toggle version history"
+            >
+              <History className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Zoom Controls */}
@@ -281,9 +338,26 @@ export function DocumentViewer({
             }
           }}
         >
+          {/* Old Version Banner */}
+          {isViewingOldVersion && (
+            <div className="bg-amber-500/20 border-b border-amber-500/50 p-3 text-center">
+              <p className="text-sm text-amber-900 dark:text-amber-100">
+                You are viewing an old version. This is not the current version.
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => setSelectedVersionId(versionId)}
+                  className="ml-2 text-amber-900 dark:text-amber-100 underline p-0 h-auto"
+                >
+                  View current version
+                </Button>
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-col items-center p-8 space-y-4">
             <Document
-              file={fileUrl}
+              file={activeFileUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               loading={
                 <div className="flex items-center justify-center h-96">
@@ -360,13 +434,36 @@ export function DocumentViewer({
           <div className="w-96 flex-shrink-0">
             <CommentPanel
               documentId={documentId}
-              versionId={versionId}
+              versionId={activeVersionId}
               highlightedCommentId={highlightedCommentId}
               onLocationCommentClick={handleLocationCommentClick}
             />
           </div>
         )}
+
+        {/* Version History Panel */}
+        {showVersionHistory && doc && (
+          <VersionHistory
+            documentId={documentId}
+            currentVersionId={versionId}
+            selectedVersionId={selectedVersionId}
+            onVersionSelect={setSelectedVersionId}
+            onUploadVersion={() => setShowVersionUpload(true)}
+            canUpload={true} // TODO: Add permission check
+          />
+        )}
       </div>
+
+      {/* Version Upload Dialog */}
+      {doc && (
+        <VersionUploadDialog
+          open={showVersionUpload}
+          onOpenChange={setShowVersionUpload}
+          documentId={documentId}
+          documentName={documentName}
+          currentVersionNumber={doc.versions.length}
+        />
+      )}
     </div>
   );
 }
