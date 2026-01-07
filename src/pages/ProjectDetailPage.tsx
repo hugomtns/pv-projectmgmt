@@ -175,8 +175,8 @@ export default function ProjectDetailPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header with Back Button */}
-      <div className="border-b px-6 py-4">
-        <div className="flex items-center gap-4">
+      <div className="flex h-16 items-center border-b px-6">
+        <div className="flex gap-4 items-center">
           <Button
             variant="ghost"
             size="icon"
