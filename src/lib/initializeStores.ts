@@ -2,6 +2,7 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUserStore } from '@/stores/userStore';
 import { useFilterStore } from '@/stores/filterStore';
+import { useDocumentStore } from '@/stores/documentStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
 import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
@@ -147,6 +148,29 @@ function migrateTasksForAttachments() {
 }
 
 /**
+ * Add lock fields to existing documents
+ */
+function migrateDocumentsForLocking() {
+  const documentState = useDocumentStore.getState();
+  const documentsNeedLockFields = documentState.documents.some(
+    (doc: any) => doc.isLocked === undefined
+  );
+
+  if (documentsNeedLockFields) {
+    const updatedDocuments = documentState.documents.map((doc: any) => ({
+      ...doc,
+      isLocked: doc.isLocked ?? false,
+      lockedBy: doc.lockedBy ?? undefined,
+      lockedAt: doc.lockedAt ?? undefined,
+      lockedByUserId: doc.lockedByUserId ?? undefined,
+    }));
+
+    useDocumentStore.setState({ documents: updatedDocuments });
+    console.log('✓ Migrated documents to include lock fields');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -221,6 +245,7 @@ export function initializeStores() {
       migrateFilterStore();
       migrateProjectsForAttachments();
       migrateTasksForAttachments();
+      migrateDocumentsForLocking();
     }
 
     // Initialize user store if empty

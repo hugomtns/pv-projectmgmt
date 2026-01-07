@@ -80,6 +80,11 @@ export interface Document {
   // Denormalized from current version for easy display
   fileSize: number;
   uploadedBy: string;
+  // Lock management
+  isLocked: boolean;
+  lockedBy?: string; // Display name of user who locked it
+  lockedAt?: string; // ISO timestamp
+  lockedByUserId?: string; // User ID for permission checks
 }
 
 export interface WorkflowEvent {

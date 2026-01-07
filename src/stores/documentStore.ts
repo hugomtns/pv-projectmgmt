@@ -57,6 +57,11 @@ interface DocumentState {
   addDrawing: (drawing: Omit<Drawing, 'id' | 'createdAt' | 'createdBy'>) => Promise<string | null>;
 
   deleteDrawing: (drawingId: string) => Promise<boolean>;
+
+  // Lock management
+  lockDocument: (documentId: string) => Promise<boolean>;
+  unlockDocument: (documentId: string) => Promise<boolean>;
+  canUserUnlockDocument: (documentId: string, userId: string) => boolean;
 }
 
 export const useDocumentStore = create<DocumentState>()(
@@ -141,6 +146,10 @@ export const useDocumentStore = create<DocumentState>()(
             updatedAt: now,
             fileSize: file.size,
             uploadedBy: userFullName,
+            isLocked: false,
+            lockedBy: undefined,
+            lockedAt: undefined,
+            lockedByUserId: undefined,
           };
 
           // Store workflow event
@@ -191,6 +200,25 @@ export const useDocumentStore = create<DocumentState>()(
         const document = get().documents.find((d) => d.id === documentId);
         if (!document) {
           toast.error('Document not found');
+          return null;
+        }
+
+        // Lock check - admins can bypass
+        const isAdmin = currentUser.roleId === 'role-admin';
+        if (document.isLocked && !isAdmin) {
+          const lockedBy = document.lockedBy || 'another user';
+          const lockedAt = document.lockedAt
+            ? new Date(document.lockedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+              })
+            : '';
+          toast.error(
+            `This document is locked by ${lockedBy}${lockedAt ? ` on ${lockedAt}` : ''}. Only admins can upload versions to locked documents.`
+          );
           return null;
         }
 
@@ -659,6 +687,127 @@ export const useDocumentStore = create<DocumentState>()(
           toast.error('Failed to delete drawing');
           return false;
         }
+      },
+
+      // Lock document
+      lockDocument: async (documentId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to lock documents');
+          return false;
+        }
+
+        const permissions = getDocumentPermissions(
+          currentUser,
+          documentId,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.update) {
+          toast.error('You do not have permission to lock this document');
+          return false;
+        }
+
+        const document = get().documents.find((d) => d.id === documentId);
+        if (!document) {
+          toast.error('Document not found');
+          return false;
+        }
+
+        if (document.isLocked) {
+          toast.error('Document is already locked');
+          return false;
+        }
+
+        const now = new Date().toISOString();
+        const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+
+        set((state) => ({
+          documents: state.documents.map((d) =>
+            d.id === documentId
+              ? {
+                  ...d,
+                  isLocked: true,
+                  lockedBy: userFullName,
+                  lockedAt: now,
+                  lockedByUserId: currentUser.id,
+                  updatedAt: now,
+                }
+              : d
+          ),
+        }));
+
+        toast.success('Document locked successfully');
+        return true;
+      },
+
+      // Unlock document
+      unlockDocument: async (documentId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to unlock documents');
+          return false;
+        }
+
+        const document = get().documents.find((d) => d.id === documentId);
+        if (!document) {
+          toast.error('Document not found');
+          return false;
+        }
+
+        if (!document.isLocked) {
+          toast.error('Document is not locked');
+          return false;
+        }
+
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isLocker = document.lockedByUserId === currentUser.id;
+
+        if (!isAdmin && !isLocker) {
+          toast.error('Only the user who locked this document or an admin can unlock it');
+          return false;
+        }
+
+        const now = new Date().toISOString();
+
+        set((state) => ({
+          documents: state.documents.map((d) =>
+            d.id === documentId
+              ? {
+                  ...d,
+                  isLocked: false,
+                  lockedBy: undefined,
+                  lockedAt: undefined,
+                  lockedByUserId: undefined,
+                  updatedAt: now,
+                }
+              : d
+          ),
+        }));
+
+        toast.success('Document unlocked successfully');
+        return true;
+      },
+
+      // Helper to check unlock permission
+      canUserUnlockDocument: (documentId, userId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser || currentUser.id !== userId) return false;
+
+        const document = get().documents.find((d) => d.id === documentId);
+        if (!document || !document.isLocked) return false;
+
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isLocker = document.lockedByUserId === currentUser.id;
+
+        return isAdmin || isLocker;
       },
     }),
     {

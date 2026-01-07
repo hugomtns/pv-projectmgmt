@@ -1,14 +1,18 @@
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
-import { FileText, MoreVertical, Trash2 } from 'lucide-react';
+import { FileText, MoreVertical, Trash2, Lock, Unlock } from 'lucide-react';
 import { formatFileSize } from './utils/fileConversion';
 import { useUserStore } from '@/stores/userStore';
+import { useDocumentStore } from '@/stores/documentStore';
+import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import type { Document } from '@/lib/types/document';
 
 interface DocumentCardCompactProps {
@@ -20,6 +24,9 @@ interface DocumentCardCompactProps {
 export function DocumentCardCompact({ document, onClick, onDelete }: DocumentCardCompactProps) {
   const currentUser = useUserStore((state) => state.currentUser);
   const roles = useUserStore((state) => state.roles);
+  const permissionOverrides = useUserStore((state) => state.permissionOverrides);
+  const lockDocument = useDocumentStore((state) => state.lockDocument);
+  const unlockDocument = useDocumentStore((state) => state.unlockDocument);
 
   const formattedDate = new Date(document.createdAt).toLocaleDateString('en-US', {
     month: 'short',
@@ -52,9 +59,39 @@ export function DocumentCardCompact({ document, onClick, onDelete }: DocumentCar
     return false;
   })();
 
+  // Determine if user can lock/unlock
+  const canManageLock = (() => {
+    if (!currentUser) return false;
+
+    const permissions = getDocumentPermissions(
+      currentUser,
+      document.id,
+      permissionOverrides,
+      roles
+    );
+
+    if (!permissions.update) return false;
+
+    if (document.isLocked) {
+      const isAdmin = currentUser.roleId === 'role-admin';
+      const isLocker = document.lockedByUserId === currentUser.id;
+      return isAdmin || isLocker;
+    }
+
+    return true;
+  })();
+
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete?.(document.id);
+  };
+
+  const handleLockToggle = async () => {
+    if (document.isLocked) {
+      await unlockDocument(document.id);
+    } else {
+      await lockDocument(document.id);
+    }
   };
 
   return (
@@ -72,7 +109,15 @@ export function DocumentCardCompact({ document, onClick, onDelete }: DocumentCar
             <h3 className="font-medium text-sm truncate" title={document.name}>
               {document.name}
             </h3>
-            <DocumentStatusBadge status={document.status} />
+            <div className="flex items-center gap-1">
+              <DocumentStatusBadge status={document.status} />
+              {document.isLocked && (
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <Lock className="h-3 w-3" />
+                  Locked
+                </Badge>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{formatFileSize(fileSize)}</span>
@@ -85,7 +130,7 @@ export function DocumentCardCompact({ document, onClick, onDelete }: DocumentCar
       </div>
 
       {/* Three-dot menu */}
-      {canDelete && (
+      {(canManageLock || canDelete) && (
         <div className="flex-shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -99,13 +144,40 @@ export function DocumentCardCompact({ document, onClick, onDelete }: DocumentCar
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive cursor-pointer"
-                onClick={handleDeleteClick}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              {canManageLock && (
+                <>
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLockToggle();
+                    }}
+                    className="cursor-pointer"
+                  >
+                    {document.isLocked ? (
+                      <>
+                        <Unlock className="h-4 w-4" />
+                        Unlock
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4" />
+                        Lock
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  {canDelete && <DropdownMenuSeparator />}
+                </>
+              )}
+
+              {canDelete && (
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  onClick={handleDeleteClick}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
