@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
+import logoUrl from '@/assets/fakehub.png';
 
 export function RootLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -37,7 +38,7 @@ export function RootLayout() {
         {/* Sidebar toggle button */}
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           {sidebarOpen && (
-            <span className="text-lg font-semibold">PV Workflow</span>
+            <img src={logoUrl} alt="FakeHub" className="h-8 w-auto" />
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -91,7 +92,7 @@ export function RootLayout() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="text-lg font-semibold">PV Workflow</span>
+          <img src={logoUrl} alt="FakeHub" className="h-6 w-auto" />
         </div>
 
         <div className="flex flex-1 flex-col overflow-hidden">

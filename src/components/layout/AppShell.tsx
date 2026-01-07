@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './Sidebar';
+import logoUrl from '@/assets/fakehub.png';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ export function AppShell({ children, currentPage }: AppShellProps) {
         {/* Sidebar toggle button */}
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           {sidebarOpen && (
-            <span className="text-lg font-semibold">PV Workflow</span>
+            <img src={logoUrl} alt="FakeHub" className="h-8 w-auto" />
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -91,7 +92,7 @@ export function AppShell({ children, currentPage }: AppShellProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="text-lg font-semibold">PV Workflow</span>
+          <img src={logoUrl} alt="FakeHub" className="h-6 w-auto" />
         </div>
 
         <div key={currentPage} className="flex flex-1 flex-col overflow-hidden animate-in fade-in duration-300">
