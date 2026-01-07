@@ -10,13 +10,13 @@ import NotFound from './NotFound';
 export default function DocumentViewerPage() {
   const { documentId } = useParams<{ documentId: string }>();
   const navigate = useNavigate();
-  const getDocument = useDocumentStore((state) => state.getDocument);
+  const document = useDocumentStore((state) =>
+    documentId ? state.documents.find(d => d.id === documentId) : null
+  );
 
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const document = documentId ? getDocument(documentId) : null;
 
   useEffect(() => {
     if (!document || !documentId) {

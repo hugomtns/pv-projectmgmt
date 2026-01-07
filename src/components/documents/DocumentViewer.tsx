@@ -87,9 +87,9 @@ export function DocumentViewer({
 
   const addComment = useDocumentStore((state) => state.addComment);
   const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
-  const getDocument = useDocumentStore((state) => state.getDocument);
-
-  const doc = getDocument(documentId);
+  const doc = useDocumentStore((state) =>
+    state.documents.find(d => d.id === documentId)
+  );
 
   // Fetch comments from IndexedDB
   const comments = useLiveQuery(
@@ -281,8 +281,8 @@ export function DocumentViewer({
           <h2 className="font-semibold text-lg truncate max-w-md" title={documentName}>
             {documentName}
           </h2>
-          <DocumentStatusBadge status={status} />
-          <WorkflowActions documentId={documentId} currentStatus={status} />
+          <DocumentStatusBadge status={doc?.status ?? status} />
+          <WorkflowActions documentId={documentId} currentStatus={doc?.status ?? status} />
         </div>
 
         <div className="flex items-center gap-2">
