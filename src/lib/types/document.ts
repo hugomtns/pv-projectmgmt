@@ -2,10 +2,16 @@
 
 export type DocumentStatus = 'draft' | 'in_review' | 'approved' | 'changes_requested';
 
+export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
+
 export interface LocationAnchor {
-  x: number; // Percentage (0-100)
-  y: number; // Percentage (0-100)
+  x: number; // Percentage (0-100) - represents point OR top-left corner
+  y: number; // Percentage (0-100) - represents point OR top-left corner
   page: number;
+  // Optional fields for highlight bounds
+  width?: number; // Percentage (0-100)
+  height?: number; // Percentage (0-100)
+  highlightColor?: HighlightColor;
 }
 
 export interface DocumentComment {
@@ -79,4 +85,14 @@ export interface WorkflowEvent {
   fromStatus?: DocumentStatus;
   toStatus?: DocumentStatus;
   note?: string;
+}
+
+// Type guard utility for highlight comments
+export function isHighlightComment(comment: DocumentComment): boolean {
+  return (
+    comment.type === 'location' &&
+    comment.location !== undefined &&
+    comment.location.width !== undefined &&
+    comment.location.height !== undefined
+  );
 }

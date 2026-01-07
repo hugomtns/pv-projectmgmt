@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { MapPin, MessageSquare, Check, X } from 'lucide-react';
+import { MapPin, MessageSquare, Check, X, Highlighter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DocumentComment } from '@/lib/types';
+import { isHighlightComment } from '@/lib/types/document';
+import { HIGHLIGHT_COLORS, HIGHLIGHT_COLOR_NAMES } from './constants/highlightConstants';
 
 interface CommentPanelProps {
   /** Document ID */
@@ -152,7 +154,21 @@ export function CommentPanel({
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {comment.type === 'location' && comment.location && (
-              <MapPin className="h-3.5 w-3.5 text-destructive shrink-0" />
+              <>
+                {isHighlightComment(comment) ? (
+                  <Highlighter className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+                ) : (
+                  <MapPin className="h-3.5 w-3.5 text-destructive shrink-0" />
+                )}
+                {/* Color indicator for highlights */}
+                {isHighlightComment(comment) && comment.location.highlightColor && (
+                  <div
+                    className="w-3 h-3 rounded border border-border shrink-0"
+                    style={{ backgroundColor: HIGHLIGHT_COLORS[comment.location.highlightColor] }}
+                    title={HIGHLIGHT_COLOR_NAMES[comment.location.highlightColor]}
+                  />
+                )}
+              </>
             )}
             {comment.type === 'document' && (
               <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />

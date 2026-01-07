@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Document, DocumentStatus, DocumentComment, Drawing } from '@/lib/types';
+import type { LocationAnchor } from '@/lib/types/document';
 import { db, storeBlob, deleteBlob } from '@/lib/db';
 import { useUserStore } from './userStore';
 import { useProjectStore } from './projectStore';
@@ -45,7 +46,7 @@ interface DocumentState {
     documentId: string,
     versionId: string,
     text: string,
-    location?: { x: number; y: number; page: number }
+    location?: LocationAnchor
   ) => Promise<string | null>; // Returns comment ID
 
   resolveComment: (commentId: string) => Promise<boolean>;

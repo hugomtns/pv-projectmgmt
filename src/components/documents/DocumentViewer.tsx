@@ -11,6 +11,7 @@ import { CommentPanel } from './CommentPanel';
 import { DrawingToolbar, type DrawingTool, type DrawingColor, type StrokeWidth } from './DrawingToolbar';
 import { DrawingLayer } from './DrawingLayer';
 import { VersionHistory } from './VersionHistory';
+import type { HighlightColor } from '@/lib/types/document';
 import { VersionUploadDialog } from './VersionUploadDialog';
 import { AddLocationCommentDialog } from './AddLocationCommentDialog';
 import { WorkflowActions } from './WorkflowActions';
@@ -74,6 +75,14 @@ export function DocumentViewer({
     x: number;
     y: number;
     page: number;
+  } | null>(null);
+  const [pendingHighlight, setPendingHighlight] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    page: number;
+    color: HighlightColor;
   } | null>(null);
 
   const addComment = useDocumentStore((state) => state.addComment);
@@ -177,25 +186,54 @@ export function DocumentViewer({
     setZoom('fit-width');
   };
 
-  const handleAddLocationComment = (x: number, y: number, page: number) => {
-    // Store the location and show dialog
-    setPendingCommentLocation({ x, y, page });
+  const handleAddLocationComment = (
+    x: number,
+    y: number,
+    page: number,
+    highlight?: { width: number; height: number; color: HighlightColor }
+  ) => {
+    // Store the location/highlight and show dialog
+    if (highlight) {
+      setPendingHighlight({ x, y, ...highlight, page });
+      setPendingCommentLocation(null);
+    } else {
+      setPendingCommentLocation({ x, y, page });
+      setPendingHighlight(null);
+    }
     setShowAddCommentDialog(true);
   };
 
-  const handleCommentSubmit = async (comment: string) => {
-    if (!pendingCommentLocation) return;
+  const handleCommentSubmit = async (comment: string, highlightColor?: HighlightColor) => {
+    if (pendingHighlight) {
+      // Handle highlight comment
+      const { x, y, width, height, page, color } = pendingHighlight;
+      const commentId = await addComment(documentId, versionId, comment, {
+        x,
+        y,
+        page,
+        width,
+        height,
+        highlightColor: highlightColor || color,
+      });
 
-    const { x, y, page } = pendingCommentLocation;
-    const commentId = await addComment(documentId, versionId, comment, { x, y, page });
+      if (commentId) {
+        setHighlightedCommentId(commentId);
+        setAnnotationMode(false);
+      }
 
-    if (commentId) {
-      setHighlightedCommentId(commentId);
-      setAnnotationMode(false);
+      setPendingHighlight(null);
+    } else if (pendingCommentLocation) {
+      // Handle point comment
+      const { x, y, page } = pendingCommentLocation;
+      const commentId = await addComment(documentId, versionId, comment, { x, y, page });
+
+      if (commentId) {
+        setHighlightedCommentId(commentId);
+        setAnnotationMode(false);
+      }
+
+      setPendingCommentLocation(null);
     }
-
-    // Clean up
-    setPendingCommentLocation(null);
   };
 
   const handlePinClick = (commentId: string) => {
@@ -396,7 +434,7 @@ export function DocumentViewer({
           {annotationMode && (
             <div className="bg-blue-500/20 border-b border-blue-500/50 p-3 text-center">
               <p className="text-sm text-blue-900 dark:text-blue-100">
-                Click anywhere on the document to add a location comment
+                Click for a point comment, or drag to create a highlight comment
               </p>
             </div>
           )}
@@ -521,7 +559,9 @@ export function DocumentViewer({
         open={showAddCommentDialog}
         onOpenChange={setShowAddCommentDialog}
         onSubmit={handleCommentSubmit}
-        pageNumber={pendingCommentLocation?.page ?? 1}
+        pageNumber={(pendingHighlight?.page || pendingCommentLocation?.page) ?? 1}
+        isHighlight={!!pendingHighlight}
+        highlightColor={pendingHighlight?.color}
       />
     </div>
   );
