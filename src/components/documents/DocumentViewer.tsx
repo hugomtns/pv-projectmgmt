@@ -4,7 +4,10 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getBlob } from '@/lib/db';
 import { blobCache } from '@/lib/blobCache';
 import { useDocumentStore } from '@/stores/documentStore';
+import { useUserStore } from '@/stores/userStore';
+import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { AnnotationLayer } from './AnnotationLayer';
 import { CommentPanel } from './CommentPanel';
@@ -28,6 +31,8 @@ import {
   Pencil,
   History,
   ListTodo,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -87,9 +92,15 @@ export function DocumentViewer({
 
   const addComment = useDocumentStore((state) => state.addComment);
   const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
+  const lockDocument = useDocumentStore((state) => state.lockDocument);
+  const unlockDocument = useDocumentStore((state) => state.unlockDocument);
   const doc = useDocumentStore((state) =>
     state.documents.find(d => d.id === documentId)
   );
+
+  const currentUser = useUserStore((state) => state.currentUser);
+  const roles = useUserStore((state) => state.roles);
+  const permissionOverrides = useUserStore((state) => state.permissionOverrides);
 
   // Fetch comments from IndexedDB
   const comments = useLiveQuery(
@@ -262,6 +273,38 @@ export function DocumentViewer({
     }
   };
 
+  // Lock management
+  const canManageLock = (() => {
+    if (!currentUser || !doc) return false;
+
+    const permissions = getDocumentPermissions(
+      currentUser,
+      documentId,
+      permissionOverrides,
+      roles
+    );
+
+    if (!permissions.update) return false;
+
+    if (doc.isLocked) {
+      const isAdmin = currentUser.roleId === 'role-admin';
+      const isLocker = doc.lockedByUserId === currentUser.id;
+      return isAdmin || isLocker;
+    }
+
+    return true;
+  })();
+
+  const handleLockToggle = async () => {
+    if (!doc) return;
+
+    if (doc.isLocked) {
+      await unlockDocument(documentId);
+    } else {
+      await lockDocument(documentId);
+    }
+  };
+
   const getPageWidth = () => {
     if (zoom === 'fit-width') {
       return containerWidth;
@@ -282,10 +325,35 @@ export function DocumentViewer({
             {documentName}
           </h2>
           <DocumentStatusBadge status={doc?.status ?? status} />
+          {doc?.isLocked && (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Lock className="h-3 w-3" />
+              Locked by {doc.lockedBy}
+            </Badge>
+          )}
           <WorkflowActions documentId={documentId} currentStatus={doc?.status ?? status} />
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Lock/Unlock button */}
+          {canManageLock && doc && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLockToggle}
+                title={doc.isLocked ? 'Unlock document' : 'Lock document'}
+              >
+                {doc.isLocked ? (
+                  <Unlock className="h-4 w-4" />
+                ) : (
+                  <Lock className="h-4 w-4" />
+                )}
+              </Button>
+              <div className="h-6 w-px bg-border" />
+            </>
+          )}
+
           {/* Annotation & Drawing Mode */}
           <div className="flex items-center gap-1 border-r pr-2">
             <Button

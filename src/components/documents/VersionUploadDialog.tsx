@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useDocumentStore } from '@/stores/documentStore';
+import { useUserStore } from '@/stores/userStore';
 import { validateFileSize, validateFileType, formatFileSize } from './utils/fileConversion';
 import { Upload, X, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,15 @@ export function VersionUploadDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadVersion = useDocumentStore((state) => state.uploadVersion);
+  const getDocument = useDocumentStore((state) => state.getDocument);
+  const currentUser = useUserStore((state) => state.currentUser);
+
+  // Lock check logic
+  const document = getDocument(documentId);
+  const isLocked = document?.isLocked ?? false;
+  const lockedBy = document?.lockedBy;
+  const isAdmin = currentUser?.roleId === 'role-admin';
+  const canUploadToLocked = isAdmin;
 
   const handleFileSelect = (selectedFile: File) => {
     setError('');
@@ -115,6 +125,22 @@ export function VersionUploadDialog({
           <DialogDescription>
             Upload a new version of "{documentName}". This will become version {currentVersionNumber + 1}.
           </DialogDescription>
+
+          {isLocked && !canUploadToLocked && (
+            <div className="bg-destructive/10 border border-destructive/50 p-3 rounded-md mt-2">
+              <p className="text-sm text-destructive font-medium">
+                This document is locked by {lockedBy}. Only administrators can upload versions to locked documents.
+              </p>
+            </div>
+          )}
+
+          {isLocked && canUploadToLocked && (
+            <div className="bg-amber-500/10 border border-amber-500/50 p-3 rounded-md mt-2">
+              <p className="text-sm text-amber-900 dark:text-amber-100">
+                This document is locked by {lockedBy}. You can upload as an administrator.
+              </p>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="space-y-4">
@@ -187,7 +213,7 @@ export function VersionUploadDialog({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={!file || isUploading}
+              disabled={!file || isUploading || (isLocked && !canUploadToLocked)}
             >
               {isUploading ? 'Uploading...' : 'Upload Version'}
             </Button>
