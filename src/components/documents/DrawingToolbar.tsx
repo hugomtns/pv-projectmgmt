@@ -6,12 +6,11 @@ import {
   Circle,
   ArrowRight,
   Pencil,
-  Type,
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type DrawingTool = 'select' | 'rectangle' | 'circle' | 'arrow' | 'freehand' | 'text';
+export type DrawingTool = 'select' | 'rectangle' | 'circle' | 'arrow' | 'freehand';
 export type DrawingColor = string;
 export type StrokeWidth = 2 | 4 | 7;
 
@@ -44,7 +43,6 @@ const TOOLS: Array<{ tool: DrawingTool; icon: React.ReactNode; label: string }> 
   { tool: 'circle', icon: <Circle className="h-4 w-4" />, label: 'Circle' },
   { tool: 'arrow', icon: <ArrowRight className="h-4 w-4" />, label: 'Arrow' },
   { tool: 'freehand', icon: <Pencil className="h-4 w-4" />, label: 'Freehand' },
-  { tool: 'text', icon: <Type className="h-4 w-4" />, label: 'Text' },
 ];
 
 export function DrawingToolbar({

@@ -13,9 +13,9 @@ interface EntityHierarchy {
 const entityHierarchy: EntityHierarchy[] = [
   { type: 'projects', label: 'Projects', level: 0 },
   { type: 'workflows', label: 'Workflows', level: 1 },
-  { type: 'documents', label: 'Files', level: 1 },
   { type: 'tasks', label: 'Tasks', level: 2 },
   { type: 'comments', label: 'Comments', level: 2 },
+  { type: 'documents', label: 'Files', level: 1 },
   { type: 'user_management', label: 'User Management', level: 0 },
 ];
 

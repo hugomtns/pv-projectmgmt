@@ -130,11 +130,17 @@ export function DrawingLayer({
       documentId,
       versionId,
       page: currentPage,
-      type: currentDrawing.type as 'rectangle' | 'circle' | 'arrow' | 'freehand' | 'text',
+      type: currentDrawing.type as 'rectangle' | 'circle' | 'arrow' | 'freehand',
       color: currentDrawing.color,
       strokeWidth: currentDrawing.strokeWidth,
       bounds,
       points: currentDrawing.points,
+      arrowDirection: currentDrawing.type === 'arrow' ? {
+        fromX: currentDrawing.startPoint.x,
+        fromY: currentDrawing.startPoint.y,
+        toX: currentDrawing.currentPoint.x,
+        toY: currentDrawing.currentPoint.y,
+      } : undefined,
     };
 
     await addDrawing(drawingData);
@@ -218,10 +224,21 @@ export function DrawingLayer({
       }
 
       case 'arrow': {
-        const x1 = bounds.x;
-        const y1 = bounds.y;
-        const x2 = bounds.x + bounds.width;
-        const y2 = bounds.y + bounds.height;
+        // Use arrow direction if available (new), otherwise bounds (legacy)
+        let x1, y1, x2, y2;
+
+        if (drawing.arrowDirection) {
+          x1 = drawing.arrowDirection.fromX;
+          y1 = drawing.arrowDirection.fromY;
+          x2 = drawing.arrowDirection.toX;
+          y2 = drawing.arrowDirection.toY;
+        } else {
+          // Legacy fallback
+          x1 = bounds.x;
+          y1 = bounds.y;
+          x2 = bounds.x + bounds.width;
+          y2 = bounds.y + bounds.height;
+        }
 
         // Arrow head
         const headLength = 3;
@@ -404,7 +421,6 @@ export function DrawingLayer({
 
   const getCursor = () => {
     if (activeTool === 'select') return 'default';
-    if (activeTool === 'text') return 'text';
     return 'crosshair';
   };
 

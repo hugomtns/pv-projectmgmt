@@ -122,16 +122,28 @@ export function WorkflowActions({ documentId, currentStatus }: WorkflowActionsPr
           </>
         )}
 
-        {/* Back to Draft (changes_requested → draft) */}
+        {/* Re-submit for Review & Back to Draft (changes_requested → in_review or draft) */}
         {currentStatus === 'changes_requested' && (
-          <Button
-            size="sm"
-            onClick={() => handleActionClick('draft', 'Back to Draft')}
-            className="gap-2"
-          >
-            <FileEdit className="h-4 w-4" />
-            Back to Draft
-          </Button>
+          <>
+            <Button
+              size="sm"
+              onClick={() => handleActionClick('in_review', 'Re-submit for Review')}
+              className="gap-2"
+            >
+              <Send className="h-4 w-4" />
+              Re-submit for Review
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleActionClick('draft', 'Back to Draft')}
+              className="gap-2"
+            >
+              <FileEdit className="h-4 w-4" />
+              Back to Draft
+            </Button>
+          </>
         )}
       </div>
 
@@ -143,8 +155,11 @@ export function WorkflowActions({ documentId, currentStatus }: WorkflowActionsPr
             <DialogDescription>
               {selectedAction?.status === 'approved' &&
                 'Approve this document and mark it as finalized.'}
-              {selectedAction?.status === 'in_review' &&
-                'Submit this document for review.'}
+              {selectedAction?.status === 'in_review' && (
+                currentStatus === 'draft'
+                  ? 'Submit this document for review.'
+                  : 'Re-submit this document for review.'
+              )}
               {selectedAction?.status === 'changes_requested' &&
                 'Request changes to this document.'}
               {selectedAction?.status === 'draft' &&

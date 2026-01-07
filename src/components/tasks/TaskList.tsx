@@ -1,5 +1,6 @@
 import type { Task } from '@/lib/types';
 import { TaskItem } from './TaskItem';
+import { TaskProgressBar } from './TaskProgressBar';
 
 interface TaskListProps {
   tasks: Task[];
@@ -52,12 +53,11 @@ export function TaskList({ tasks, onTaskClick, onStatusToggle }: TaskListProps) 
             {completedCount}/{tasks.length} Complete
           </span>
         </div>
-        <div className="h-2 bg-background rounded-full overflow-hidden">
-          <div
-            className="h-full bg-green-500 transition-all"
-            style={{ width: `${(completedCount / tasks.length) * 100}%` }}
-          />
-        </div>
+        <TaskProgressBar
+          completedCount={completedCount}
+          inProgressCount={inProgressCount}
+          totalCount={tasks.length}
+        />
         <div className="flex gap-4 mt-3 text-xs">
           <span className="text-green-600">✓ {completedCount} Complete</span>
           <span className="text-blue-600">• {inProgressCount} In Progress</span>

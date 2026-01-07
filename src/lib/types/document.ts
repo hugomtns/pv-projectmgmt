@@ -31,7 +31,7 @@ export interface Drawing {
   documentId: string;
   versionId: string;
   page: number;
-  type: 'rectangle' | 'circle' | 'arrow' | 'freehand' | 'text';
+  type: 'rectangle' | 'circle' | 'arrow' | 'freehand';
   color: string;
   strokeWidth: number;
   bounds: {
@@ -42,6 +42,12 @@ export interface Drawing {
   };
   points?: Array<{ x: number; y: number }>; // For freehand, percentage coordinates
   text?: string; // For text annotations
+  arrowDirection?: {
+    fromX: number; // Original start X (0-100%)
+    fromY: number; // Original start Y (0-100%)
+    toX: number; // Original end X (0-100%)
+    toY: number; // Original end Y (0-100%)
+  };
   createdBy: string;
   createdAt: string;
 }
