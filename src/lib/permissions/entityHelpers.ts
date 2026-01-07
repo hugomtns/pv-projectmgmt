@@ -12,7 +12,7 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     tasks: 'Tasks',
     comments: 'Comments',
     user_management: 'User Management',
-    documents: 'Documents',
+    documents: 'Files',
   };
   return labels[entityType];
 }

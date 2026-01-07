@@ -7,7 +7,7 @@ import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
 
 // Data version - increment this to force a data refresh
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 
 /**
  * Migrate old task data structure from 'name' to 'title' field

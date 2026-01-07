@@ -382,15 +382,15 @@ describe('Document Management E2E Flow', () => {
       expect(useDocumentStore.getState().getDocument(documentId!)).toBeNull();
     });
 
-    it('should prevent viewer from uploading or modifying', async () => {
+    it('should prevent guest from uploading or modifying', async () => {
       const viewerUser = {
         ...regularUser,
-        roleId: 'role-viewer',
+        roleId: 'role-guest',
       };
 
       useUserStore.setState({ currentUser: viewerUser });
 
-      // Viewer cannot upload
+      // Guest cannot upload
       const file = new File(['test'], 'test.pdf', { type: 'application/pdf' });
       const documentId = await useDocumentStore
         .getState()
@@ -405,10 +405,10 @@ describe('Document Management E2E Flow', () => {
         .getState()
         .uploadDocument(file, 'Admin Doc', 'Test');
 
-      // Switch back to viewer
+      // Switch back to guest
       useUserStore.setState({ currentUser: viewerUser });
 
-      // Viewer cannot add comments
+      // Guest cannot add comments
       const document = useDocumentStore.getState().getDocument(adminDocId!);
       const commentId = await useDocumentStore
         .getState()
@@ -416,7 +416,7 @@ describe('Document Management E2E Flow', () => {
 
       expect(commentId).toBeNull();
 
-      // Viewer cannot add drawings
+      // Guest cannot add drawings
       const drawingId = await useDocumentStore.getState().addDrawing({
         documentId: adminDocId!,
         versionId: document!.currentVersionId,

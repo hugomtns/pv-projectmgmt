@@ -91,10 +91,10 @@ describe('documentStore', () => {
   const viewerUser = {
     id: 'test-user-2',
     firstName: 'Test',
-    lastName: 'Viewer',
+    lastName: 'Guest',
     email: 'viewer@test.com',
-    function: 'Viewer',
-    roleId: 'role-viewer',
+    function: 'Guest',
+    roleId: 'role-guest',
     groupIds: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -335,7 +335,7 @@ describe('documentStore', () => {
         .getState()
         .uploadDocument(file, 'Test Document', 'Test description');
 
-      // Viewer user cannot delete
+      // Guest user cannot delete
       useUserStore.setState({ currentUser: viewerUser });
 
       const success = await useDocumentStore.getState().deleteDocument(documentId!);
@@ -513,7 +513,7 @@ describe('documentStore', () => {
 
       vi.mocked(db.documentComments.get).mockResolvedValue(mockComment);
 
-      // Viewer cannot delete
+      // Guest cannot delete
       useUserStore.setState({ currentUser: viewerUser });
 
       const success = await useDocumentStore.getState().deleteComment('comment-1');
@@ -619,7 +619,7 @@ describe('documentStore', () => {
 
       vi.mocked(db.drawings.get).mockResolvedValue(mockDrawing);
 
-      // Viewer without delete permission
+      // Guest without delete permission
       useUserStore.setState({ currentUser: viewerUser });
 
       const success = await useDocumentStore.getState().deleteDrawing('drawing-1');
