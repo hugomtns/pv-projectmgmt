@@ -63,7 +63,12 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
         let previousBlobId: string | null = null;
 
         const loadVersionFile = async () => {
-            if (!selectedVersionId || !design) return;
+            if (!design) return;
+
+            if (!selectedVersionId) {
+                setLoading(false);
+                return;
+            }
 
             try {
                 setLoading(true);
@@ -71,7 +76,6 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                 const version = await db.designVersions.get(selectedVersionId);
 
                 if (!version) {
-                    // Fallback or error
                     console.warn("Version record not found for", selectedVersionId);
                     setLoading(false);
                     return;
