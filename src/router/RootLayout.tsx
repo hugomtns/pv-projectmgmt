@@ -4,6 +4,13 @@ import { cn } from '@/lib/utils';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import logoUrl from '@/assets/fakehub.png';
+import { MessageSquare } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export function RootLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -76,6 +83,35 @@ export function RootLayout() {
             isOpen={sidebarOpen}
             currentPath={location.pathname}
           />
+        </div>
+
+        {/* Feedback button at bottom */}
+        <div className="border-t border-border p-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href="https://forms.gle/jWfrTH7qgytN2jVS8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    !sidebarOpen && 'justify-center'
+                  )}
+                  aria-label="Send Feedback"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  {sidebarOpen && <span>Send Feedback</span>}
+                </a>
+              </TooltipTrigger>
+              {!sidebarOpen && (
+                <TooltipContent side="right">
+                  <p>Send Feedback</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </aside>
 
