@@ -24,6 +24,7 @@ dist-ssr
 *.sln
 *.sw?
 *.md
+.claude
 
 # Tests
 tests
