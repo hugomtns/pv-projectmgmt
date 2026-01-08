@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { useUserStore } from '@/stores/userStore';
@@ -47,9 +47,21 @@ export default function ProjectDetailPage() {
   const documents = useDocumentStore((state) => state.documents);
 
   const project = projects.find((p) => p.id === projectId);
+
   const [selectedStageId, setSelectedStageId] = useState(project?.currentStageId || '');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('properties');
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'properties';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Sync tab changes to URL
+  useEffect(() => {
+    setSearchParams(prev => {
+      prev.set('tab', activeTab);
+      return prev;
+    }, { replace: true });
+  }, [activeTab, setSearchParams]);
 
   // Form state for Properties tab
   const [formValues, setFormValues] = useState({
