@@ -122,10 +122,34 @@ export interface Design {
   projectId: string;
   name: string;
   description: string;
-  status: 'draft' | 'review' | 'approved';
+  status: 'draft' | 'review' | 'approved' | 'rejected';
   // thumbnail functionality to be added later
   createdBy: string; // User's full name
   creatorId: string; // User ID for permission logic (owner only edit)
   createdAt: string;
   updatedAt: string;
+  versions: string[]; // IDs of DesignVersion
+  currentVersionId: string;
+}
+
+export interface DesignVersion {
+  id: string;
+  designId: string;
+  versionNumber: number;
+  uploadedBy: string;
+  uploadedAt: string;
+  fileBlob: string; // Blob ID from IndexedDB
+  fileSize: number;
+  fileType: 'image' | 'pdf';
+}
+
+export interface DesignComment {
+  id: string;
+  designId: string;
+  versionId: string;
+  text: string;
+  location?: { x: number; y: number }; // Percentage 0-100
+  author: string;
+  createdAt: string;
+  resolved: boolean;
 }

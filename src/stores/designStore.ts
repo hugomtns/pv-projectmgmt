@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Design } from '@/lib/types';
+import type { Design, DesignComment } from '@/lib/types';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { db, storeBlob, deleteBlob } from '@/lib/db';
 import { toast } from 'sonner';
 
 interface DesignState {
@@ -10,9 +11,18 @@ interface DesignState {
     designs: Design[];
 
     // Actions
-    addDesign: (design: Omit<Design, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'creatorId'>) => void;
+    addDesign: (design: Omit<Design, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'creatorId' | 'versions' | 'currentVersionId'>) => void;
     updateDesign: (id: string, updates: Partial<Design>) => void;
-    deleteDesign: (id: string) => void;
+    deleteDesign: (id: string) => Promise<void>;
+
+    // Versioning
+    addVersion: (designId: string, file: File) => Promise<string | null>;
+
+    // Comments
+    addComment: (designId: string, versionId: string, text: string, location?: { x: number; y: number }) => Promise<string | null>;
+    resolveComment: (commentId: string) => Promise<boolean>;
+    deleteComment: (commentId: string) => Promise<boolean>;
+    getComments: (designId: string, versionId: string) => Promise<DesignComment[]>;
 
     // Helpers
     getDesignsByProject: (projectId: string) => Design[];
@@ -35,7 +45,7 @@ export const useDesignStore = create<DesignState>()(
                 const permissions = resolvePermissions(
                     currentUser,
                     'designs',
-                    undefined, // No specific ID for creation
+                    undefined,
                     userState.permissionOverrides,
                     userState.roles
                 );
@@ -55,6 +65,9 @@ export const useDesignStore = create<DesignState>()(
                     creatorId: currentUser.id,
                     createdAt: now,
                     updatedAt: now,
+                    versions: [],
+                    currentVersionId: '',
+                    status: 'draft' // Ensure default for new field
                 };
 
                 set((state) => ({
@@ -79,9 +92,6 @@ export const useDesignStore = create<DesignState>()(
                     return;
                 }
 
-                // Permission Logic:
-                // 1. Check generic "update" permission for 'designs'
-                // 2. BUT enforce strict ownership: Must be Creator OR Admin
                 const permissions = resolvePermissions(
                     currentUser,
                     'designs',
@@ -93,20 +103,11 @@ export const useDesignStore = create<DesignState>()(
                 const isSystemAdmin = currentUser.roleId === 'role-admin';
                 const isCreator = design.creatorId === currentUser.id;
 
-                // If you are not an admin AND not the creator, you cannot edit, 
-                // even if you technically have "update" rights on the resource type 
-                // (unless we decide "update" implies full override, but requested logic was specific).
-                // Let's stick to the requested logic: "only Users who created the Design retain full rights"
-                // This implies generic "update" on designs role might be false by default, or ignored here.
-
-                // However, we should also respect the RBAC system. 
-                // If the RBAC says "no update", then definitely no.
                 if (!permissions.update) {
                     toast.error('Permission denied: You do not have permission to update designs');
                     return;
                 }
 
-                // Extra check for non-admins: MUST be creator
                 if (!isSystemAdmin && !isCreator) {
                     toast.error('Permission denied: You can only edit designs you created');
                     return;
@@ -121,7 +122,7 @@ export const useDesignStore = create<DesignState>()(
                 toast.success('Design updated');
             },
 
-            deleteDesign: (id) => {
+            deleteDesign: async (id) => {
                 const userState = useUserStore.getState();
                 const currentUser = userState.currentUser;
 
@@ -157,11 +158,160 @@ export const useDesignStore = create<DesignState>()(
                     return;
                 }
 
-                set((state) => ({
-                    designs: state.designs.filter((d) => d.id !== id)
-                }));
+                try {
+                    // Cleanup DB resources
+                    const versions = await db.designVersions.where('designId').equals(id).toArray();
+                    for (const v of versions) {
+                        await deleteBlob(v.fileBlob);
+                    }
+                    await db.designVersions.where('designId').equals(id).delete();
+                    await db.designComments.where('designId').equals(id).delete();
 
-                toast.success('Design deleted');
+                    set((state) => ({
+                        designs: state.designs.filter((d) => d.id !== id)
+                    }));
+
+                    toast.success('Design deleted');
+                } catch (error) {
+                    console.error('Failed to delete design resources:', error);
+                    toast.error('Failed to delete design data');
+                }
+            },
+
+            addVersion: async (designId, file) => {
+                const userState = useUserStore.getState();
+                const currentUser = userState.currentUser;
+
+                if (!currentUser) {
+                    toast.error('You must be logged in to upload versions');
+                    return null;
+                }
+
+                const design = get().designs.find(d => d.id === designId);
+                if (!design) {
+                    toast.error('Design not found');
+                    return null;
+                }
+
+                // Reuse update permission logic
+                const permissions = resolvePermissions(
+                    currentUser,
+                    'designs',
+                    designId,
+                    userState.permissionOverrides,
+                    userState.roles
+                );
+
+                if (!permissions.update && design.creatorId !== currentUser.id && currentUser.roleId !== 'role-admin') {
+                    toast.error('Permission denied: You cannot add versions to this design');
+                    return null;
+                }
+
+                try {
+                    const blobId = await storeBlob(file);
+                    const versionId = crypto.randomUUID();
+                    const now = new Date().toISOString();
+                    const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+                    const versionNumber = design.versions.length + 1;
+
+                    await db.designVersions.add({
+                        id: versionId,
+                        designId,
+                        versionNumber,
+                        uploadedBy: userFullName,
+                        uploadedAt: now,
+                        fileBlob: blobId,
+                        fileSize: file.size,
+                        fileType: file.type.includes('pdf') ? 'pdf' : 'image'
+                    });
+
+                    set((state) => ({
+                        designs: state.designs.map((d) =>
+                            d.id === designId
+                                ? {
+                                    ...d,
+                                    versions: [...d.versions, versionId],
+                                    currentVersionId: versionId,
+                                    updatedAt: now
+                                }
+                                : d
+                        )
+                    }));
+
+                    toast.success(`Version ${versionNumber} uploaded`);
+                    return versionId;
+                } catch (error) {
+                    console.error('Failed to upload version:', error);
+                    toast.error('Failed to upload version');
+                    return null;
+                }
+            },
+
+            addComment: async (designId, versionId, text, location) => {
+                const userState = useUserStore.getState();
+                const currentUser = userState.currentUser;
+                if (!currentUser) {
+                    toast.error('Login required');
+                    return null;
+                }
+
+                // Anyone can comment if they can read? Or restricts to team?
+                // For now assume if you can see it, you can comment.
+
+                try {
+                    const commentId = crypto.randomUUID();
+                    const now = new Date().toISOString();
+                    const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+
+                    await db.designComments.add({
+                        id: commentId,
+                        designId,
+                        versionId,
+                        text,
+                        location,
+                        author: userFullName,
+                        createdAt: now,
+                        resolved: false
+                    });
+
+                    return commentId;
+                } catch (e) {
+                    console.error(e);
+                    toast.error('Failed to add comment');
+                    return null;
+                }
+            },
+
+            resolveComment: async (commentId) => {
+                // Toggle resolution
+                try {
+                    const comment = await db.designComments.get(commentId);
+                    if (!comment) return false;
+
+                    await db.designComments.update(commentId, { resolved: !comment.resolved });
+                    return true;
+                } catch (e) {
+                    toast.error('Failed to update comment');
+                    return false;
+                }
+            },
+
+            deleteComment: async (commentId) => {
+                // Only author or admin? For now allow any delete (simplified) or check author
+                try {
+                    await db.designComments.delete(commentId);
+                    return true;
+                } catch (e) {
+                    toast.error('Failed to delete comment');
+                    return false;
+                }
+            },
+
+            getComments: async (designId, versionId) => {
+                return await db.designComments
+                    .where('designId').equals(designId)
+                    .filter(c => c.versionId === versionId)
+                    .toArray();
             },
 
             getDesignsByProject: (projectId) => {

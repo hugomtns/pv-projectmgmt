@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { DocumentVersion, Drawing, DocumentComment, WorkflowEvent } from './types/document';
+import type { DesignVersion, DesignComment } from './types';
 
 // Blob storage record
 interface BlobRecord {
@@ -18,6 +19,8 @@ class DocumentDatabase extends Dexie {
   documentComments!: EntityTable<DocumentComment, 'id'>;
   workflowEvents!: EntityTable<WorkflowEvent, 'id'>;
   blobs!: EntityTable<BlobRecord, 'id'>;
+  designVersions!: EntityTable<DesignVersion, 'id'>;
+  designComments!: EntityTable<DesignComment, 'id'>;
 
   constructor() {
     super('pv-projectmgmt-documents');
