@@ -4,7 +4,8 @@ export type EntityType =
   | 'tasks'
   | 'comments'
   | 'user_management'
-  | 'documents';
+  | 'documents'
+  | 'designs';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 

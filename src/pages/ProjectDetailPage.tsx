@@ -28,6 +28,7 @@ import { StageTaskSection } from '@/components/projects/StageTaskSection';
 import { UserSelectField } from '@/components/users/UserSelectField';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DocumentList } from '@/components/documents/DocumentList';
+import { DesignList } from '@/components/designs/DesignList';
 import { ArrowLeft, Upload } from 'lucide-react';
 import NotFound from './NotFound';
 import type { Priority } from '@/lib/types';
@@ -193,10 +194,11 @@ export default function ProjectDetailPage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-4xl mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
               <TabsTrigger value="properties">Properties</TabsTrigger>
               <TabsTrigger value="status">Status</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="designs">Designs</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
 
@@ -302,7 +304,7 @@ export default function ProjectDetailPage() {
                 <StageStepper
                   project={project}
                   selectedStageId={project.currentStageId}
-                  onStageSelect={() => {}}
+                  onStageSelect={() => { }}
                 />
               </div>
             </TabsContent>
@@ -334,6 +336,11 @@ export default function ProjectDetailPage() {
                   stageName={workflow.stages.find((s) => s.id === selectedStageId)?.name || 'Stage'}
                 />
               </div>
+            </TabsContent>
+
+            {/* Designs Tab */}
+            <TabsContent value="designs" className="space-y-4">
+              <DesignList projectId={projectId || ''} />
             </TabsContent>
 
             {/* Documents Tab */}

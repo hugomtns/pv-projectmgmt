@@ -16,6 +16,7 @@ const entityHierarchy: EntityHierarchy[] = [
   { type: 'tasks', label: 'Tasks', level: 2 },
   { type: 'comments', label: 'Comments', level: 2 },
   { type: 'documents', label: 'Files', level: 1 },
+  { type: 'designs', label: 'Designs', level: 1 },
   { type: 'user_management', label: 'User Management', level: 0 },
 ];
 

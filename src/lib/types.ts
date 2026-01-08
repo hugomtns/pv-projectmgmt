@@ -115,3 +115,17 @@ export type {
   Drawing,
   WorkflowEvent,
 } from './types/document';
+
+// Design Management
+export interface Design {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string;
+  status: 'draft' | 'review' | 'approved';
+  // thumbnail functionality to be added later
+  createdBy: string; // User's full name
+  creatorId: string; // User ID for permission logic (owner only edit)
+  createdAt: string;
+  updatedAt: string;
+}

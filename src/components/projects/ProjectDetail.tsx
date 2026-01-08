@@ -19,6 +19,7 @@ import { StageTaskSection } from './StageTaskSection';
 import { UserSelectField } from '@/components/users/UserSelectField';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DocumentList } from '@/components/documents/DocumentList';
+import { DesignList } from '@/components/designs/DesignList';
 import { Upload } from 'lucide-react';
 import type { Priority } from '@/lib/types';
 
@@ -195,6 +196,11 @@ export function ProjectDetail() {
               stageId={selectedStageId}
               stageName={workflow.stages.find((s) => s.id === selectedStageId)?.name || 'Stage'}
             />
+          </div>
+
+          {/* Designs Section */}
+          <div>
+            <DesignList projectId={project.id} />
           </div>
 
           {/* Documents Section */}
