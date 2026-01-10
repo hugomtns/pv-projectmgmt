@@ -3,10 +3,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import type { ViewType, GroupingOption, BoardColumns, BoardRows } from '@/lib/types';
 
 export function DisplayPopover() {
-  const { settings, setView, updateListSettings, updateBoardSettings } = useDisplayStore();
+  const { settings, setView, updateListSettings, updateBoardSettings, updateTimelineSettings } = useDisplayStore();
 
   const handleViewChange = (view: ViewType) => {
     setView(view);
@@ -36,9 +38,10 @@ export function DisplayPopover() {
           <div>
             <h4 className="font-medium text-sm mb-3">View</h4>
             <Tabs value={settings.view} onValueChange={(v) => handleViewChange(v as ViewType)}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="list">List</TabsTrigger>
                 <TabsTrigger value="board">Board</TabsTrigger>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -88,6 +91,53 @@ export function DisplayPopover() {
                       variant={settings.board.rows === option ? 'default' : 'outline'}
                       className="cursor-pointer"
                       onClick={() => handleBoardRowsChange(option)}
+                    >
+                      {option === 'none' ? 'None' : option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {settings.view === 'timeline' && (
+            <>
+              <div>
+                <h4 className="font-medium text-sm mb-2">View Mode</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(['month', 'quarter', 'year'] as const).map((option) => (
+                    <Badge
+                      key={option}
+                      variant={settings.timeline.viewMode === option ? 'default' : 'outline'}
+                      className="cursor-pointer"
+                      onClick={() => updateTimelineSettings({ viewMode: option })}
+                    >
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="show-completed" className="text-sm font-medium">
+                  Show completed milestones
+                </Label>
+                <Switch
+                  id="show-completed"
+                  checked={settings.timeline.showCompletedMilestones}
+                  onCheckedChange={(checked: boolean) => updateTimelineSettings({ showCompletedMilestones: checked })}
+                />
+              </div>
+
+              <div>
+                <h4 className="font-medium text-sm mb-2">Group by</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(['none', 'stage', 'priority'] as const).map((option) => (
+                    <Badge
+                      key={option}
+                      variant={settings.timeline.groupBy === option ? 'default' : 'outline'}
+                      className="cursor-pointer"
+                      onClick={() => updateTimelineSettings({ groupBy: option })}
                     >
                       {option === 'none' ? 'None' : option.charAt(0).toUpperCase() + option.slice(1)}
                     </Badge>

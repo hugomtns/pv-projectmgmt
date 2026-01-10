@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { ProjectList } from '@/components/projects/ProjectList';
 import { ProjectBoard } from '@/components/projects/ProjectBoard';
+import { ProjectTimeline } from '@/components/projects/timeline/ProjectTimeline';
 import { DisplayPopover } from '@/components/projects/DisplayPopover';
 import { FilterBar } from '@/components/projects/FilterBar';
 import { SearchInput } from '@/components/projects/SearchInput';
@@ -101,8 +102,10 @@ export function Projects() {
         <div key={view} className="animate-in fade-in duration-300 h-full">
           {view === 'list' ? (
             <ProjectList onProjectHover={setHoveredProjectId} />
-          ) : (
+          ) : view === 'board' ? (
             <ProjectBoard onProjectHover={setHoveredProjectId} />
+          ) : (
+            <ProjectTimeline />
           )}
         </div>
       </div>
