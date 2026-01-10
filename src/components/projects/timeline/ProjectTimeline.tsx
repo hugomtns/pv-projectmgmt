@@ -6,6 +6,7 @@ import { TimelineHeader } from './TimelineHeader';
 import { TimelineLegend } from './TimelineLegend';
 import { TimelineGrid } from './TimelineGrid';
 import { MilestoneDialog } from '../milestones/MilestoneDialog';
+import { differenceInDays } from 'date-fns';
 import type { Milestone } from '@/lib/types';
 
 export function ProjectTimeline() {
@@ -116,6 +117,12 @@ export function ProjectTimeline() {
     );
   }
 
+  // Calculate today indicator position
+  const today = new Date();
+  const totalDays = differenceInDays(rangeEnd, rangeStart);
+  const todayPosition = differenceInDays(today, rangeStart) / totalDays * 100;
+  const isTodayVisible = todayPosition >= 0 && todayPosition <= 100;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="rounded-lg border border-border bg-card m-3 md:m-6 flex-1 flex flex-col overflow-hidden">
@@ -127,11 +134,11 @@ export function ProjectTimeline() {
           onViewModeChange={() => {}}
         />
 
-        <div className="grid grid-cols-[300px_1fr]">
+        <div className="grid grid-cols-[300px_1fr] relative">
           <div className="border-r border-b bg-muted/50 p-3 font-medium text-sm">
             Project
           </div>
-          <div className="border-b">
+          <div className="border-b relative">
             <TimelineLegend
               rangeStart={rangeStart}
               rangeEnd={rangeEnd}
@@ -140,15 +147,25 @@ export function ProjectTimeline() {
           </div>
         </div>
 
-        <TimelineGrid
-          projects={filteredProjects}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-          showCompletedMilestones={settings.timeline.showCompletedMilestones}
-          groupBy={settings.timeline.groupBy}
-          ordering={settings.timeline.ordering}
-          onMilestoneClick={handleMilestoneClick}
-        />
+        <div className="relative flex-1">
+          <TimelineGrid
+            projects={filteredProjects}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            showCompletedMilestones={settings.timeline.showCompletedMilestones}
+            groupBy={settings.timeline.groupBy}
+            ordering={settings.timeline.ordering}
+            onMilestoneClick={handleMilestoneClick}
+          />
+
+          {/* Full-height Today indicator */}
+          {isTodayVisible && (
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-20"
+              style={{ left: `calc(300px + ${todayPosition}% * (100% - 300px) / 100)` }}
+            />
+          )}
+        </div>
       </div>
 
       {/* Milestone Edit Dialog */}

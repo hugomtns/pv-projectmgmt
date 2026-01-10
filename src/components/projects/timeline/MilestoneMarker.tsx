@@ -2,6 +2,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { differenceInDays, format } from 'date-fns';
 import type { Milestone } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { MILESTONE_STATUS_COLORS } from '@/lib/constants';
 
 interface MilestoneMarkerProps {
   milestone: Milestone;
@@ -25,6 +26,14 @@ export function MilestoneMarker({ milestone, rangeStart, rangeEnd, onClick }: Mi
   const isOverdue = !milestone.completed && milestoneDate < today;
   const isUpcoming = !milestone.completed && differenceInDays(milestoneDate, today) <= 7 && differenceInDays(milestoneDate, today) >= 0;
 
+  // Determine color based on status
+  let displayColor = milestone.color; // Default to user's color
+  if (milestone.completed) {
+    displayColor = MILESTONE_STATUS_COLORS.completed; // Green
+  } else if (isOverdue) {
+    displayColor = MILESTONE_STATUS_COLORS.overdue; // Red
+  }
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -36,14 +45,13 @@ export function MilestoneMarker({ milestone, rangeStart, rangeEnd, onClick }: Mi
             }}
             className={cn(
               'absolute top-1/2 -translate-y-1/2 rounded-full border-2 transition-all hover:scale-125',
-              milestone.completed ? 'w-3 h-3 border-muted-foreground bg-transparent opacity-50' : 'w-4 h-4',
-              isOverdue && 'border-red-500 bg-red-500',
-              isUpcoming && !isOverdue && 'w-5 h-5'
+              'w-4 h-4',
+              isUpcoming && !isOverdue && !milestone.completed && 'w-5 h-5'
             )}
             style={{
               left: `${position}%`,
-              borderColor: milestone.completed ? undefined : milestone.color,
-              backgroundColor: milestone.completed ? undefined : milestone.color,
+              borderColor: displayColor,
+              backgroundColor: displayColor,
             }}
           />
         </TooltipTrigger>

@@ -98,13 +98,13 @@ export function TimelineHeader({
         <div className="flex items-center gap-1.5">
           <div className="flex gap-0.5">
             <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-blue-500" />
-            <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-green-500" />
             <div className="w-3 h-3 rounded-full bg-purple-500 border-2 border-purple-500" />
+            <div className="w-3 h-3 rounded-full bg-orange-500 border-2 border-orange-500" />
           </div>
-          <span>Milestone (your color)</span>
+          <span>Active</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-transparent border-2 border-muted-foreground opacity-50" />
+          <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-green-500" />
           <span>Completed</span>
         </div>
         <div className="flex items-center gap-1.5">

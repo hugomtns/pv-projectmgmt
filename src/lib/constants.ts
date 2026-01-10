@@ -22,11 +22,17 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
 
 export const MILESTONE_COLORS = [
   { name: 'Blue', value: '#3b82f6' },
-  { name: 'Green', value: '#22c55e' },
   { name: 'Purple', value: '#a855f7' },
   { name: 'Orange', value: '#f97316' },
   { name: 'Pink', value: '#ec4899' },
   { name: 'Yellow', value: '#eab308' },
-  { name: 'Red', value: '#ef4444' },
   { name: 'Teal', value: '#14b8a6' },
+  { name: 'Indigo', value: '#6366f1' },
+  { name: 'Cyan', value: '#06b6d4' },
 ] as const;
+
+// Reserved colors for milestone status (not user-selectable)
+export const MILESTONE_STATUS_COLORS = {
+  completed: '#22c55e', // Green
+  overdue: '#ef4444',   // Red
+} as const;
