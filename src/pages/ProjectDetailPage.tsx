@@ -5,6 +5,7 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 import { useUserStore } from '@/stores/userStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
+import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,7 @@ import { UserSelectField } from '@/components/users/UserSelectField';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DocumentList } from '@/components/documents/DocumentList';
 import { DesignList } from '@/components/designs/DesignList';
+import { MilestoneSection } from '@/components/projects/milestones/MilestoneSection';
 import { ArrowLeft, Upload } from 'lucide-react';
 import NotFound from './NotFound';
 import type { Priority } from '@/lib/types';
@@ -86,6 +88,17 @@ export default function ProjectDetailPage() {
     permissionOverrides,
     roles
   );
+
+  // Get project permissions
+  const projectPermissions = currentUser
+    ? resolvePermissions(
+        currentUser,
+        'projects',
+        projectId,
+        permissionOverrides,
+        roles
+      )
+    : { create: false, read: false, update: false, delete: false };
 
   // Get project documents
   const projectDocuments = documents.filter((doc) => doc.projectId === projectId);
@@ -206,10 +219,11 @@ export default function ProjectDetailPage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-4xl mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsList className="grid w-full grid-cols-6 mb-6">
               <TabsTrigger value="properties">Properties</TabsTrigger>
               <TabsTrigger value="status">Status</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="milestones">Milestones</TabsTrigger>
               <TabsTrigger value="designs">Designs</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
@@ -348,6 +362,15 @@ export default function ProjectDetailPage() {
                   stageName={workflow.stages.find((s) => s.id === selectedStageId)?.name || 'Stage'}
                 />
               </div>
+            </TabsContent>
+
+            {/* Milestones Tab */}
+            <TabsContent value="milestones" className="space-y-4">
+              <MilestoneSection
+                projectId={projectId || ''}
+                milestones={project.milestones || []}
+                canUpdate={projectPermissions.update}
+              />
             </TabsContent>
 
             {/* Designs Tab */}

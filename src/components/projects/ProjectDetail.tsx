@@ -4,6 +4,7 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 import { useUserStore } from '@/stores/userStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
+import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import { UserSelectField } from '@/components/users/UserSelectField';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DocumentList } from '@/components/documents/DocumentList';
 import { DesignList } from '@/components/designs/DesignList';
+import { MilestoneSection } from './milestones/MilestoneSection';
 import { Upload } from 'lucide-react';
 import type { Priority } from '@/lib/types';
 
@@ -46,6 +48,17 @@ export function ProjectDetail() {
     permissionOverrides,
     roles
   );
+
+  // Get project permissions
+  const projectPermissions = currentUser
+    ? resolvePermissions(
+        currentUser,
+        'projects',
+        selectedProjectId || undefined,
+        permissionOverrides,
+        roles
+      )
+    : { create: false, read: false, update: false, delete: false };
 
   // Get project documents
   const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
@@ -201,6 +214,15 @@ export function ProjectDetail() {
           {/* Designs Section */}
           <div>
             <DesignList projectId={project.id} />
+          </div>
+
+          {/* Milestones Section */}
+          <div>
+            <MilestoneSection
+              projectId={project.id}
+              milestones={project.milestones || []}
+              canUpdate={projectPermissions.update}
+            />
           </div>
 
           {/* Documents Section */}
