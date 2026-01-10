@@ -96,8 +96,12 @@ export function TimelineHeader({
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-blue-500" />
-          <span>Upcoming</span>
+          <div className="flex gap-0.5">
+            <div className="w-3 h-3 rounded-full bg-blue-500 border-2 border-blue-500" />
+            <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-green-500" />
+            <div className="w-3 h-3 rounded-full bg-purple-500 border-2 border-purple-500" />
+          </div>
+          <span>Milestone (your color)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-transparent border-2 border-muted-foreground opacity-50" />
