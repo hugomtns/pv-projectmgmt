@@ -102,8 +102,22 @@ export function TimelineGrid({
     );
   }
 
+  // Check if any projects have milestones
+  const totalMilestones = sortedProjects.reduce((sum, p) => sum + (p.milestones?.length || 0), 0);
+  const hasAnyMilestones = totalMilestones > 0;
+
   return (
     <div className="overflow-y-auto">
+      {!hasAnyMilestones && (
+        <div className="flex items-center justify-center p-8 text-center border-b">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">No milestones yet</p>
+            <p className="text-sm text-muted-foreground">
+              Add milestones to your projects to see them on the timeline
+            </p>
+          </div>
+        </div>
+      )}
       {Array.from(grouped.entries()).map(([groupKey, groupProjects]) => (
         <div key={groupKey}>
           {groupBy !== 'none' && (

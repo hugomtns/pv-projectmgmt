@@ -92,6 +92,26 @@ export function TimelineHeader({
         </Button>
         <span className="ml-2 font-medium">{formatRange()}</span>
       </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-blue-500" />
+          <span>Upcoming</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-transparent border-2 border-muted-foreground opacity-50" />
+          <span>Completed</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-red-500" />
+          <span>Overdue</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-0.5 h-4 bg-red-500" />
+          <span>Today</span>
+        </div>
+      </div>
     </div>
   );
 }
