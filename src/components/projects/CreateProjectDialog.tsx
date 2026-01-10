@@ -73,6 +73,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       owner: result.data.owner,
       currentStageId: firstStage.id,
       attachments: [],
+      milestones: [],
       stages: {
         [firstStage.id]: {
           enteredAt: new Date().toISOString(),

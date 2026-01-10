@@ -8,7 +8,7 @@ import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
 
 // Data version - increment this to force a data refresh
-const DATA_VERSION = 5;
+const DATA_VERSION = 6;
 
 /**
  * Migrate old task data structure from 'name' to 'title' field
@@ -171,6 +171,30 @@ function migrateDocumentsForLocking() {
 }
 
 /**
+ * Add milestones field to existing projects
+ */
+function migrateProjectsForMilestones() {
+  const projectState = useProjectStore.getState();
+  let migrated = false;
+
+  const updatedProjects = projectState.projects.map((project: any) => {
+    if (!project.milestones) {
+      migrated = true;
+      return {
+        ...project,
+        milestones: [],
+      };
+    }
+    return project;
+  });
+
+  if (migrated) {
+    useProjectStore.setState({ projects: updatedProjects });
+    console.log('✓ Migrated projects to include milestones field');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -246,6 +270,7 @@ export function initializeStores() {
       migrateProjectsForAttachments();
       migrateTasksForAttachments();
       migrateDocumentsForLocking();
+      migrateProjectsForMilestones();
     }
 
     // Initialize user store if empty

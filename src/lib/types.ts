@@ -45,6 +45,18 @@ export interface ProjectStageData {
   tasks: Task[];
 }
 
+export interface Milestone {
+  id: string;
+  name: string;
+  description: string;
+  date: string; // ISO 8601 format 'YYYY-MM-DD'
+  completed: boolean;
+  completedAt: string | null; // ISO timestamp when marked complete
+  color: string; // Hex color from preset palette
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -56,9 +68,10 @@ export interface Project {
   updatedAt: string;
   stages: Record<string, ProjectStageData>;
   attachments: string[]; // Document IDs
+  milestones: Milestone[]; // Project milestones
 }
 
-export type ViewType = 'list' | 'board';
+export type ViewType = 'list' | 'board' | 'timeline';
 export type GroupingOption = 'none' | 'stage' | 'priority' | 'owner';
 export type BoardColumns = 'stage' | 'priority';
 export type BoardRows = 'none' | 'priority' | 'owner';
@@ -78,10 +91,19 @@ export interface BoardDisplaySettings {
   properties: string[];
 }
 
+export interface TimelineDisplaySettings {
+  viewMode: 'month' | 'quarter' | 'year';
+  showCompletedMilestones: boolean;
+  groupBy: 'none' | 'stage' | 'priority';
+  ordering: { field: string; direction: 'asc' | 'desc' };
+  properties: string[];
+}
+
 export interface DisplaySettings {
   view: ViewType;
   list: ListDisplaySettings;
   board: BoardDisplaySettings;
+  timeline: TimelineDisplaySettings;
 }
 
 export interface Filters {

@@ -168,6 +168,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     priority: 1,
     owner: 'user-jessica-martinez',
     attachments: [],
+    milestones: [],
     currentStageId: 'stage-5-construction',
     stages: {
       'stage-1-initiation': {
@@ -238,6 +239,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     priority: 2,
     owner: 'user-david-thompson',
     attachments: [],
+    milestones: [],
     currentStageId: 'stage-3-permitting',
     stages: {
       'stage-3-permitting': {
@@ -283,6 +285,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     priority: 3,
     owner: 'user-rachel-kim',
     attachments: [],
+    milestones: [],
     currentStageId: 'stage-2-design',
     stages: {
       'stage-2-design': {
@@ -328,6 +331,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     priority: 4,
     owner: 'user-sarah-chen',
     attachments: [],
+    milestones: [],
     currentStageId: 'stage-1-initiation',
     stages: {
       'stage-1-initiation': {
@@ -363,6 +367,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     priority: 0,
     owner: 'user-william-davis',
     attachments: [],
+    milestones: [],
     currentStageId: 'stage-4-procurement',
     stages: {
       'stage-4-procurement': {
@@ -398,6 +403,7 @@ export const mockProjects: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>[] = [
     priority: 2,
     owner: 'user-michael-roberts',
     attachments: [],
+    milestones: [],
     currentStageId: 'stage-6-commissioning',
     stages: {
       'stage-6-commissioning': {

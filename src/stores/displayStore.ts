@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { DisplaySettings, ViewType, ListDisplaySettings, BoardDisplaySettings } from '@/lib/types';
+import type { DisplaySettings, ViewType, ListDisplaySettings, BoardDisplaySettings, TimelineDisplaySettings } from '@/lib/types';
 
 interface DisplayState {
   settings: DisplaySettings;
@@ -8,6 +8,7 @@ interface DisplayState {
   setView: (view: ViewType) => void;
   updateListSettings: (updates: Partial<ListDisplaySettings>) => void;
   updateBoardSettings: (updates: Partial<BoardDisplaySettings>) => void;
+  updateTimelineSettings: (updates: Partial<TimelineDisplaySettings>) => void;
   toggleProperty: (property: string) => void;
 }
 
@@ -25,6 +26,13 @@ const defaultSettings: DisplaySettings = {
     ordering: { field: 'priority', direction: 'asc' },
     showEmptyColumns: true,
     properties: ['priority', 'owner', 'tasks']
+  },
+  timeline: {
+    viewMode: 'quarter',
+    showCompletedMilestones: true,
+    groupBy: 'none',
+    ordering: { field: 'priority', direction: 'asc' },
+    properties: ['priority', 'owner', 'milestones'],
   }
 };
 
@@ -51,8 +59,19 @@ export const useDisplayStore = create<DisplayState>()(
         }
       })),
 
+      updateTimelineSettings: (updates) => set((state) => ({
+        settings: {
+          ...state.settings,
+          timeline: { ...state.settings.timeline, ...updates }
+        }
+      })),
+
       toggleProperty: (property) => set((state) => {
         const currentView = state.settings.view;
+        if (currentView === 'timeline') {
+          // Timeline doesn't have toggleable properties currently
+          return state;
+        }
         const currentProperties = state.settings[currentView].properties;
         const hasProperty = currentProperties.includes(property);
 

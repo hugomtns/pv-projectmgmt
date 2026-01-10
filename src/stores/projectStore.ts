@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Project, Task, Comment } from '@/lib/types';
+import type { Project, Task, Comment, Milestone } from '@/lib/types';
 import { useWorkflowStore } from './workflowStore';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
@@ -19,6 +19,11 @@ interface ProjectState {
   updateTask: (projectId: string, stageId: string, taskId: string, updates: Partial<Task>) => void;
   deleteTask: (projectId: string, stageId: string, taskId: string) => void;
   addComment: (projectId: string, stageId: string, taskId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => void;
+  // Milestone actions
+  addMilestone: (projectId: string, milestoneData: Omit<Milestone, 'id' | 'completed' | 'completedAt' | 'createdAt' | 'updatedAt'>) => void;
+  updateMilestone: (projectId: string, milestoneId: string, updates: Partial<Milestone>) => void;
+  deleteMilestone: (projectId: string, milestoneId: string) => void;
+  toggleMilestoneComplete: (projectId: string, milestoneId: string) => void;
   // Selection
   selectProject: (id: string | null) => void;
 }
@@ -61,7 +66,8 @@ export const useProjectStore = create<ProjectState>()(
             createdAt: now,
             updatedAt: now,
             stages: project.stages || {},
-            attachments: project.attachments || []
+            attachments: project.attachments || [],
+            milestones: project.milestones || []
           };
           return { projects: [...state.projects, newProject] };
         });
@@ -374,6 +380,188 @@ export const useProjectStore = create<ProjectState>()(
                 }
               : p
           )
+        }));
+      },
+
+      // Milestone actions
+      addMilestone: (projectId, milestoneData) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot manage milestones');
+          return;
+        }
+
+        set((state) => {
+          const project = state.projects.find(p => p.id === projectId);
+          if (!project) {
+            toast.error('Project not found');
+            return state;
+          }
+
+          const now = new Date().toISOString();
+          const newMilestone: Milestone = {
+            id: crypto.randomUUID(),
+            ...milestoneData,
+            completed: false,
+            completedAt: null,
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          return {
+            projects: state.projects.map((p) =>
+              p.id === projectId
+                ? { ...p, milestones: [...(p.milestones || []), newMilestone], updatedAt: now }
+                : p
+            ),
+          };
+        });
+
+        toast.success('Milestone added');
+      },
+
+      updateMilestone: (projectId, milestoneId, updates) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot manage milestones');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  milestones: (p.milestones || []).map((m) =>
+                    m.id === milestoneId
+                      ? { ...m, ...updates, updatedAt: new Date().toISOString() }
+                      : m
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : p
+          ),
+        }));
+
+        toast.success('Milestone updated');
+      },
+
+      deleteMilestone: (projectId, milestoneId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot manage milestones');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  milestones: (p.milestones || []).filter((m) => m.id !== milestoneId),
+                  updatedAt: new Date().toISOString(),
+                }
+              : p
+          ),
+        }));
+
+        toast.success('Milestone deleted');
+      },
+
+      toggleMilestoneComplete: (projectId, milestoneId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot manage milestones');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  milestones: (p.milestones || []).map((m) =>
+                    m.id === milestoneId
+                      ? {
+                          ...m,
+                          completed: !m.completed,
+                          completedAt: !m.completed ? new Date().toISOString() : null,
+                          updatedAt: new Date().toISOString(),
+                        }
+                      : m
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : p
+          ),
         }));
       },
 
