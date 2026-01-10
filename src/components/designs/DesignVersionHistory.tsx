@@ -1,15 +1,16 @@
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Upload, Clock, FileImage, FileText } from 'lucide-react';
+import { DesignVersionUploadDialog } from './DesignVersionUploadDialog';
 
 interface DesignVersionHistoryProps {
     designId: string;
     currentVersionId: string;
     selectedVersionId: string;
     onVersionSelect: (versionId: string) => void;
-    onUploadVersion: () => void;
     canUpload: boolean;
 }
 
@@ -18,9 +19,10 @@ export function DesignVersionHistory({
     currentVersionId,
     selectedVersionId,
     onVersionSelect,
-    onUploadVersion,
     canUpload,
 }: DesignVersionHistoryProps) {
+    const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
     // Fetch versions from IndexedDB
     const versions = useLiveQuery(
         () =>
@@ -48,7 +50,7 @@ export function DesignVersionHistory({
                 </div>
                 {canUpload && (
                     <Button
-                        onClick={onUploadVersion}
+                        onClick={() => setUploadDialogOpen(true)}
                         size="sm"
                         className="w-full"
                     >
@@ -106,6 +108,14 @@ export function DesignVersionHistory({
                     );
                 })}
             </div>
+
+            {/* Upload Dialog */}
+            <DesignVersionUploadDialog
+                open={uploadDialogOpen}
+                onOpenChange={setUploadDialogOpen}
+                designId={designId}
+                currentVersionNumber={versions.length}
+            />
         </div>
     );
 }

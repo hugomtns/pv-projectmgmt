@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { DocumentVersion, Drawing, DocumentComment, WorkflowEvent } from './types/document';
-import type { DesignVersion, DesignComment } from './types';
+import type { DesignVersion, DesignComment, DesignWorkflowEvent } from './types';
 
 // Blob storage record
 interface BlobRecord {
@@ -21,6 +21,7 @@ class DocumentDatabase extends Dexie {
   blobs!: EntityTable<BlobRecord, 'id'>;
   designVersions!: EntityTable<DesignVersion, 'id'>;
   designComments!: EntityTable<DesignComment, 'id'>;
+  designWorkflowEvents!: EntityTable<DesignWorkflowEvent, 'id'>;
 
   constructor() {
     super('pv-projectmgmt-documents');
@@ -40,6 +41,18 @@ class DocumentDatabase extends Dexie {
       documentComments: 'id, documentId, versionId, type, createdAt',
       workflowEvents: 'id, documentId, timestamp',
       blobs: 'id'
+    });
+
+    // Version 3: Add designWorkflowEvents table
+    this.version(3).stores({
+      documentVersions: 'id, documentId, versionNumber, uploadedAt',
+      drawings: 'id, [documentId+page], documentId, page, createdBy',
+      documentComments: 'id, documentId, versionId, type, createdAt',
+      workflowEvents: 'id, documentId, timestamp',
+      blobs: 'id',
+      designVersions: 'id, designId, versionNumber, uploadedAt',
+      designComments: 'id, designId, versionId, createdAt',
+      designWorkflowEvents: 'id, designId, timestamp',  // NEW table
     });
   }
 }

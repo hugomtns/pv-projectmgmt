@@ -4,10 +4,11 @@ import { db, getBlob } from '@/lib/db';
 import { blobCache } from '@/lib/blobCache';
 import { useDesignStore } from '@/stores/designStore';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { DesignCommentPanel } from './DesignCommentPanel';
 import { DesignVersionHistory } from './DesignVersionHistory';
 import { DesignWorkflowActions } from './DesignWorkflowActions';
+import { DesignStatusBadge } from './DesignStatusBadge';
+import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 // Actually, generic VersionUploadDialog might expect DocumentStore structure. 
 // I should create a simple upload dialog for designs or adapt the existing one. 
 // For speed, let's create a simple file input trigger for now since DesignVersionHistory has the button.
@@ -18,6 +19,7 @@ import {
     X,
     MessageSquare,
     History,
+    Activity,
 } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -34,7 +36,6 @@ type ZoomLevel = 'fit-width' | 'fit-page' | number;
 
 export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const designs = useDesignStore((state) => state.designs);
-    const addVersion = useDesignStore((state) => state.addVersion);
 
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
@@ -43,7 +44,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const [containerWidth, setContainerWidth] = useState<number>(800);
 
     // Sidebars
-    const [activeTab, setActiveTab] = useState<'comments' | 'history' | null>('comments');
+    const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | null>('comments');
 
     // State
     const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
@@ -131,44 +132,12 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
         }
     };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !design) return;
-
-        try {
-            // Check file type
-            if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-                alert('Only images and PDFs are supported');
-                return;
-            }
-
-            const newVersionId = await addVersion(design.id, file);
-            if (newVersionId) {
-                setSelectedVersionId(newVersionId);
-            }
-        } catch (err) {
-            console.error("Upload failed", err);
-        }
-    };
-
-    // Helper to trigger hidden file input
-    // Helper to trigger hidden file input
-
     if (!design) return <div className="p-8 text-center">Design not found</div>;
 
     const isOldVersion = selectedVersionId !== design.currentVersionId;
 
     return (
         <div className="fixed inset-0 bg-background z-50 flex flex-col">
-            {/* Hidden File Input for Uploads */}
-            <input
-                type="file"
-                className="hidden"
-                id="design-version-upload"
-                onChange={handleFileUpload}
-                accept="image/*,application/pdf"
-            />
-
             {/* Toolbar */}
             <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
@@ -183,9 +152,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                             <span>{new Date(design.updatedAt).toLocaleDateString()}</span>
                         </div>
                     </div>
-                    <Badge variant={design.status === 'approved' ? 'default' : 'secondary'} className="capitalize">
-                        {design.status}
-                    </Badge>
+                    <DesignStatusBadge status={design.status} />
                     <DesignWorkflowActions designId={design.id} currentStatus={design.status} />
                 </div>
 
@@ -219,6 +186,15 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     >
                         <History className="h-4 w-4" />
                         History
+                    </Button>
+                    <Button
+                        variant={activeTab === 'workflow' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => setActiveTab(activeTab === 'workflow' ? null : 'workflow')}
+                    >
+                        <Activity className="h-4 w-4" />
+                        Workflow
                     </Button>
                 </div>
             </div>
@@ -291,7 +267,6 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     <DesignCommentPanel
                         designId={designId}
                         versionId={selectedVersionId}
-                        onLocationCommentClick={() => { }}
                     />
                 )}
                 {activeTab === 'history' && selectedVersionId && (
@@ -300,9 +275,11 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                         currentVersionId={design.currentVersionId}
                         selectedVersionId={selectedVersionId}
                         onVersionSelect={setSelectedVersionId}
-                        onUploadVersion={() => document.getElementById('design-version-upload')?.click()}
                         canUpload={true}
                     />
+                )}
+                {activeTab === 'workflow' && (
+                    <DesignWorkflowHistory designId={designId} />
                 )}
             </div>
         </div>

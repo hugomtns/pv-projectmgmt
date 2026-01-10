@@ -54,7 +54,24 @@ The application uses several Zustand stores with localStorage persistence:
    - Used by other stores to enforce permissions via `resolvePermissions()` helper
    - Storage key: `user-storage`
 
-4. **displayStore** & **filterStore** & **userFilterStore**
+4. **documentStore** (`src/stores/documentStore.ts`)
+   - Manages document metadata with versioning support
+   - File blobs stored in IndexedDB (via `src/lib/db.ts`), metadata in localStorage
+   - Supports document status workflow: draft, review, approved, rejected
+   - Features: version control, comments (document-level and location-anchored), drawings, document locking
+   - Admins can bypass locks; only document owner or admin can unlock
+   - Automatic image-to-PDF conversion for image uploads
+   - Permission-based CRUD with cascade delete to clean up project/task attachments
+   - Storage key: `document-storage-v1`
+
+5. **designStore** (`src/stores/designStore.ts`)
+   - Manages design file metadata with versioning (similar to documents)
+   - File blobs stored in IndexedDB, metadata in localStorage
+   - Features: version control, location-based comments, resolution tracking
+   - Permission checks: only creator or admin can update/delete
+   - Storage key: `design-storage`
+
+6. **displayStore** & **filterStore** & **userFilterStore**
    - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search, user filters)
 
 ### Key Architecture Patterns
@@ -80,6 +97,14 @@ The application uses several Zustand stores with localStorage persistence:
 - Includes migration logic for data structure changes (e.g., task `name` → `title`)
 - Called from `main.tsx` before React renders
 
+**Dual Storage Architecture (Documents & Designs):**
+- Metadata stored in Zustand/localStorage for fast access and persistence
+- File blobs stored in IndexedDB via Dexie (`src/lib/db.ts`) to handle large binary files
+- Database schema includes: `documentVersions`, `designVersions`, `documentComments`, `designComments`, `drawings`, `workflowEvents`, `blobs`
+- Utility functions: `storeBlob()`, `getBlob()`, `deleteBlob()`, `getStorageUsage()`
+- Versioning: Each upload creates a new version with metadata (versionNumber, uploadedBy, uploadedAt, fileSize)
+- Comments can be anchored to specific locations (x, y coordinates) or document-level
+
 **Keyboard Shortcuts:**
 - Custom hook `useKeyboardShortcuts` supports both single keys and sequences
 - Global shortcuts: `g+p` (projects page), `g+w` (workflow page)
@@ -101,14 +126,18 @@ components/
 ├── projects/        # Project views (List, Board, Card, Detail, Filters)
 ├── tasks/           # Task management (TaskList, TaskItem, TaskDetail)
 ├── workflow/        # Workflow editor (StageCard, StageEditor)
+├── documents/       # Document viewer, upload, comments, version control
+├── designs/         # Design viewer, upload, comments, version control
 └── ui/              # shadcn/ui components
 ```
 
 ### Types & Constants
 
-- **src/lib/types.ts** - Core types: `Project`, `Task`, `Stage`, `Workflow`, `Priority` (0-4), `TaskStatus`
+- **src/lib/types.ts** - Core types: `Project`, `Task`, `Stage`, `Workflow`, `Priority` (0-4), `TaskStatus`, `Document`, `Design`
+- **src/lib/types/document.ts** - Document types: `DocumentVersion`, `DocumentComment`, `Drawing`, `WorkflowEvent`, `LocationAnchor`, `DocumentStatus`
 - **src/lib/constants.ts** - Priority labels/colors, task status labels
 - Priority scale: 0=On Hold, 1=Urgent, 2=High, 3=Medium, 4=Low
+- Document statuses: `draft`, `review`, `approved`, `rejected`
 
 ### Testing
 
@@ -126,6 +155,9 @@ When moving a project to a new stage via `moveProjectToStage()`, all tasks in th
 **Task Template Pattern:**
 Workflow stages define templates. When a project enters a stage, templates become actual tasks with IDs, assignees, due dates, and status tracking. Templates are read-only definitions; tasks are mutable instances.
 
+**Document Locking:**
+Documents can be locked by users to prevent concurrent edits. Only the user who locked the document or an admin can unlock it. Admins can upload new versions to locked documents, but other users cannot.
+
 **Path Aliases:**
 `@/` resolves to `src/` (configured in `vite.config.ts` and `tsconfig.app.json`)
 
@@ -137,9 +169,15 @@ App shows a loading screen for 300ms on mount to ensure Zustand persistence has 
 - `src/stores/projectStore.ts` - Project state, stage transition logic, and permission checks
 - `src/stores/workflowStore.ts` - Workflow/stage/template management
 - `src/stores/userStore.ts` - User/group/role management and authentication
+- `src/stores/documentStore.ts` - Document versioning, comments, locking, and permissions
+- `src/stores/designStore.ts` - Design versioning and comments
+- `src/lib/db.ts` - IndexedDB schema and blob storage utilities (Dexie)
 - `src/lib/permissions/permissionResolver.ts` - RBAC permission resolution logic
+- `src/lib/permissions/documentPermissions.ts` - Document-specific permission logic
 - `src/lib/initializeStores.ts` - Seed data and migrations
 - `src/lib/types.ts` - Type definitions
 - `src/components/projects/ProjectBoard.tsx` - Board view with drag-drop
 - `src/pages/Projects.tsx` - Main project page with keyboard shortcuts
+- `src/pages/DocumentViewerPage.tsx` - Document viewer with annotations
+- `src/pages/DesignDetailPage.tsx` - Design viewer with comments
 - `vite.config.ts` - Vite and Vitest configuration with path aliases

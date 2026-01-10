@@ -14,12 +14,13 @@ interface DesignState {
     addDesign: (design: Omit<Design, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'creatorId' | 'versions' | 'currentVersionId'>) => void;
     updateDesign: (id: string, updates: Partial<Design>) => void;
     deleteDesign: (id: string) => Promise<void>;
+    updateDesignStatus: (id: string, status: Design['status'], note?: string) => Promise<boolean>;
 
     // Versioning
     addVersion: (designId: string, file: File) => Promise<string | null>;
 
     // Comments
-    addComment: (designId: string, versionId: string, text: string, location?: { x: number; y: number }) => Promise<string | null>;
+    addComment: (designId: string, versionId: string, text: string) => Promise<string | null>;
     resolveComment: (commentId: string) => Promise<boolean>;
     deleteComment: (commentId: string) => Promise<boolean>;
     getComments: (designId: string, versionId: string) => Promise<DesignComment[]>;
@@ -178,6 +179,70 @@ export const useDesignStore = create<DesignState>()(
                 }
             },
 
+            updateDesignStatus: async (id, status, note) => {
+                const userState = useUserStore.getState();
+                const currentUser = userState.currentUser;
+
+                if (!currentUser) {
+                    toast.error('You must be logged in to change design status');
+                    return false;
+                }
+
+                const design = get().designs.find((d) => d.id === id);
+                if (!design) {
+                    toast.error('Design not found');
+                    return false;
+                }
+
+                // Permission check
+                const permissions = resolvePermissions(
+                    currentUser,
+                    'designs',
+                    id,
+                    userState.permissionOverrides,
+                    userState.roles
+                );
+
+                const isSystemAdmin = currentUser.roleId === 'role-admin';
+                const isCreator = design.creatorId === currentUser.id;
+
+                if (!permissions.update && !isCreator && !isSystemAdmin) {
+                    toast.error('Permission denied: You cannot change this design status');
+                    return false;
+                }
+
+                const now = new Date().toISOString();
+                const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+
+                try {
+                    // Log workflow event
+                    await db.designWorkflowEvents.add({
+                        id: crypto.randomUUID(),
+                        designId: id,
+                        action: 'status_changed',
+                        actor: userFullName,
+                        timestamp: now,
+                        fromStatus: design.status,
+                        toStatus: status,
+                        note,
+                    });
+
+                    // Update design
+                    set((state) => ({
+                        designs: state.designs.map((d) =>
+                            d.id === id ? { ...d, status, updatedAt: now } : d
+                        ),
+                    }));
+
+                    toast.success(`Design ${status.replace('_', ' ')}`);
+                    return true;
+                } catch (error) {
+                    console.error('Failed to update design status:', error);
+                    toast.error('Failed to update design status');
+                    return false;
+                }
+            },
+
             addVersion: async (designId, file) => {
                 const userState = useUserStore.getState();
                 const currentUser = userState.currentUser;
@@ -247,7 +312,7 @@ export const useDesignStore = create<DesignState>()(
                 }
             },
 
-            addComment: async (designId, versionId, text, location) => {
+            addComment: async (designId, versionId, text) => {
                 const userState = useUserStore.getState();
                 const currentUser = userState.currentUser;
                 if (!currentUser) {
@@ -268,7 +333,6 @@ export const useDesignStore = create<DesignState>()(
                         designId,
                         versionId,
                         text,
-                        location,
                         author: userFullName,
                         createdAt: now,
                         resolved: false

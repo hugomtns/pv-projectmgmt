@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useDesignStore } from '@/stores/designStore';
@@ -7,26 +7,21 @@ import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, MessageSquare, Check, X } from 'lucide-react';
+import { MessageSquare, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DesignComment } from '@/lib/types';
 
 interface DesignCommentPanelProps {
     designId: string;
     versionId: string;
-    highlightedCommentId?: string;
-    onLocationCommentClick: (commentId: string) => void;
 }
 
 export function DesignCommentPanel({
     designId,
     versionId,
-    highlightedCommentId,
-    onLocationCommentClick,
 }: DesignCommentPanelProps) {
     const [newCommentText, setNewCommentText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const highlightedCommentRef = useRef<HTMLDivElement>(null);
 
     const addComment = useDesignStore((state) => state.addComment);
     const resolveComment = useDesignStore((state) => state.resolveComment);
@@ -65,16 +60,6 @@ export function DesignCommentPanel({
 
     const filteredComments = (comments || []).filter(c => c.versionId === versionId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    // Auto-scroll to highlighted comment
-    useEffect(() => {
-        if (highlightedCommentId && highlightedCommentRef.current) {
-            highlightedCommentRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center',
-            });
-        }
-    }, [highlightedCommentId]);
-
     const handleAddComment = async () => {
         if (!newCommentText.trim()) return;
 
@@ -88,34 +73,21 @@ export function DesignCommentPanel({
     };
 
     const renderComment = (comment: DesignComment) => {
-        const isHighlighted = comment.id === highlightedCommentId;
         const canDelete = permissions.delete || isCreatorOf(comment);
         const canResolve = permissions.update || isCreatorOf(comment);
 
         return (
             <div
                 key={comment.id}
-                ref={comment.id === highlightedCommentId ? highlightedCommentRef : null}
                 className={cn(
-                    'p-3 rounded-lg border transition-colors cursor-pointer hover:bg-muted/50',
-                    isHighlighted
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border bg-card',
+                    'p-3 rounded-lg border transition-colors',
+                    'border-border bg-card',
                     comment.resolved && 'opacity-60'
                 )}
-                onClick={() => {
-                    if (comment.location) {
-                        onLocationCommentClick(comment.id);
-                    }
-                }}
             >
                 <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {comment.location ? (
-                            <MapPin className="h-3.5 w-3.5 text-destructive shrink-0" />
-                        ) : (
-                            <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
-                        )}
+                        <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
                         <span className="text-sm font-medium truncate">{comment.author}</span>
                     </div>
                     {comment.resolved && (

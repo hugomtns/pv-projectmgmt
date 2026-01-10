@@ -148,8 +148,18 @@ export interface DesignComment {
   designId: string;
   versionId: string;
   text: string;
-  location?: { x: number; y: number }; // Percentage 0-100
   author: string;
   createdAt: string;
   resolved: boolean;
+}
+
+export interface DesignWorkflowEvent {
+  id: string;
+  designId: string;
+  action: 'created' | 'status_changed' | 'version_uploaded';
+  actor: string;
+  timestamp: string;
+  fromStatus?: Design['status'];
+  toStatus?: Design['status'];
+  note?: string;
 }
