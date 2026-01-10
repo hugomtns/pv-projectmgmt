@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { PriorityBadge } from './PriorityBadge';
 import { UserDisplay } from '@/components/users/UserDisplay';
 import { getUserDisplayName } from '@/lib/userUtils';
+import { getNextMilestone, formatMilestoneDate } from '@/lib/milestoneUtils';
 import { PRIORITY_LABELS } from '@/lib/constants';
 import type { Priority, Project } from '@/lib/types';
 
@@ -99,6 +100,17 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
         aVal = a.updatedAt;
         bVal = b.updatedAt;
         break;
+      case 'nextMilestone': {
+        const aNextMilestone = getNextMilestone(a.milestones || []);
+        const bNextMilestone = getNextMilestone(b.milestones || []);
+        // Projects without milestones sort last
+        if (!aNextMilestone && !bNextMilestone) return 0;
+        if (!aNextMilestone) return 1;
+        if (!bNextMilestone) return -1;
+        aVal = aNextMilestone.date;
+        bVal = bNextMilestone.date;
+        break;
+      }
       case 'tasks': {
         const aCurrentStageTasks = a.stages[a.currentStageId]?.tasks || [];
         const bCurrentStageTasks = b.stages[b.currentStageId]?.tasks || [];
@@ -212,7 +224,7 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
   const renderHeaderRow = () => (
     <div
       className="grid border-b border-border bg-muted/50"
-      style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(80px, 0.67fr)' }}
+      style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(80px, 0.67fr)' }}
     >
       <div className="px-4 py-3">
         <Button
@@ -284,6 +296,17 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
         <Button
           variant="ghost"
           size="sm"
+          onClick={() => handleSort('nextMilestone')}
+          className="h-auto p-0 font-medium"
+        >
+          Next Milestone
+          {getSortIcon('nextMilestone')}
+        </Button>
+      </div>
+      <div className="px-4 py-3">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => handleSort('tasks')}
           className="h-auto p-0 font-medium"
         >
@@ -299,12 +322,13 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
     const stage = workflow.stages.find((s) => s.id === project.currentStageId);
     const currentStageTasks = project.stages[project.currentStageId]?.tasks || [];
     const completedTasks = currentStageTasks.filter((t) => t.status === 'complete').length;
+    const nextMilestone = getNextMilestone(project.milestones || []);
 
     return (
       <div
         key={project.id}
         className="grid hover:bg-muted/50 cursor-pointer border-b border-border"
-        style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(80px, 0.67fr)' }}
+        style={{ gridTemplateColumns: 'minmax(300px, 2.5fr) minmax(150px, 1.25fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(200px, 1.67fr) minmax(120px, 1fr) minmax(150px, 1.25fr) minmax(80px, 0.67fr)' }}
         onClick={() => navigate(`/projects/${project.id}`)}
         onMouseEnter={() => onProjectHover?.(project.id)}
         onMouseLeave={() => onProjectHover?.(null)}
@@ -328,6 +352,24 @@ export function ProjectList({ onProjectHover }: ProjectListProps) {
         <div className="px-4 py-3 text-sm text-muted-foreground truncate" title={project.location}>{project.location}</div>
         <div className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
           {new Date(project.updatedAt).toLocaleDateString()}
+        </div>
+        <div className="px-4 py-3">
+          {nextMilestone ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: nextMilestone.color }}
+              />
+              <div className="min-w-0">
+                <div className="text-sm truncate" title={nextMilestone.name}>{nextMilestone.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {formatMilestoneDate(nextMilestone.date)}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-sm">—</span>
+          )}
         </div>
         <div className="px-4 py-3 text-sm text-muted-foreground text-center whitespace-nowrap">
           {completedTasks}/{currentStageTasks.length}
