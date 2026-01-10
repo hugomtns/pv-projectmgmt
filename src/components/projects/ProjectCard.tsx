@@ -2,10 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { PriorityBadge } from './PriorityBadge';
 import { UserDisplay } from '@/components/users/UserDisplay';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Project } from '@/lib/types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FileText } from 'lucide-react';
+import { FileText, Calendar } from 'lucide-react';
+import { getNextMilestone, formatMilestoneDate } from '@/lib/milestoneUtils';
 
 interface ProjectCardProps {
   project: Project;
@@ -42,6 +44,8 @@ export function ProjectCard({
     navigate(`/projects/${project.id}`);
   };
 
+  const nextMilestone = getNextMilestone(project.milestones || []);
+
   return (
     <div
       ref={setNodeRef}
@@ -65,6 +69,35 @@ export function ProjectCard({
             {tasksCompleted}/{tasksTotal} tasks
           </span>
         </div>
+
+        {nextMilestone && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md border w-fit"
+                  style={{
+                    borderColor: nextMilestone.color + '40',
+                    backgroundColor: nextMilestone.color + '10'
+                  }}
+                >
+                  <Calendar className="h-3 w-3" style={{ color: nextMilestone.color }} />
+                  <span className="text-muted-foreground truncate">
+                    {formatMilestoneDate(nextMilestone.date)}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <p className="font-medium">{nextMilestone.name}</p>
+                  {nextMilestone.description && (
+                    <p className="text-xs text-muted-foreground">{nextMilestone.description}</p>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
