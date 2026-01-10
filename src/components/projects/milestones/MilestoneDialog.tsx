@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ColorPicker } from './ColorPicker';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
@@ -29,6 +30,7 @@ export function MilestoneDialog({ open, onOpenChange, projectId, milestone }: Mi
   const [description, setDescription] = useState('');
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [color, setColor] = useState<string>(MILESTONE_COLORS[0].value);
+  const [completed, setCompleted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Pre-fill form when editing
@@ -38,12 +40,14 @@ export function MilestoneDialog({ open, onOpenChange, projectId, milestone }: Mi
       setDescription(milestone.description);
       setDate(new Date(milestone.date));
       setColor(milestone.color);
+      setCompleted(milestone.completed);
     } else {
       // Reset for new milestone
       setName('');
       setDescription('');
       setDate(undefined);
       setColor(MILESTONE_COLORS[0].value);
+      setCompleted(false);
     }
     setErrors({});
   }, [milestone, open]);
@@ -70,12 +74,23 @@ export function MilestoneDialog({ open, onOpenChange, projectId, milestone }: Mi
 
     if (milestone) {
       // Update existing milestone
-      updateMilestone(projectId, milestone.id, {
+      const updates: any = {
         name: name.trim(),
         description: description.trim(),
         date: formattedDate,
         color,
-      });
+        completed,
+      };
+
+      // Set completedAt timestamp when marking as complete
+      if (completed && !milestone.completed) {
+        updates.completedAt = new Date().toISOString();
+      } else if (!completed && milestone.completed) {
+        // Clear completedAt when marking as incomplete
+        updates.completedAt = null;
+      }
+
+      updateMilestone(projectId, milestone.id, updates);
     } else {
       // Add new milestone
       addMilestone(projectId, {
@@ -155,6 +170,23 @@ export function MilestoneDialog({ open, onOpenChange, projectId, milestone }: Mi
             <Label>Color</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
+
+          {/* Completion Status (only when editing) */}
+          {milestone && (
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox
+                id="completed"
+                checked={completed}
+                onCheckedChange={(checked) => setCompleted(checked as boolean)}
+              />
+              <Label
+                htmlFor="completed"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                Mark as completed
+              </Label>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
