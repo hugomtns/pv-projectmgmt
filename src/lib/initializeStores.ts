@@ -3,6 +3,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { useUserStore } from '@/stores/userStore';
 import { useFilterStore } from '@/stores/filterStore';
 import { useDocumentStore } from '@/stores/documentStore';
+import { useDisplayStore } from '@/stores/displayStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
 import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
@@ -195,6 +196,31 @@ function migrateProjectsForMilestones() {
 }
 
 /**
+ * Add timeline settings to display store if missing
+ */
+function migrateDisplayStoreForTimeline() {
+  const displayState = useDisplayStore.getState();
+  const settings = displayState.settings as any;
+
+  // Check if timeline settings are missing
+  if (!settings.timeline) {
+    useDisplayStore.setState({
+      settings: {
+        ...settings,
+        timeline: {
+          viewMode: 'quarter',
+          showCompletedMilestones: true,
+          groupBy: 'none',
+          ordering: { field: 'priority', direction: 'asc' },
+          properties: ['priority', 'owner', 'milestones'],
+        }
+      }
+    });
+    console.log('✓ Migrated display store to include timeline settings');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -271,6 +297,7 @@ export function initializeStores() {
       migrateTasksForAttachments();
       migrateDocumentsForLocking();
       migrateProjectsForMilestones();
+      migrateDisplayStoreForTimeline();
     }
 
     // Initialize user store if empty
