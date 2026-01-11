@@ -107,7 +107,7 @@ export function TimelineGrid({
   const hasAnyMilestones = totalMilestones > 0;
 
   return (
-    <div className="overflow-y-auto">
+    <div className="overflow-y-auto h-full">
       {!hasAnyMilestones && (
         <div className="flex items-center justify-center p-8 text-center border-b">
           <div className="space-y-2">

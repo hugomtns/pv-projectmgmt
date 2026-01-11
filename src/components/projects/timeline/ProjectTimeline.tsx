@@ -147,7 +147,7 @@ export function ProjectTimeline() {
           </div>
         </div>
 
-        <div className="relative flex-1">
+        <div className="relative flex-1 overflow-hidden">
           <TimelineGrid
             projects={filteredProjects}
             rangeStart={rangeStart}
@@ -162,7 +162,7 @@ export function ProjectTimeline() {
           {isTodayVisible && (
             <div
               className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none z-20"
-              style={{ left: `calc(300px + ${todayPosition}% * (100% - 300px) / 100)` }}
+              style={{ left: `calc(300px + (100% - 300px) * ${todayPosition / 100})` }}
             />
           )}
         </div>
