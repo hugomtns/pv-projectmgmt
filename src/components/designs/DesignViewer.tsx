@@ -37,6 +37,7 @@ type ZoomLevel = 'fit-width' | 'fit-page' | number;
 
 export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const designs = useDesignStore((state) => state.designs);
+    const addVersion = useDesignStore((state) => state.addVersion);
 
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
@@ -52,6 +53,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileType, setFileType] = useState<'image' | 'pdf' | 'dxf' | 'gltf' | 'fbx' | 'obj'>('image');
     const [loading, setLoading] = useState(true);
+    const [uploading, setUploading] = useState(false);
 
     // Sync selected version if design updates (e.g. initial load)
     useEffect(() => {
@@ -130,6 +132,25 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
             setZoom(Math.max(25, zoom - 25));
         } else {
             setZoom(100);
+        }
+    };
+
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const newVersionId = await addVersion(designId, file);
+            if (newVersionId) {
+                setSelectedVersionId(newVersionId);
+            }
+        } catch (error) {
+            console.error('Failed to upload file:', error);
+        } finally {
+            setUploading(false);
+            // Reset the input so the same file can be uploaded again if needed
+            event.target.value = '';
         }
     };
 
@@ -219,9 +240,20 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     {!fileUrl && !loading && (
                         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                             <p>No design file uploaded yet.</p>
+                            <input
+                                id="design-version-upload"
+                                type="file"
+                                className="hidden"
+                                accept=".pdf,.png,.jpg,.jpeg,.dxf,.gltf,.glb,.fbx,.obj"
+                                onChange={handleFileUpload}
+                                disabled={uploading}
+                            />
                             <label htmlFor="design-version-upload">
-                                <Button variant="outline" className="mt-4" asChild>
-                                    <span><ZoomIn className="mr-2 h-4 w-4" /> Upload Initial Design</span>
+                                <Button variant="outline" className="mt-4" asChild disabled={uploading}>
+                                    <span>
+                                        <ZoomIn className="mr-2 h-4 w-4" />
+                                        {uploading ? 'Uploading...' : 'Upload Initial Design'}
+                                    </span>
                                 </Button>
                             </label>
                         </div>

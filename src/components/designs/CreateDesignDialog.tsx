@@ -24,7 +24,9 @@ interface CreateDesignDialogProps {
 
 export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesignDialogProps) {
     const addDesign = useDesignStore((state) => state.addDesign);
+    const addVersion = useDesignStore((state) => state.addVersion);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const {
         register,
@@ -42,13 +44,20 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
     const onSubmit = async (data: CreateDesignFormValues) => {
         setIsSubmitting(true);
         try {
-            addDesign({
+            const designId = addDesign({
                 projectId,
                 name: data.name,
                 description: data.description || '',
                 status: 'draft',
             });
+
+            // If a file was selected, upload it as the first version
+            if (selectedFile && designId) {
+                await addVersion(designId, selectedFile);
+            }
+
             reset();
+            setSelectedFile(null);
             onOpenChange(false);
         } catch (error) {
             console.error(error);
@@ -76,6 +85,20 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                             {...register('description')}
                             placeholder="Optional description..."
                         />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="file">Design File (optional)</Label>
+                        <Input
+                            id="file"
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.dxf,.gltf,.glb,.fbx,.obj"
+                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                        />
+                        {selectedFile && (
+                            <p className="text-sm text-muted-foreground">
+                                Selected: {selectedFile.name}
+                            </p>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
