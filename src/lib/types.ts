@@ -162,7 +162,7 @@ export interface DesignVersion {
   uploadedAt: string;
   fileBlob: string; // Blob ID from IndexedDB
   fileSize: number;
-  fileType: 'image' | 'pdf';
+  fileType: 'image' | 'pdf' | 'dxf' | 'gltf' | 'fbx' | 'obj';
 }
 
 export interface DesignComment {

@@ -9,6 +9,7 @@ import { DesignVersionHistory } from './DesignVersionHistory';
 import { DesignWorkflowActions } from './DesignWorkflowActions';
 import { DesignStatusBadge } from './DesignStatusBadge';
 import { DesignWorkflowHistory } from './DesignWorkflowHistory';
+import { PV3DCanvas } from './viewer3d/PV3DCanvas';
 // Actually, generic VersionUploadDialog might expect DocumentStore structure. 
 // I should create a simple upload dialog for designs or adapt the existing one. 
 // For speed, let's create a simple file input trigger for now since DesignVersionHistory has the button.
@@ -49,7 +50,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     // State
     const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
-    const [fileType, setFileType] = useState<'image' | 'pdf'>('image');
+    const [fileType, setFileType] = useState<'image' | 'pdf' | 'dxf' | 'gltf' | 'fbx' | 'obj'>('image');
     const [loading, setLoading] = useState(true);
 
     // Sync selected version if design updates (e.g. initial load)
@@ -234,7 +235,15 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
 
                     {fileUrl && (
                         <div className="flex-1 p-8 flex justify-center min-h-0">
-                            {fileType === 'pdf' ? (
+                            {fileType === 'dxf' || fileType === 'gltf' || fileType === 'fbx' || fileType === 'obj' ? (
+                                <div className="w-full h-full">
+                                    <PV3DCanvas
+                                        designId={designId}
+                                        versionId={selectedVersionId || design.currentVersionId}
+                                        fileUrl={fileUrl}
+                                    />
+                                </div>
+                            ) : fileType === 'pdf' ? (
                                 <div className="shadow-lg">
                                     <Document
                                         file={fileUrl}
