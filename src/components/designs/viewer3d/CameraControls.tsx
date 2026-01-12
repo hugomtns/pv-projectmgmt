@@ -72,14 +72,11 @@ function Turntable2DControls() {
       }
 
       if (isPanning.current) {
-        // Pan based on current rotation
-        const cos = Math.cos(sceneRotation.current);
-        const sin = Math.sin(sceneRotation.current);
-        const panX = deltaX * 0.5;
-        const panZ = deltaY * 0.5;
-
-        panOffset.current.x -= panX * cos - panZ * sin;
-        panOffset.current.z -= panX * sin + panZ * cos;
+        // Pan in screen space - mouse X moves camera X, mouse Y moves camera Z
+        // Scale by zoom level for consistent feel
+        const zoomScale = 'zoom' in camera ? 1 / (camera as THREE.OrthographicCamera).zoom : 1;
+        panOffset.current.x -= deltaX * 0.3 * zoomScale;
+        panOffset.current.z -= deltaY * 0.3 * zoomScale;
 
         camera.position.x = panOffset.current.x;
         camera.position.z = panOffset.current.z;
