@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import * as THREE from 'three';
+import type { OrthographicCamera as ThreeOrthographicCamera } from 'three';
 
 interface CameraControlsProps {
   mode: '3d' | '2d';
@@ -10,47 +10,42 @@ interface CameraControlsProps {
 
 /**
  * Turntable2DControls - Custom controls for 2D mode with consistent rotation direction
- * Left-click drag: Rotate scene (turntable style - always rotates in mouse direction)
+ * Left-click drag: Rotate view (turntable style - always rotates in mouse direction)
  * Right-click drag: Pan
  * Scroll: Zoom
  */
 function Turntable2DControls() {
-  const { camera, gl, scene } = useThree();
+  const { camera, gl } = useThree();
   const isDragging = useRef(false);
   const isPanning = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
-  const sceneRotation = useRef(0);
-  const panOffset = useRef({ x: 0, z: 0 });
+  const azimuth = useRef(0); // Rotation angle around Y axis
+  const target = useRef({ x: 0, z: 0 }); // Look-at target
   const targetZoom = useRef(2);
+  const cameraHeight = 100;
 
-  // Create a pivot group for rotation
-  const pivotRef = useRef<THREE.Group | null>(null);
+  // Update camera position based on azimuth and target
+  const updateCamera = () => {
+    camera.position.x = target.current.x;
+    camera.position.y = cameraHeight;
+    camera.position.z = target.current.z;
+
+    // Rotate the camera's up vector to create turntable effect
+    const upX = Math.sin(azimuth.current);
+    const upZ = Math.cos(azimuth.current);
+    camera.up.set(upX, 0, upZ);
+
+    camera.lookAt(target.current.x, 0, target.current.z);
+    camera.updateProjectionMatrix();
+  };
 
   useEffect(() => {
-    // Find or create pivot group
-    let pivot = scene.getObjectByName('turntable-pivot') as THREE.Group;
-    if (!pivot) {
-      pivot = new THREE.Group();
-      pivot.name = 'turntable-pivot';
-
-      // Move all scene children (except camera-related) into pivot
-      const childrenToMove = scene.children.filter(
-        child => child !== camera && !child.name.includes('camera')
-      );
-      childrenToMove.forEach(child => {
-        scene.remove(child);
-        pivot.add(child);
-      });
-      scene.add(pivot);
-    }
-    pivotRef.current = pivot;
-
     const canvas = gl.domElement;
 
     const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) { // Left click - rotate
+      if (e.button === 0) {
         isDragging.current = true;
-      } else if (e.button === 2) { // Right click - pan
+      } else if (e.button === 2) {
         isPanning.current = true;
       }
       lastMouse.current = { x: e.clientX, y: e.clientY };
@@ -65,22 +60,26 @@ function Turntable2DControls() {
       const deltaX = e.clientX - lastMouse.current.x;
       const deltaY = e.clientY - lastMouse.current.y;
 
-      if (isDragging.current && pivotRef.current) {
-        // Turntable rotation - horizontal mouse movement = Y-axis rotation
-        sceneRotation.current -= deltaX * 0.005;
-        pivotRef.current.rotation.y = sceneRotation.current;
+      if (isDragging.current) {
+        // Turntable rotation - horizontal mouse movement rotates the view
+        azimuth.current += deltaX * 0.005;
+        updateCamera();
       }
 
       if (isPanning.current) {
-        // Pan in screen space - mouse X moves camera X, mouse Y moves camera Z
-        // Scale by zoom level for consistent feel
-        const zoomScale = 'zoom' in camera ? 1 / (camera as THREE.OrthographicCamera).zoom : 1;
-        panOffset.current.x -= deltaX * 0.3 * zoomScale;
-        panOffset.current.z -= deltaY * 0.3 * zoomScale;
+        // Pan relative to current view orientation
+        const zoomScale = 'zoom' in camera ? 1 / (camera as ThreeOrthographicCamera).zoom : 1;
+        const cos = Math.cos(azimuth.current);
+        const sin = Math.sin(azimuth.current);
 
-        camera.position.x = panOffset.current.x;
-        camera.position.z = panOffset.current.z;
-        camera.updateProjectionMatrix();
+        const panX = deltaX * 0.3 * zoomScale;
+        const panY = deltaY * 0.3 * zoomScale;
+
+        // Transform pan to world space based on current rotation
+        target.current.x -= panX * cos + panY * sin;
+        target.current.z -= -panX * sin + panY * cos;
+
+        updateCamera();
       }
 
       lastMouse.current = { x: e.clientX, y: e.clientY };
@@ -91,14 +90,17 @@ function Turntable2DControls() {
       const zoomDelta = e.deltaY * 0.001;
       targetZoom.current = Math.max(0.5, Math.min(20, targetZoom.current - zoomDelta));
       if ('zoom' in camera) {
-        (camera as THREE.OrthographicCamera).zoom = targetZoom.current;
+        (camera as ThreeOrthographicCamera).zoom = targetZoom.current;
         camera.updateProjectionMatrix();
       }
     };
 
     const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault(); // Prevent right-click menu
+      e.preventDefault();
     };
+
+    // Initialize camera position
+    updateCamera();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mouseup', handleMouseUp);
@@ -115,7 +117,7 @@ function Turntable2DControls() {
       canvas.removeEventListener('wheel', handleWheel);
       canvas.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [camera, gl, scene]);
+  }, [camera, gl]);
 
   return null;
 }
