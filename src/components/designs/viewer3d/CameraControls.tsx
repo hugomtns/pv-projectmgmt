@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react';
+import type { MutableRefObject } from 'react';
 import { useThree } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
@@ -6,31 +7,33 @@ import type { OrthographicCamera as ThreeOrthographicCamera } from 'three';
 
 interface CameraControlsProps {
   mode: '3d' | '2d';
+  zoomRef: MutableRefObject<number>;
+}
+
+interface Turntable2DControlsProps {
+  zoomRef: MutableRefObject<number>;
 }
 
 /**
  * Turntable2DControls - Custom controls for 2D mode with consistent rotation direction
  * Left-click drag: Rotate view (turntable style - always rotates in mouse direction)
  * Right-click drag: Pan
- * Scroll: Zoom
+ * Scroll: Zoom (no limits)
  */
-function Turntable2DControls() {
+function Turntable2DControls({ zoomRef }: Turntable2DControlsProps) {
   const { camera, gl } = useThree();
   const isDragging = useRef(false);
   const isPanning = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
-  const azimuth = useRef(0); // Rotation angle around Y axis
-  const target = useRef({ x: 0, z: 0 }); // Look-at target
-  const targetZoom = useRef(2);
+  const azimuth = useRef(0);
+  const target = useRef({ x: 0, z: 0 });
   const cameraHeight = 100;
 
-  // Update camera position based on azimuth and target
   const updateCamera = () => {
     camera.position.x = target.current.x;
     camera.position.y = cameraHeight;
     camera.position.z = target.current.z;
 
-    // Rotate the camera's up vector to create turntable effect
     const upX = Math.sin(azimuth.current);
     const upZ = Math.cos(azimuth.current);
     camera.up.set(upX, 0, upZ);
@@ -40,6 +43,12 @@ function Turntable2DControls() {
   };
 
   useEffect(() => {
+    // Apply shared zoom on mount
+    if ('zoom' in camera) {
+      (camera as ThreeOrthographicCamera).zoom = zoomRef.current;
+      camera.updateProjectionMatrix();
+    }
+
     const canvas = gl.domElement;
 
     const handleMouseDown = (e: MouseEvent) => {
@@ -61,21 +70,18 @@ function Turntable2DControls() {
       const deltaY = e.clientY - lastMouse.current.y;
 
       if (isDragging.current) {
-        // Turntable rotation - horizontal mouse movement rotates the view
         azimuth.current += deltaX * 0.005;
         updateCamera();
       }
 
       if (isPanning.current) {
-        // Pan relative to current view orientation
-        const zoomScale = 'zoom' in camera ? 1 / (camera as ThreeOrthographicCamera).zoom : 1;
+        const zoomScale = 1 / zoomRef.current;
         const cos = Math.cos(azimuth.current);
         const sin = Math.sin(azimuth.current);
 
         const panX = deltaX * 0.3 * zoomScale;
         const panY = deltaY * 0.3 * zoomScale;
 
-        // Transform pan to world space based on current rotation
         target.current.x -= panX * cos + panY * sin;
         target.current.z -= -panX * sin + panY * cos;
 
@@ -87,10 +93,12 @@ function Turntable2DControls() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const zoomDelta = e.deltaY * 0.001;
-      targetZoom.current = Math.max(0.5, Math.min(20, targetZoom.current - zoomDelta));
+      // No limits - allow any zoom level
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      zoomRef.current *= zoomFactor;
+
       if ('zoom' in camera) {
-        (camera as ThreeOrthographicCamera).zoom = targetZoom.current;
+        (camera as ThreeOrthographicCamera).zoom = zoomRef.current;
         camera.updateProjectionMatrix();
       }
     };
@@ -99,7 +107,6 @@ function Turntable2DControls() {
       e.preventDefault();
     };
 
-    // Initialize camera position
     updateCamera();
 
     canvas.addEventListener('mousedown', handleMouseDown);
@@ -117,7 +124,7 @@ function Turntable2DControls() {
       canvas.removeEventListener('wheel', handleWheel);
       canvas.removeEventListener('contextmenu', handleContextMenu);
     };
-  }, [camera, gl]);
+  }, [camera, gl, zoomRef]);
 
   return null;
 }
@@ -128,17 +135,34 @@ function Turntable2DControls() {
  * 3D Mode: Perspective camera with full orbit controls (rotate, pan, zoom)
  * 2D Mode: Orthographic top-down view with turntable rotation, pan, and zoom
  */
-export function CameraControls({ mode }: CameraControlsProps) {
+export function CameraControls({ mode, zoomRef }: CameraControlsProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  const { invalidate } = useThree();
+  const { camera } = useThree();
 
-  // Reset controls when mode changes
+  // Sync zoom when switching modes
   useEffect(() => {
-    if (controlsRef.current) {
+    if (mode === '3d' && controlsRef.current) {
+      // For 3D, we don't directly set zoom but the OrbitControls handle it
+      // Reset controls but try to maintain similar view
       controlsRef.current.reset();
-      invalidate();
     }
-  }, [mode, invalidate]);
+  }, [mode]);
+
+  // Track zoom changes in 3D mode
+  useEffect(() => {
+    if (mode === '3d') {
+      const handleZoomChange = () => {
+        if ('zoom' in camera) {
+          zoomRef.current = (camera as ThreeOrthographicCamera).zoom;
+        }
+      };
+
+      controlsRef.current?.addEventListener('change', handleZoomChange);
+      return () => {
+        controlsRef.current?.removeEventListener('change', handleZoomChange);
+      };
+    }
+  }, [mode, camera, zoomRef]);
 
   if (mode === '2d') {
     return (
@@ -146,11 +170,11 @@ export function CameraControls({ mode }: CameraControlsProps) {
         <OrthographicCamera
           makeDefault
           position={[0, 100, 0]}
-          zoom={2}
+          zoom={zoomRef.current}
           near={0.1}
           far={1000}
         />
-        <Turntable2DControls />
+        <Turntable2DControls zoomRef={zoomRef} />
       </>
     );
   }
