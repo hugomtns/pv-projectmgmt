@@ -30,7 +30,7 @@ export function CameraControls({ mode }: CameraControlsProps) {
       <>
         <OrthographicCamera
           makeDefault
-          position={[0, 100, 0]}
+          position={[0.1, 100, 0.1]} // Slight offset to avoid gimbal lock
           zoom={2}
           near={0.1}
           far={1000}
@@ -39,16 +39,17 @@ export function CameraControls({ mode }: CameraControlsProps) {
           ref={controlsRef}
           enableRotate
           enableDamping
-          dampingFactor={0.05}
+          dampingFactor={0.15}
           // Lock polar angle for top-down view, but allow azimuthal (turntable) rotation
-          minPolarAngle={0.01} // Small value to avoid gimbal lock at exactly 0
-          maxPolarAngle={0.01}
-          // Allow pan and zoom
+          minPolarAngle={0.001}
+          maxPolarAngle={0.1}
+          // Smooth pan and zoom
           enablePan
+          screenSpacePanning
           enableZoom
-          zoomSpeed={1}
-          panSpeed={1}
-          rotateSpeed={0.5}
+          zoomSpeed={0.8}
+          panSpeed={0.8}
+          rotateSpeed={0.4}
         />
       </>
     );
