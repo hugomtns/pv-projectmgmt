@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei';
+import { Grid } from '@react-three/drei';
+import { CameraControls } from './CameraControls';
+import { ViewportToolbar } from './ViewportToolbar';
 
 interface PV3DCanvasProps {
   designId: string;
@@ -7,23 +10,27 @@ interface PV3DCanvasProps {
   fileUrl: string;
 }
 
+type CameraMode = '3d' | '2d';
+
 /**
  * PV3DCanvas - Main WebGL canvas for 3D PV layout visualization
  * Uses React Three Fiber for declarative 3D rendering
  */
 export function PV3DCanvas({ designId, versionId, fileUrl }: PV3DCanvasProps) {
+  const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
+
   // TODO: Use designId and versionId for loading actual 3D data
   // For now, these are placeholders for Story 1 (foundation)
   console.log('PV3DCanvas loaded:', { designId, versionId, fileUrl });
 
   return (
-    <div className="w-full h-full">
-      <Canvas>
-        {/* Camera */}
-        <PerspectiveCamera makeDefault position={[50, 50, 50]} fov={60} />
+    <div className="w-full h-full relative">
+      {/* Viewport toolbar overlay */}
+      <ViewportToolbar mode={cameraMode} onModeChange={setCameraMode} />
 
-        {/* Controls */}
-        <OrbitControls enableDamping dampingFactor={0.05} />
+      <Canvas>
+        {/* Camera and controls based on mode */}
+        <CameraControls mode={cameraMode} />
 
         {/* Lighting */}
         <ambientLight intensity={0.4} />
