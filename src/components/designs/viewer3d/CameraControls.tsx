@@ -155,11 +155,16 @@ export function CameraControls({ mode, zoomRef }: CameraControlsProps) {
     }
   }, [mode, camera, zoomRef]);
 
-  // Apply zoom when switching to 3D mode
+  // Apply zoom and reset camera orientation when switching to 3D mode
   useEffect(() => {
-    if (mode === '3d' && 'zoom' in camera) {
-      (camera as ThreeOrthographicCamera).zoom = zoomRef.current;
-      camera.updateProjectionMatrix();
+    if (mode === '3d') {
+      // Reset the up vector to default (fixes sideways view after 2D turntable rotation)
+      camera.up.set(0, 1, 0);
+
+      if ('zoom' in camera) {
+        (camera as ThreeOrthographicCamera).zoom = zoomRef.current;
+        camera.updateProjectionMatrix();
+      }
     }
   }, [mode, camera, zoomRef]);
 
