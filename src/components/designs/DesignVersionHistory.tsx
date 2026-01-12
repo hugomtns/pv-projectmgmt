@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Upload, Clock, FileImage, FileText } from 'lucide-react';
+import { Upload, Clock, Box } from 'lucide-react';
 import { DesignVersionUploadDialog } from './DesignVersionUploadDialog';
 
 interface DesignVersionHistoryProps {
@@ -86,11 +86,7 @@ export function DesignVersionHistory({
                                     <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs">
                                         v{version.versionNumber}
                                     </span>
-                                    {version.fileType === 'pdf' ? (
-                                        <FileText className="h-3 w-3 text-muted-foreground" />
-                                    ) : (
-                                        <FileImage className="h-3 w-3 text-muted-foreground" />
-                                    )}
+                                    <Box className="h-3 w-3 text-muted-foreground" />
                                 </span>
                                 {isCurrent && (
                                     <span className="text-[10px] uppercase bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">

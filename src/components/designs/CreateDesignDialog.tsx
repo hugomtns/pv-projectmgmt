@@ -87,11 +87,11 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="file">Design File (optional)</Label>
+                        <Label htmlFor="file">DXF File (optional)</Label>
                         <Input
                             id="file"
                             type="file"
-                            accept=".pdf,.png,.jpg,.jpeg,.dxf,.gltf,.glb,.fbx,.obj"
+                            accept=".dxf"
                             onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                         />
                         {selectedFile && (

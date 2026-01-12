@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useDesignStore } from '@/stores/designStore';
-import { Upload, X, FileImage, FileText } from 'lucide-react';
+import { Upload, X, Box } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DesignVersionUploadDialogProps {
@@ -14,8 +14,8 @@ interface DesignVersionUploadDialogProps {
 
 // File validation helpers
 const validateFileType = (file: File): boolean => {
-  const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'application/pdf'];
-  return validTypes.includes(file.type);
+  // DXF files may have various MIME types or none, so check extension
+  return file.name.toLowerCase().endsWith('.dxf');
 };
 
 const validateFileSize = (file: File): boolean => {
@@ -50,7 +50,7 @@ export function DesignVersionUploadDialog({
 
     // Validate file type
     if (!validateFileType(selectedFile)) {
-      setError('Invalid file type. Please upload images (PNG, JPG) or PDF files.');
+      setError('Invalid file type. Please upload DXF files only.');
       return;
     }
 
@@ -154,7 +154,7 @@ export function DesignVersionUploadDialog({
                   Drag and drop a file here, or click to browse
                 </p>
                 <p className="text-xs text-muted-foreground mb-4">
-                  Supported: Images (PNG, JPG) and PDF files (max 50MB)
+                  Supported: DXF files (max 50MB)
                 </p>
                 <Button
                   variant="outline"
@@ -169,11 +169,7 @@ export function DesignVersionUploadDialog({
             {file && (
               <div className="flex items-center justify-between gap-4 p-4 bg-muted rounded-md">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {file.type.includes('pdf') ? (
-                    <FileText className="h-8 w-8 text-destructive shrink-0" />
-                  ) : (
-                    <FileImage className="h-8 w-8 text-primary shrink-0" />
-                  )}
+                  <Box className="h-8 w-8 text-primary shrink-0" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{file.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -222,7 +218,7 @@ export function DesignVersionUploadDialog({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,application/pdf"
+          accept=".dxf"
           className="hidden"
           onChange={handleFileInputChange}
         />

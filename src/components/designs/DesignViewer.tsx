@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
 import { db, getBlob } from '@/lib/db';
 import { blobCache } from '@/lib/blobCache';
 import { useDesignStore } from '@/stores/designStore';
@@ -10,30 +9,19 @@ import { DesignWorkflowActions } from './DesignWorkflowActions';
 import { DesignStatusBadge } from './DesignStatusBadge';
 import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
-// Actually, generic VersionUploadDialog might expect DocumentStore structure. 
-// I should create a simple upload dialog for designs or adapt the existing one. 
-// For speed, let's create a simple file input trigger for now since DesignVersionHistory has the button.
 
 import {
-    ZoomIn,
-    ZoomOut,
     X,
     MessageSquare,
     History,
     Activity,
+    Upload,
 } from 'lucide-react';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
-
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface DesignViewerProps {
     designId: string;
     onClose: () => void;
 }
-
-type ZoomLevel = 'fit-width' | 'fit-page' | number;
 
 export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const designs = useDesignStore((state) => state.designs);
@@ -42,16 +30,13 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
 
-    const [zoom, setZoom] = useState<ZoomLevel>('fit-width');
-    const [containerWidth, setContainerWidth] = useState<number>(800);
-
     // Sidebars
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | null>('comments');
 
     // State
     const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
-    const [fileType, setFileType] = useState<'image' | 'pdf' | 'dxf' | 'gltf' | 'fbx' | 'obj'>('image');
+    const [fileType, setFileType] = useState<'dxf' | null>(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
 
@@ -119,22 +104,6 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
         };
     }, [selectedVersionId, design]);
 
-    const handleZoomIn = () => {
-        if (typeof zoom === 'number') {
-            setZoom(Math.min(200, zoom + 25));
-        } else {
-            setZoom(100);
-        }
-    };
-
-    const handleZoomOut = () => {
-        if (typeof zoom === 'number') {
-            setZoom(Math.max(25, zoom - 25));
-        } else {
-            setZoom(100);
-        }
-    };
-
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -179,17 +148,6 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* View Actions */}
-                    <div className="flex items-center gap-1 border-r pr-2 mr-2">
-                        <Button variant="ghost" size="icon" onClick={handleZoomOut}>
-                            <ZoomOut className="h-4 w-4" />
-                        </Button>
-                        <div className="w-12 text-center text-sm">{typeof zoom === 'number' ? `${zoom}%` : 'Fit'}</div>
-                        <Button variant="ghost" size="icon" onClick={handleZoomIn}>
-                            <ZoomIn className="h-4 w-4" />
-                        </Button>
-                    </div>
-
                     {/* Sidebar Toggles */}
                     <Button
                         variant={activeTab === 'comments' ? 'secondary' : 'ghost'}
@@ -224,13 +182,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
             {/* Main Content */}
             <div className="flex flex-1 overflow-hidden">
                 {/* Canvas / Viewer */}
-                <div className="flex-1 bg-muted/30 overflow-auto relative flex flex-col"
-                    ref={(el) => {
-                        if (el && el.clientWidth !== containerWidth) {
-                            setContainerWidth(el.clientWidth);
-                        }
-                    }}
-                >
+                <div className="flex-1 bg-muted/30 overflow-auto relative flex flex-col">
                     {isOldVersion && (
                         <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-700 dark:text-amber-400 p-2 text-center text-sm">
                             Viewing an older version. <button onClick={() => setSelectedVersionId(design.currentVersionId)} className="underline font-medium">Switch to Latest</button>
@@ -244,15 +196,15 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                                 id="design-version-upload"
                                 type="file"
                                 className="hidden"
-                                accept=".pdf,.png,.jpg,.jpeg,.dxf,.gltf,.glb,.fbx,.obj"
+                                accept=".dxf"
                                 onChange={handleFileUpload}
                                 disabled={uploading}
                             />
                             <label htmlFor="design-version-upload">
                                 <Button variant="outline" className="mt-4" asChild disabled={uploading}>
                                     <span>
-                                        <ZoomIn className="mr-2 h-4 w-4" />
-                                        {uploading ? 'Uploading...' : 'Upload Initial Design'}
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        {uploading ? 'Uploading...' : 'Upload DXF Design'}
                                     </span>
                                 </Button>
                             </label>
@@ -265,40 +217,13 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                         </div>
                     )}
 
-                    {fileUrl && (
-                        <div className="flex-1 p-8 flex justify-center min-h-0">
-                            {fileType === 'dxf' || fileType === 'gltf' || fileType === 'fbx' || fileType === 'obj' ? (
-                                <div className="w-full h-full">
-                                    <PV3DCanvas
-                                        designId={designId}
-                                        versionId={selectedVersionId || design.currentVersionId}
-                                        fileUrl={fileUrl}
-                                    />
-                                </div>
-                            ) : fileType === 'pdf' ? (
-                                <div className="shadow-lg">
-                                    <Document
-                                        file={fileUrl}
-                                        // onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                                        loading={<div className="h-96 w-64 flex items-center justify-center bg-white">Loading PDF...</div>}
-                                    >
-                                        <Page
-                                            pageNumber={1}
-                                            width={typeof zoom === 'number' ? (containerWidth * zoom / 100) : (containerWidth * 0.9)}
-                                            renderTextLayer={false}
-                                            renderAnnotationLayer={false}
-                                        />
-                                    </Document>
-                                </div>
-                            ) : (
-                                <div className="relative shadow-lg inline-block" style={{
-                                    width: typeof zoom === 'number' ? `${zoom}%` : 'auto',
-                                    maxWidth: typeof zoom === 'number' ? 'none' : '90%',
-                                    transition: 'width 0.2s ease-out'
-                                }}>
-                                    <img src={fileUrl} alt="Design" className="block w-full h-auto rounded-md bg-white" />
-                                </div>
-                            )}
+                    {fileUrl && fileType === 'dxf' && (
+                        <div className="flex-1 min-h-0">
+                            <PV3DCanvas
+                                designId={designId}
+                                versionId={selectedVersionId || design.currentVersionId}
+                                fileUrl={fileUrl}
+                            />
                         </div>
                     )}
                 </div>

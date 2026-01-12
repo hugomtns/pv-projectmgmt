@@ -287,7 +287,7 @@ export const useDesignStore = create<DesignState>()(
                         uploadedAt: now,
                         fileBlob: blobId,
                         fileSize: file.size,
-                        fileType: file.type.includes('pdf') ? 'pdf' : 'image'
+                        fileType: 'dxf'
                     });
 
                     set((state) => ({
