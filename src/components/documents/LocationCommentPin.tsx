@@ -82,7 +82,7 @@ export function LocationCommentPin({
           colors.opacity
         )}
         style={{
-          transform: `translate(${location.x}%, ${location.y}%) scale(1, 0.77)`,
+          transform: `translate(${location.x}%, ${location.y}%)`,
           transformOrigin: '0 0',
         }}
       >

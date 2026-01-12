@@ -17,12 +17,12 @@ import { HIGHLIGHT_COLORS, HIGHLIGHT_COLOR_NAMES } from './constants/highlightCo
 interface CommentPanelProps {
   /** Document ID */
   documentId: string;
-  /** Current version ID */
-  versionId: string;
+  /** Selected (viewed) version ID */
+  selectedVersionId: string;
   /** ID of highlighted comment */
   highlightedCommentId?: string;
   /** Callback when location comment is clicked */
-  onLocationCommentClick: (commentId: string, page: number) => void;
+  onLocationCommentClick: (commentId: string, page: number, versionId: string) => void;
 }
 
 /**
@@ -31,7 +31,7 @@ interface CommentPanelProps {
  */
 export function CommentPanel({
   documentId,
-  versionId,
+  selectedVersionId,
   highlightedCommentId,
   onLocationCommentClick,
 }: CommentPanelProps) {
@@ -101,7 +101,7 @@ export function CommentPanel({
 
     setIsSubmitting(true);
     try {
-      await addComment(documentId, versionId, newCommentText.trim());
+      await addComment(documentId, selectedVersionId, newCommentText.trim());
       setNewCommentText('');
     } finally {
       setIsSubmitting(false);
@@ -147,7 +147,10 @@ export function CommentPanel({
         )}
         onClick={() => {
           if (comment.type === 'location' && comment.location) {
-            onLocationCommentClick(comment.id, comment.location.page);
+            onLocationCommentClick(comment.id, comment.location.page, comment.versionId);
+          } else if (comment.type === 'document') {
+            // For document-level comments, pass 0 to indicate no page navigation
+            onLocationCommentClick(comment.id, 0, comment.versionId);
           }
         }}
       >
@@ -175,7 +178,10 @@ export function CommentPanel({
             )}
             <span className="text-sm font-medium truncate">{comment.author}</span>
             {commentVersionNumber && (
-              <Badge variant="outline" className="shrink-0 text-xs">
+              <Badge
+                variant={comment.versionId === selectedVersionId ? "default" : "outline"}
+                className="shrink-0 text-xs"
+              >
                 v{commentVersionNumber}
               </Badge>
             )}

@@ -218,7 +218,7 @@ export function DocumentViewer({
     if (pendingHighlight) {
       // Handle highlight comment
       const { x, y, width, height, page, color } = pendingHighlight;
-      const commentId = await addComment(documentId, versionId, comment, {
+      const commentId = await addComment(documentId, selectedVersionId, comment, {
         x,
         y,
         page,
@@ -236,7 +236,7 @@ export function DocumentViewer({
     } else if (pendingCommentLocation) {
       // Handle point comment
       const { x, y, page } = pendingCommentLocation;
-      const commentId = await addComment(documentId, versionId, comment, { x, y, page });
+      const commentId = await addComment(documentId, selectedVersionId, comment, { x, y, page });
 
       if (commentId) {
         setHighlightedCommentId(commentId);
@@ -252,12 +252,29 @@ export function DocumentViewer({
     setHighlightedCommentId((prev) => (prev === commentId ? undefined : commentId));
   };
 
-  const handleLocationCommentClick = (commentId: string, page: number) => {
-    setCurrentPage(page);
-    setHighlightedCommentId(commentId);
-    // Scroll to the page
-    const pageElement = document.querySelector(`[data-page-number="${page}"]`);
-    pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const handleLocationCommentClick = (commentId: string, page: number, commentVersionId: string) => {
+    // Switch version if different from currently selected version
+    if (commentVersionId !== selectedVersionId) {
+      setSelectedVersionId(commentVersionId);
+      setHighlightedCommentId(commentId);
+      // The useEffect will handle loading the new version file
+      // Navigate to the page after a short delay to let the version load
+      if (page > 0) {
+        setTimeout(() => {
+          setCurrentPage(page);
+          const pageElement = document.querySelector(`[data-page-number="${page}"]`);
+          pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+      }
+    } else {
+      // Same version, navigate immediately (only if page specified)
+      setHighlightedCommentId(commentId);
+      if (page > 0) {
+        setCurrentPage(page);
+        const pageElement = document.querySelector(`[data-page-number="${page}"]`);
+        pageElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
   };
 
   const handleClearAllDrawings = async () => {
@@ -545,7 +562,7 @@ export function DocumentViewer({
                     <div className="absolute inset-0 pointer-events-none">
                       <AnnotationLayer
                         documentId={documentId}
-                        versionId={versionId}
+                        versionId={activeVersionId}
                         currentPage={pageNumber}
                         comments={comments}
                         highlightedCommentId={highlightedCommentId}
@@ -561,7 +578,7 @@ export function DocumentViewer({
                     <div className="absolute inset-0 pointer-events-none">
                       <DrawingLayer
                         documentId={documentId}
-                        versionId={versionId}
+                        versionId={activeVersionId}
                         currentPage={pageNumber}
                         activeTool={drawingTool}
                         activeColor={drawingColor}
@@ -586,7 +603,7 @@ export function DocumentViewer({
           <div className="w-96 flex-shrink-0">
             <CommentPanel
               documentId={documentId}
-              versionId={activeVersionId}
+              selectedVersionId={activeVersionId}
               highlightedCommentId={highlightedCommentId}
               onLocationCommentClick={handleLocationCommentClick}
             />

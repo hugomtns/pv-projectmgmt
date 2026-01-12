@@ -56,6 +56,31 @@ export function AnnotationLayer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<PercentageCoordinates | null>(null);
   const [dragCurrent, setDragCurrent] = useState<PercentageCoordinates | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<number>(1);
+
+  // Calculate aspect ratio from the SVG container dimensions
+  useEffect(() => {
+    if (!containerElement) return;
+
+    const updateAspectRatio = () => {
+      const rect = containerElement.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        // Aspect ratio is height/width to correct the Y-axis scaling
+        setAspectRatio(rect.height / rect.width);
+      }
+    };
+
+    // Initial calculation
+    updateAspectRatio();
+
+    // Update on resize
+    const resizeObserver = new ResizeObserver(updateAspectRatio);
+    resizeObserver.observe(containerElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [containerElement]);
 
   // Filter comments for current page and version
   const pageComments = comments.filter(
@@ -185,7 +210,7 @@ export function AnnotationLayer({
   return (
     <svg
       ref={setContainerElement}
-      viewBox="0 0 100 100"
+      viewBox={`0 0 100 ${100 * aspectRatio}`}
       preserveAspectRatio="none"
       className={`absolute inset-0 w-full h-full pointer-events-auto z-10 ${
         annotationMode ? 'cursor-crosshair' : 'cursor-default'
