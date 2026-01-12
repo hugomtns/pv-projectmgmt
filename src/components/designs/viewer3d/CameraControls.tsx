@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import { useThree } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { OrthographicCamera as ThreeOrthographicCamera } from 'three';
 
@@ -93,7 +93,6 @@ function Turntable2DControls({ zoomRef }: Turntable2DControlsProps) {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // No limits - allow any zoom level
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
       zoomRef.current *= zoomFactor;
 
@@ -130,37 +129,37 @@ function Turntable2DControls({ zoomRef }: Turntable2DControlsProps) {
 }
 
 /**
- * CameraControls - Manages camera mode switching between 3D perspective and 2D orthographic views
+ * CameraControls - Manages camera mode switching between 3D and 2D orthographic views
+ * Uses OrthographicCamera for both modes to ensure consistent zoom levels
  *
- * 3D Mode: Perspective camera with full orbit controls (rotate, pan, zoom)
- * 2D Mode: Orthographic top-down view with turntable rotation, pan, and zoom
+ * 3D Mode: Angled orthographic view with full orbit controls
+ * 2D Mode: Top-down orthographic view with turntable rotation
  */
 export function CameraControls({ mode, zoomRef }: CameraControlsProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
 
-  // Sync zoom when switching modes
+  // Track zoom changes from OrbitControls in 3D mode
   useEffect(() => {
     if (mode === '3d' && controlsRef.current) {
-      // For 3D, we don't directly set zoom but the OrbitControls handle it
-      // Reset controls but try to maintain similar view
-      controlsRef.current.reset();
-    }
-  }, [mode]);
-
-  // Track zoom changes in 3D mode
-  useEffect(() => {
-    if (mode === '3d') {
-      const handleZoomChange = () => {
+      const handleChange = () => {
         if ('zoom' in camera) {
           zoomRef.current = (camera as ThreeOrthographicCamera).zoom;
         }
       };
 
-      controlsRef.current?.addEventListener('change', handleZoomChange);
+      controlsRef.current.addEventListener('change', handleChange);
       return () => {
-        controlsRef.current?.removeEventListener('change', handleZoomChange);
+        controlsRef.current?.removeEventListener('change', handleChange);
       };
+    }
+  }, [mode, camera, zoomRef]);
+
+  // Apply zoom when switching to 3D mode
+  useEffect(() => {
+    if (mode === '3d' && 'zoom' in camera) {
+      (camera as ThreeOrthographicCamera).zoom = zoomRef.current;
+      camera.updateProjectionMatrix();
     }
   }, [mode, camera, zoomRef]);
 
@@ -179,12 +178,13 @@ export function CameraControls({ mode, zoomRef }: CameraControlsProps) {
     );
   }
 
+  // 3D mode: Angled orthographic view
   return (
     <>
-      <PerspectiveCamera
+      <OrthographicCamera
         makeDefault
         position={[50, 50, 50]}
-        fov={60}
+        zoom={zoomRef.current}
         near={0.1}
         far={1000}
       />

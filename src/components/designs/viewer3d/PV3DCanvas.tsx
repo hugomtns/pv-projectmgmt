@@ -18,8 +18,8 @@ type CameraMode = '3d' | '2d';
  */
 export function PV3DCanvas({ designId, versionId, fileUrl }: PV3DCanvasProps) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
-  // Shared zoom level between modes (default 2 for good initial view)
-  const zoomRef = useRef(2);
+  // Shared zoom level between modes (default 8 for good initial view with orthographic)
+  const zoomRef = useRef(8);
 
   // TODO: Use designId and versionId for loading actual 3D data
   // For now, these are placeholders for Story 1 (foundation)
