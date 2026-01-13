@@ -3,7 +3,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
 import type { CameraControlsRef } from './CameraControls';
-import { ViewportToolbar } from './ViewportToolbar';
+import { ViewportToolbar, type LayerVisibility } from './ViewportToolbar';
 import { SatelliteGround } from './SatelliteGround';
 import { PVLayoutRenderer } from './PVLayoutRenderer';
 import { ElementCommentDialog } from './ElementCommentDialog';
@@ -87,6 +87,14 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   const [selectedElement, setSelectedElement] = useState<ElementAnchor | null>(null);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [showPins, setShowPins] = useState(true);
+
+  // Layer visibility state
+  const [visibility, setVisibility] = useState<LayerVisibility>({
+    panels: true,
+    boundaries: true,
+    electrical: true,
+    trees: true,
+  });
 
   // Load and parse DXF file when URL changes
   useEffect(() => {
@@ -204,6 +212,8 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         onElementCommentModeChange={setElementCommentMode}
         showPins={showPins}
         onShowPinsChange={setShowPins}
+        visibility={visibility}
+        onVisibilityChange={setVisibility}
       />
 
       {/* Loading overlay */}
@@ -255,9 +265,10 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
             parsedData={parsedData}
             selectedPanelIndex={selectedPanelIndex}
             onPanelClick={handlePanelClick}
-            showPanels={true}
-            showBoundaries={true}
-            showElectrical={true}
+            showPanels={visibility.panels}
+            showBoundaries={visibility.boundaries}
+            showElectrical={visibility.electrical}
+            showTrees={visibility.trees}
             elementCommentMode={elementCommentMode}
             onElementSelected={handleElementSelected}
             designId={designId}

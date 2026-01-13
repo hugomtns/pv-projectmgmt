@@ -22,11 +22,16 @@ interface PanelInstancesProps {
 // Default panel table dimensions (in meters) - fallback if not in extended data
 const DEFAULT_TABLE_WIDTH = 16.0; // ~12 modules wide
 const DEFAULT_TABLE_HEIGHT = 4.5; // ~2 rows
-const DEFAULT_PANEL_THICKNESS = 0.15; // Visible thickness for 3D effect (150mm)
+const DEFAULT_PANEL_THICKNESS = 0.05; // Module thickness (50mm)
 const DEFAULT_TILT_ANGLE = 20; // degrees - typical ground mount tilt
 
+// Default module grid (when extended data is missing)
+const DEFAULT_MODULE_ROWS = 2;
+const DEFAULT_MODULE_COLS = 12;
+const MODULE_GAP = 0.025; // 25mm gap between columns only
+
 // Panel colors
-const PANEL_COLOR = new Color('#1e40af'); // Blue
+const PANEL_COLOR = new Color('#1e3a5f'); // Dark blue (solar cell color)
 const PANEL_FRAME_COLOR = new Color('#94a3b8'); // Silver frame
 
 export function PanelInstances({
@@ -36,13 +41,32 @@ export function PanelInstances({
   elementCommentMode = false,
   onElementSelected,
 }: PanelInstancesProps) {
-  const meshRef = useRef<InstancedMesh>(null);
+  const moduleRef = useRef<InstancedMesh>(null);
   const frameRef = useRef<InstancedMesh>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Temporary object for matrix calculations
   const tempObject = useMemo(() => new Object3D(), []);
+
+  // Calculate total modules and mapping from module index to panel index
+  const { totalModules, moduleToPanel } = useMemo(() => {
+    let total = 0;
+    const mapping: number[] = [];
+
+    panels.forEach((panel, panelIndex) => {
+      const rows = panel.moduleRows || DEFAULT_MODULE_ROWS;
+      const cols = panel.moduleColumns || DEFAULT_MODULE_COLS;
+      const moduleCount = rows * cols;
+
+      for (let i = 0; i < moduleCount; i++) {
+        mapping.push(panelIndex);
+      }
+      total += moduleCount;
+    });
+
+    return { totalModules: total, moduleToPanel: mapping };
+  }, [panels]);
 
   // Trigger re-render after mount to ensure refs are available
   useEffect(() => {
@@ -59,103 +83,122 @@ export function PanelInstances({
   // Update instance matrices when panels change or after mount
   // Using useLayoutEffect to ensure matrices are set before paint
   useLayoutEffect(() => {
-    const mesh = meshRef.current;
+    const modules = moduleRef.current;
     const frame = frameRef.current;
-    if (!mesh || !frame || !mounted) return;
+    if (!modules || !frame || !mounted || totalModules === 0) return;
 
-    panels.forEach((panel, i) => {
+    let moduleIndex = 0;
+
+    panels.forEach((panel, panelIdx) => {
       // Get actual table dimensions from extended data or use defaults
       const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
       const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
       const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
       const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
+      const rows = panel.moduleRows || DEFAULT_MODULE_ROWS;
+      const cols = panel.moduleColumns || DEFAULT_MODULE_COLS;
 
       // Convert tilt angle to radians
-      // Tilt is rotation around X axis - positive tilts back (top away from viewer)
       const tiltRad = (tiltAngle * Math.PI) / 180;
       const azimuth = panel.rotation; // Already in radians
 
-      // Panel base height - the mounting height is the lowest edge
-      // After tilt, the center is higher by half the tilted height
+      // Calculate table center position (same as before - this is correct)
       const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
-
-      // The INSERT position in DXF is at corner of panel table
-      // Offset to center: +halfWidth in X direction, -halfDepth in facing direction
       const halfWidth = tableWidth / 2;
-      const halfDepth = (tableHeight / 2) * Math.cos(tiltRad); // Ground projection
-
-      // Apply offset rotated by azimuth (INSERT is at left-front corner)
+      const halfDepth = (tableHeight / 2) * Math.cos(tiltRad);
       const offsetX = halfWidth * Math.cos(azimuth) + halfDepth * Math.sin(azimuth);
       const offsetY = halfWidth * Math.sin(azimuth) - halfDepth * Math.cos(azimuth);
 
-      // DXF X,Y horizontal -> Three.js X,Z (with Y negated)
-      tempObject.position.set(
-        panel.position[0] + offsetX,
-        centerHeight,
-        -(panel.position[1] + offsetY)
-      );
+      // Table center in world coordinates
+      const tableCenterX = panel.position[0] + offsetX;
+      const tableCenterY = centerHeight;
+      const tableCenterZ = -(panel.position[1] + offsetY);
 
-      // Set rotation using Euler order 'YXZ' for proper azimuth then tilt
-      // First rotate around Y (azimuth), then around X (tilt)
+      // Calculate module dimensions
+      // Modules fill the table with gaps between columns only
+      const totalGapWidth = (cols - 1) * MODULE_GAP;
+      const moduleWidth = (tableWidth - totalGapWidth) / cols;
+      const moduleHeight = tableHeight / rows; // No gap between rows - stacked
+
+      // Set frame transform (same as table)
+      tempObject.position.set(tableCenterX, tableCenterY, tableCenterZ);
       tempObject.rotation.order = 'YXZ';
-      tempObject.rotation.set(
-        tiltRad,           // X: tilt angle (panels lean back toward sky)
-        panel.rotation,    // Y: azimuth angle (panel facing direction)
-        0                  // Z: no roll
-      );
-
-      // Scale: panel table dimensions
-      // Box lies flat on XZ plane, Y is thickness
-      tempObject.scale.set(
-        tableWidth,        // X: width of table (columns of modules)
-        DEFAULT_PANEL_THICKNESS, // Y: panel thickness
-        tableHeight        // Z: depth of table (rows of modules)
-      );
-
+      tempObject.rotation.set(tiltRad, azimuth, 0);
+      tempObject.scale.set(tableWidth, DEFAULT_PANEL_THICKNESS, tableHeight);
       tempObject.updateMatrix();
+      frame.setMatrixAt(panelIdx, tempObject.matrix);
 
-      // Apply to both panel and frame meshes
-      mesh.setMatrixAt(i, tempObject.matrix);
-      frame.setMatrixAt(i, tempObject.matrix);
+      // Render each module in the grid
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          // Module position in table's LOCAL coordinate system (before tilt/rotation)
+          // X: centered, with gaps between columns
+          // Z: centered, no gaps between rows (stacked)
+          const localX = (col - (cols - 1) / 2) * (moduleWidth + MODULE_GAP);
+          const localZ = (row - (rows - 1) / 2) * moduleHeight;
+
+          // Apply tilt to Z position (affects Y and Z in world)
+          const tiltedY = localZ * Math.sin(tiltRad);
+          const tiltedZ = localZ * Math.cos(tiltRad);
+
+          // Rotate by azimuth to get world offset from table center
+          const worldOffsetX = localX * Math.cos(azimuth) - tiltedZ * Math.sin(azimuth);
+          const worldOffsetZ = localX * Math.sin(azimuth) + tiltedZ * Math.cos(azimuth);
+
+          // Final module position
+          tempObject.position.set(
+            tableCenterX + worldOffsetX,
+            tableCenterY + tiltedY,
+            tableCenterZ - worldOffsetZ
+          );
+          tempObject.rotation.order = 'YXZ';
+          tempObject.rotation.set(tiltRad, azimuth, 0);
+          tempObject.scale.set(moduleWidth, DEFAULT_PANEL_THICKNESS, moduleHeight);
+          tempObject.updateMatrix();
+
+          modules.setMatrixAt(moduleIndex, tempObject.matrix);
+          moduleIndex++;
+        }
+      }
     });
 
-    mesh.instanceMatrix.needsUpdate = true;
+    modules.instanceMatrix.needsUpdate = true;
     frame.instanceMatrix.needsUpdate = true;
 
-    // Compute bounding sphere for raycasting to work properly
-    mesh.computeBoundingSphere();
+    modules.computeBoundingSphere();
     frame.computeBoundingSphere();
-  }, [panels, tempObject, mounted]);
+  }, [panels, tempObject, mounted, totalModules]);
 
-  // Handle click events
+  // Handle click events - map module index back to panel index
   const handleClick = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
-    console.log('Panel click event:', event.instanceId, 'commentMode:', elementCommentMode);
     event.stopPropagation();
     if (event.instanceId === undefined) return;
 
+    const panelIndex = moduleToPanel[event.instanceId];
+    if (panelIndex === undefined) return;
+
     if (elementCommentMode && onElementSelected) {
-      // In comment mode, select element for commenting
-      console.log('Selecting panel for comment:', event.instanceId);
       onElementSelected({
         elementType: 'panel',
-        elementId: String(event.instanceId),
-        elementLabel: `Panel #${event.instanceId + 1}`,
+        elementId: String(panelIndex),
+        elementLabel: `Panel #${panelIndex + 1}`,
       });
     } else if (onPanelClick) {
-      // Normal selection mode
-      onPanelClick(event.instanceId, panels[event.instanceId]);
+      onPanelClick(panelIndex, panels[panelIndex]);
     }
-  }, [elementCommentMode, onElementSelected, onPanelClick, panels]);
+  }, [elementCommentMode, onElementSelected, onPanelClick, panels, moduleToPanel]);
 
-  // Handle pointer over for hover highlighting (better than onPointerMove for InstancedMesh)
+  // Handle pointer over for hover highlighting
   const handlePointerOver = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
-    console.log('Panel pointer over:', event.instanceId, 'commentMode:', elementCommentMode);
     if (!elementCommentMode) return;
     event.stopPropagation();
     if (event.instanceId !== undefined) {
-      setHoveredIndex(event.instanceId);
+      const panelIndex = moduleToPanel[event.instanceId];
+      if (panelIndex !== undefined) {
+        setHoveredIndex(panelIndex);
+      }
     }
-  }, [elementCommentMode]);
+  }, [elementCommentMode, moduleToPanel]);
 
   // Handle pointer out
   const handlePointerOut = useCallback((event: { stopPropagation: () => void }) => {
@@ -164,15 +207,15 @@ export function PanelInstances({
     setHoveredIndex(null);
   }, []);
 
-  if (panels.length === 0) return null;
+  if (panels.length === 0 || totalModules === 0) return null;
 
   return (
     <group>
-      {/* Main panel surface */}
+      {/* Individual solar modules - shiny glass surface */}
       <instancedMesh
-        key={`panel-mesh-${panels.length}`}
-        ref={meshRef}
-        args={[undefined, undefined, panels.length]}
+        key={`module-mesh-${totalModules}`}
+        ref={moduleRef}
+        args={[undefined, undefined, totalModules]}
         onClick={handleClick}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
@@ -181,15 +224,18 @@ export function PanelInstances({
         frustumCulled={false}
       >
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={PANEL_COLOR}
-          metalness={0.6}
-          roughness={0.3}
+          metalness={0.1}
+          roughness={0.15}
+          clearcoat={0.8}
+          clearcoatRoughness={0.1}
+          reflectivity={0.9}
           side={DoubleSide}
         />
       </instancedMesh>
 
-      {/* Panel frames (wireframe outline) */}
+      {/* Panel table frames (wireframe outline showing table boundary) */}
       <instancedMesh
         key={`frame-mesh-${panels.length}`}
         ref={frameRef}
@@ -201,7 +247,7 @@ export function PanelInstances({
           color={PANEL_FRAME_COLOR}
           wireframe
           transparent
-          opacity={0.6}
+          opacity={0.5}
         />
       </instancedMesh>
 

@@ -187,19 +187,28 @@ function ElectricalLines({ electrical }: { electrical: ElectricalComponent[] }) 
 function ElectricalLine({ cable }: { cable: ElectricalComponent }) {
   const points = useMemo(() => {
     if (!cable.vertices) return [];
+    // Trenches render slightly below ground level
+    const elevation = cable.type === 'trench' ? -0.1 : 0.15;
     return cable.vertices.map((v): [number, number, number] => [
       v[0],
-      v[2] + 0.15, // Slight elevation
+      v[2] + elevation,
       -v[1],
     ]);
-  }, [cable.vertices]);
+  }, [cable.vertices, cable.type]);
 
-  // Color based on cable type
-  const color = useMemo(() => {
+  // Color and style based on cable type
+  const { color, lineWidth, dashed } = useMemo(() => {
     switch (cable.type) {
-      case 'string': return '#ef4444'; // Red for DC strings
-      case 'cable': return '#f97316'; // Orange for cables
-      default: return '#8b5cf6'; // Purple
+      case 'string':
+        return { color: '#ef4444', lineWidth: 1.5, dashed: false }; // Red for DC strings
+      case 'ac_cable':
+        return { color: '#3b82f6', lineWidth: 2, dashed: false }; // Blue for AC cables
+      case 'trench':
+        return { color: '#78716c', lineWidth: 3, dashed: true }; // Stone gray, dashed for trenches
+      case 'cable':
+        return { color: '#f97316', lineWidth: 1.5, dashed: false }; // Orange for generic cables
+      default:
+        return { color: '#8b5cf6', lineWidth: 1.5, dashed: false }; // Purple
     }
   }, [cable.type]);
 
@@ -209,7 +218,10 @@ function ElectricalLine({ cable }: { cable: ElectricalComponent }) {
     <Line
       points={points}
       color={color}
-      lineWidth={1.5}
+      lineWidth={lineWidth}
+      dashed={dashed}
+      dashSize={1}
+      gapSize={0.5}
     />
   );
 }

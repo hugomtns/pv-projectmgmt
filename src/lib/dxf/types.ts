@@ -29,6 +29,11 @@ export interface PanelGeometry {
   moduleRows?: number; // Number of module rows
   moduleColumns?: number; // Number of module columns
   mountingHeight?: number; // Height above ground
+  // Individual module dimensions (meters)
+  moduleWidth?: number; // Width of single module
+  moduleHeight?: number; // Height of single module
+  gapX?: number; // Horizontal gap between modules
+  gapY?: number; // Vertical gap between modules
 }
 
 export interface MountingGeometry {
@@ -41,7 +46,7 @@ export interface MountingGeometry {
 
 export interface ElectricalComponent {
   id: string;
-  type: 'inverter' | 'transformer' | 'combiner' | 'cable' | 'string' | 'unknown';
+  type: 'inverter' | 'transformer' | 'combiner' | 'cable' | 'string' | 'ac_cable' | 'trench' | 'unknown';
   position: [number, number, number];
   vertices?: [number, number, number][]; // For cable paths (polylines)
   layer: string;

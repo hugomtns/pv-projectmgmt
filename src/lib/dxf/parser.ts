@@ -394,6 +394,10 @@ function convertInsertToPanel(entity: DXFEntity): PanelGeometry {
     moduleRows: extData.rows,
     moduleColumns: extData.columns,
     mountingHeight: extData.height,
+    moduleWidth: extData.moduleWidth,
+    moduleHeight: extData.moduleHeight,
+    gapX: extData.gapX,
+    gapY: extData.gapY,
   };
 }
 
@@ -404,6 +408,8 @@ function convertInsertToPanel(entity: DXFEntity): PanelGeometry {
 function parsePVcaseExtendedData(customStrings?: string[]): {
   moduleWidth?: number;
   moduleHeight?: number;
+  gapX?: number;
+  gapY?: number;
   rows?: number;
   columns?: number;
   tiltAngle?: number;
@@ -441,6 +447,8 @@ function parsePVcaseExtendedData(customStrings?: string[]): {
     return {
       moduleWidth,
       moduleHeight,
+      gapX,
+      gapY,
       rows,
       columns,
       tiltAngle,
@@ -695,7 +703,14 @@ function convertPolylineToElectrical(
   const layerName = (entity.layer || '').toLowerCase();
   let type: ElectricalComponent['type'] = 'cable';
 
-  if (layerName.includes('string')) type = 'string';
+  // Detect cable type from layer name
+  if (layerName.includes('trench')) {
+    type = 'trench';
+  } else if (layerName.includes('ac cable') || layerName.includes('ac_cable')) {
+    type = 'ac_cable';
+  } else if (layerName.includes('string')) {
+    type = 'string';
+  }
 
   return {
     id: generateId(),
