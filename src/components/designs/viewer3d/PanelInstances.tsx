@@ -7,6 +7,7 @@
 
 import { useRef, useEffect, useLayoutEffect, useMemo, useState, useCallback } from 'react';
 import { InstancedMesh, Object3D, Color, DoubleSide } from 'three';
+import { Line } from '@react-three/drei';
 import type { PanelGeometry } from '@/lib/dxf/types';
 import type { ElementAnchor } from '@/lib/types';
 
@@ -33,7 +34,7 @@ const MODULE_FRAME_INSET = 0.015; // 15mm inset from module edge (makes silver f
 
 // Panel colors
 const PANEL_COLOR = new Color('#1e3a5f'); // Dark blue (solar cell color)
-const PANEL_FRAME_COLOR = new Color('#94a3b8'); // Silver frame
+const PANEL_FRAME_COLOR = new Color('#e2e8f0'); // Light silver/white frame (like real aluminum)
 
 export function PanelInstances({
   panels,
@@ -44,7 +45,6 @@ export function PanelInstances({
 }: PanelInstancesProps) {
   const moduleRef = useRef<InstancedMesh>(null);
   const moduleFrameRef = useRef<InstancedMesh>(null);
-  const tableFrameRef = useRef<InstancedMesh>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -87,12 +87,11 @@ export function PanelInstances({
   useLayoutEffect(() => {
     const modules = moduleRef.current;
     const moduleFrames = moduleFrameRef.current;
-    const tableFrame = tableFrameRef.current;
-    if (!modules || !moduleFrames || !tableFrame || !mounted || totalModules === 0) return;
+    if (!modules || !moduleFrames || !mounted || totalModules === 0) return;
 
     let moduleIndex = 0;
 
-    panels.forEach((panel, panelIdx) => {
+    panels.forEach((panel) => {
       // Get actual table dimensions from extended data or use defaults
       const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
       const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
@@ -122,14 +121,6 @@ export function PanelInstances({
       const totalGapHeight = (rows - 1) * MODULE_GAP;
       const moduleWidth = (tableWidth - totalGapWidth) / cols;
       const moduleHeight = (tableHeight - totalGapHeight) / rows;
-
-      // Set table frame transform
-      tempObject.position.set(tableCenterX, tableCenterY, tableCenterZ);
-      tempObject.rotation.order = 'YXZ';
-      tempObject.rotation.set(tiltRad, azimuth, 0);
-      tempObject.scale.set(tableWidth, DEFAULT_PANEL_THICKNESS, tableHeight);
-      tempObject.updateMatrix();
-      tableFrame.setMatrixAt(panelIdx, tempObject.matrix);
 
       // Render each module in the grid
       for (let row = 0; row < rows; row++) {
@@ -181,11 +172,9 @@ export function PanelInstances({
 
     modules.instanceMatrix.needsUpdate = true;
     moduleFrames.instanceMatrix.needsUpdate = true;
-    tableFrame.instanceMatrix.needsUpdate = true;
 
     modules.computeBoundingSphere();
     moduleFrames.computeBoundingSphere();
-    tableFrame.computeBoundingSphere();
   }, [panels, tempObject, mounted, totalModules]);
 
   // Handle click events - map module index back to panel index
@@ -270,21 +259,8 @@ export function PanelInstances({
         />
       </instancedMesh>
 
-      {/* Panel table frames (wireframe outline showing table boundary) */}
-      <instancedMesh
-        key={`table-frame-mesh-${panels.length}`}
-        ref={tableFrameRef}
-        args={[undefined, undefined, panels.length]}
-        frustumCulled={false}
-      >
-        <boxGeometry args={[1.01, 1.01, 1.01]} />
-        <meshBasicMaterial
-          color={PANEL_FRAME_COLOR}
-          wireframe
-          transparent
-          opacity={0.4}
-        />
-      </instancedMesh>
+      {/* Table outlines - Line-based for clean rectangles (no diagonals) */}
+      <TableOutlines panels={panels} />
 
       {/* Selection highlight */}
       {selectedIndex !== null && selectedIndex !== undefined && panels[selectedIndex] && (
@@ -384,5 +360,79 @@ function HoverHighlight({ panel }: { panel: PanelGeometry }) {
         depthWrite={false}
       />
     </mesh>
+  );
+}
+
+/**
+ * TableOutlines - Renders Line-based outlines for each panel table
+ * Uses Line component from @react-three/drei for clean rectangles (no diagonals)
+ */
+function TableOutlines({ panels }: { panels: PanelGeometry[] }) {
+  return (
+    <group>
+      {panels.map((panel, index) => (
+        <TableOutline key={index} panel={panel} />
+      ))}
+    </group>
+  );
+}
+
+/**
+ * TableOutline - Renders a single panel table perimeter using Line
+ */
+function TableOutline({ panel }: { panel: PanelGeometry }) {
+  const points = useMemo(() => {
+    const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
+    const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
+    const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
+    const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
+    const tiltRad = (tiltAngle * Math.PI) / 180;
+    const azimuth = panel.rotation;
+
+    // Calculate center position (same logic as main matrix calculation)
+    const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
+    const halfWidth = tableWidth / 2;
+    const halfDepth = (tableHeight / 2) * Math.cos(tiltRad);
+    const offsetX = halfWidth * Math.cos(azimuth) + halfDepth * Math.sin(azimuth);
+    const offsetY = halfWidth * Math.sin(azimuth) - halfDepth * Math.cos(azimuth);
+    const tableCenterX = panel.position[0] + offsetX;
+    const tableCenterY = centerHeight;
+    const tableCenterZ = -(panel.position[1] + offsetY);
+
+    // 4 corners in local table coordinates (before tilt/rotation)
+    const localCorners: [number, number][] = [
+      [-tableWidth / 2, -tableHeight / 2], // bottom-left
+      [tableWidth / 2, -tableHeight / 2],  // bottom-right
+      [tableWidth / 2, tableHeight / 2],   // top-right
+      [-tableWidth / 2, tableHeight / 2],  // top-left
+    ];
+
+    // Transform each corner to world coordinates
+    const worldPoints: [number, number, number][] = localCorners.map(([lx, lz]) => {
+      // Apply tilt (Z in local becomes Y and Z in tilted)
+      const tiltedY = lz * Math.sin(tiltRad);
+      const tiltedZ = lz * Math.cos(tiltRad);
+
+      // Apply azimuth rotation
+      const worldOffsetX = lx * Math.cos(azimuth) - tiltedZ * Math.sin(azimuth);
+      const worldOffsetZ = lx * Math.sin(azimuth) + tiltedZ * Math.cos(azimuth);
+
+      return [
+        tableCenterX + worldOffsetX,
+        tableCenterY + tiltedY + 0.02, // Slightly above modules
+        tableCenterZ - worldOffsetZ,
+      ];
+    });
+
+    // Close the rectangle by returning to first point
+    return [...worldPoints, worldPoints[0]];
+  }, [panel]);
+
+  return (
+    <Line
+      points={points}
+      color="#e2e8f0" // Light silver/white
+      lineWidth={2}
+    />
   );
 }

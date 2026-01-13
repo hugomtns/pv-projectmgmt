@@ -43,7 +43,9 @@
       "mcp__shadcn__view_items_in_registries",
       "Bash(grep:*)",
       "WebSearch",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git revert:*)",
+      "WebFetch(domain:drei.docs.pmnd.rs)"
     ]
   },
   "enabledMcpjsonServers": [
