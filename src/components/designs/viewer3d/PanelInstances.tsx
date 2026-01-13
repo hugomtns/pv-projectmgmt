@@ -44,6 +44,7 @@ export function PanelInstances({
 }: PanelInstancesProps) {
   const moduleRef = useRef<InstancedMesh>(null);
   const moduleFrameRef = useRef<InstancedMesh>(null);
+  const tableFrameRef = useRef<InstancedMesh>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -86,11 +87,12 @@ export function PanelInstances({
   useLayoutEffect(() => {
     const modules = moduleRef.current;
     const moduleFrames = moduleFrameRef.current;
-    if (!modules || !moduleFrames || !mounted || totalModules === 0) return;
+    const tableFrame = tableFrameRef.current;
+    if (!modules || !moduleFrames || !tableFrame || !mounted || totalModules === 0) return;
 
     let moduleIndex = 0;
 
-    panels.forEach((panel) => {
+    panels.forEach((panel, panelIdx) => {
       // Get actual table dimensions from extended data or use defaults
       const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
       const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
@@ -120,6 +122,14 @@ export function PanelInstances({
       const totalGapHeight = (rows - 1) * MODULE_GAP;
       const moduleWidth = (tableWidth - totalGapWidth) / cols;
       const moduleHeight = (tableHeight - totalGapHeight) / rows;
+
+      // Set table frame transform
+      tempObject.position.set(tableCenterX, tableCenterY, tableCenterZ);
+      tempObject.rotation.order = 'YXZ';
+      tempObject.rotation.set(tiltRad, azimuth, 0);
+      tempObject.scale.set(tableWidth, DEFAULT_PANEL_THICKNESS, tableHeight);
+      tempObject.updateMatrix();
+      tableFrame.setMatrixAt(panelIdx, tempObject.matrix);
 
       // Render each module in the grid
       for (let row = 0; row < rows; row++) {
@@ -171,9 +181,11 @@ export function PanelInstances({
 
     modules.instanceMatrix.needsUpdate = true;
     moduleFrames.instanceMatrix.needsUpdate = true;
+    tableFrame.instanceMatrix.needsUpdate = true;
 
     modules.computeBoundingSphere();
     moduleFrames.computeBoundingSphere();
+    tableFrame.computeBoundingSphere();
   }, [panels, tempObject, mounted, totalModules]);
 
   // Handle click events - map module index back to panel index
@@ -258,6 +270,21 @@ export function PanelInstances({
         />
       </instancedMesh>
 
+      {/* Panel table frames (wireframe outline showing table boundary) */}
+      <instancedMesh
+        key={`table-frame-mesh-${panels.length}`}
+        ref={tableFrameRef}
+        args={[undefined, undefined, panels.length]}
+        frustumCulled={false}
+      >
+        <boxGeometry args={[1.01, 1.01, 1.01]} />
+        <meshBasicMaterial
+          color={PANEL_FRAME_COLOR}
+          wireframe
+          transparent
+          opacity={0.4}
+        />
+      </instancedMesh>
 
       {/* Selection highlight */}
       {selectedIndex !== null && selectedIndex !== undefined && panels[selectedIndex] && (
