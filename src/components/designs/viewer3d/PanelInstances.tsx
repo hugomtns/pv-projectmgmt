@@ -36,6 +36,8 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
   useEffect(() => {
     if (!meshRef.current || !frameRef.current) return;
 
+    console.log('PanelInstances: Updating matrices for', panels.length, 'panels');
+
     panels.forEach((panel, i) => {
       // Get actual table dimensions from extended data or use defaults
       const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
@@ -43,35 +45,37 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
       const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
       const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
 
-      // Convert tilt angle to radians (negative because we tilt back)
-      const tiltRad = -(tiltAngle * Math.PI) / 180;
+      // Convert tilt angle to radians
+      // Tilt is rotation around X axis - positive tilts back (top away from viewer)
+      const tiltRad = (tiltAngle * Math.PI) / 180;
 
-      // Calculate the center height accounting for tilt
-      // The panel rotates around its center, so we need to offset Y
-      const tiltedCenterHeight = mountingHeight + (tableHeight / 2) * Math.sin(-tiltRad);
+      // Panel base height - the mounting height is the lowest edge
+      // After tilt, the center is higher by half the tilted height
+      const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
 
-      // Set position (DXF uses X, Y as horizontal; Z typically mounting height)
-      // We map DXF X -> Three.js X, DXF Y -> Three.js Z, and use Y for height
+      // Set position (DXF uses X, Y as horizontal plane)
+      // We map: DXF X -> Three.js X, DXF Y -> Three.js Z (negated), height -> Three.js Y
       tempObject.position.set(
         panel.position[0],
-        tiltedCenterHeight + DEFAULT_PANEL_THICKNESS / 2,
-        -panel.position[1] // Flip Y to Z (DXF Y goes up, Three.js Z comes towards camera)
+        centerHeight,
+        -panel.position[1]
       );
 
-      // Apply rotation: first tilt around X axis, then azimuth around Y axis
-      // Order matters: Y rotation (azimuth) then X rotation (tilt)
+      // Set rotation using Euler order 'YXZ' for proper azimuth then tilt
+      // First rotate around Y (azimuth), then around X (tilt)
+      tempObject.rotation.order = 'YXZ';
       tempObject.rotation.set(
-        tiltRad,           // X: tilt angle (panels lean back)
-        -panel.rotation,   // Y: azimuth angle
+        tiltRad,           // X: tilt angle (panels lean back toward sky)
+        panel.rotation,    // Y: azimuth angle (panel facing direction)
         0                  // Z: no roll
       );
 
-      // Apply actual table dimensions
-      // In Three.js with PlaneGeometry laid flat: X=width, Y=thickness, Z=height(depth)
+      // Scale: panel table dimensions
+      // Box lies flat on XZ plane, Y is thickness
       tempObject.scale.set(
-        tableWidth,
-        DEFAULT_PANEL_THICKNESS,
-        tableHeight
+        tableWidth,        // X: width of table (columns of modules)
+        DEFAULT_PANEL_THICKNESS, // Y: panel thickness
+        tableHeight        // Z: depth of table (rows of modules)
       );
 
       tempObject.updateMatrix();
@@ -79,6 +83,15 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
       // Apply to both panel and frame meshes
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
       frameRef.current!.setMatrixAt(i, tempObject.matrix);
+
+      // Log first panel's transform for debugging
+      if (i === 0) {
+        console.log('First panel transform:', {
+          position: [tempObject.position.x, tempObject.position.y, tempObject.position.z],
+          rotation: [tempObject.rotation.x, tempObject.rotation.y, tempObject.rotation.z],
+          scale: [tempObject.scale.x, tempObject.scale.y, tempObject.scale.z],
+        });
+      }
     });
 
     meshRef.current.instanceMatrix.needsUpdate = true;
@@ -111,21 +124,23 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
           metalness={0.6}
           roughness={0.3}
           side={DoubleSide}
+          polygonOffset
+          polygonOffsetFactor={-1}
+          polygonOffsetUnits={-1}
         />
       </instancedMesh>
 
-      {/* Panel frames (slightly larger, silver color) */}
+      {/* Panel frames (wireframe outline) */}
       <instancedMesh
         ref={frameRef}
         args={[undefined, undefined, panels.length]}
       >
-        <boxGeometry args={[1.02, 1.02, 1.02]} />
-        <meshStandardMaterial
+        <boxGeometry args={[1.01, 1.01, 1.01]} />
+        <meshBasicMaterial
           color={PANEL_FRAME_COLOR}
-          metalness={0.8}
-          roughness={0.2}
-          side={DoubleSide}
           wireframe
+          transparent
+          opacity={0.6}
         />
       </instancedMesh>
 
@@ -145,20 +160,21 @@ function SelectionHighlight({ panel }: { panel: PanelGeometry }) {
   const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
   const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
   const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
-  const tiltRad = -(tiltAngle * Math.PI) / 180;
-  const tiltedCenterHeight = mountingHeight + (tableHeight / 2) * Math.sin(-tiltRad);
+  const tiltRad = (tiltAngle * Math.PI) / 180;
+  const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
 
   return (
     <mesh
       position={[
         panel.position[0],
-        tiltedCenterHeight + DEFAULT_PANEL_THICKNESS / 2 + 0.1,
+        centerHeight + 0.2, // Slightly above panel
         -panel.position[1]
       ]}
-      rotation={[tiltRad, -panel.rotation, 0]}
+      rotation-order="YXZ"
+      rotation={[tiltRad, panel.rotation, 0]}
       scale={[
         tableWidth * 1.05,
-        DEFAULT_PANEL_THICKNESS * 3,
+        DEFAULT_PANEL_THICKNESS * 2,
         tableHeight * 1.05
       ]}
     >
@@ -166,7 +182,7 @@ function SelectionHighlight({ panel }: { panel: PanelGeometry }) {
       <meshBasicMaterial
         color="#fbbf24"
         transparent
-        opacity={0.5}
+        opacity={0.4}
         depthWrite={false}
       />
     </mesh>
