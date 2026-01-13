@@ -28,7 +28,8 @@ const DEFAULT_TILT_ANGLE = 20; // degrees - typical ground mount tilt
 // Default module grid (when extended data is missing)
 const DEFAULT_MODULE_ROWS = 2;
 const DEFAULT_MODULE_COLS = 12;
-const MODULE_GAP = 0.025; // 25mm gap between columns only
+const MODULE_GAP = 0.02; // 20mm gap between modules (both rows and columns)
+const MODULE_FRAME_INSET = 0.015; // 15mm inset from module edge (makes silver frame visible)
 
 // Panel colors
 const PANEL_COLOR = new Color('#1e3a5f'); // Dark blue (solar cell color)
@@ -42,7 +43,8 @@ export function PanelInstances({
   onElementSelected,
 }: PanelInstancesProps) {
   const moduleRef = useRef<InstancedMesh>(null);
-  const frameRef = useRef<InstancedMesh>(null);
+  const moduleFrameRef = useRef<InstancedMesh>(null);
+  const tableFrameRef = useRef<InstancedMesh>(null);
   const [mounted, setMounted] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -84,8 +86,9 @@ export function PanelInstances({
   // Using useLayoutEffect to ensure matrices are set before paint
   useLayoutEffect(() => {
     const modules = moduleRef.current;
-    const frame = frameRef.current;
-    if (!modules || !frame || !mounted || totalModules === 0) return;
+    const moduleFrames = moduleFrameRef.current;
+    const tableFrame = tableFrameRef.current;
+    if (!modules || !moduleFrames || !tableFrame || !mounted || totalModules === 0) return;
 
     let moduleIndex = 0;
 
@@ -114,28 +117,28 @@ export function PanelInstances({
       const tableCenterY = centerHeight;
       const tableCenterZ = -(panel.position[1] + offsetY);
 
-      // Calculate module dimensions
-      // Modules fill the table with gaps between columns only
+      // Calculate module dimensions with gaps in BOTH directions
       const totalGapWidth = (cols - 1) * MODULE_GAP;
+      const totalGapHeight = (rows - 1) * MODULE_GAP;
       const moduleWidth = (tableWidth - totalGapWidth) / cols;
-      const moduleHeight = tableHeight / rows; // No gap between rows - stacked
+      const moduleHeight = (tableHeight - totalGapHeight) / rows;
 
-      // Set frame transform (same as table)
+      // Set table frame transform
       tempObject.position.set(tableCenterX, tableCenterY, tableCenterZ);
       tempObject.rotation.order = 'YXZ';
       tempObject.rotation.set(tiltRad, azimuth, 0);
       tempObject.scale.set(tableWidth, DEFAULT_PANEL_THICKNESS, tableHeight);
       tempObject.updateMatrix();
-      frame.setMatrixAt(panelIdx, tempObject.matrix);
+      tableFrame.setMatrixAt(panelIdx, tempObject.matrix);
 
       // Render each module in the grid
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           // Module position in table's LOCAL coordinate system (before tilt/rotation)
           // X: centered, with gaps between columns
-          // Z: centered, no gaps between rows (stacked)
+          // Z: centered, with gaps between rows
           const localX = (col - (cols - 1) / 2) * (moduleWidth + MODULE_GAP);
-          const localZ = (row - (rows - 1) / 2) * moduleHeight;
+          const localZ = (row - (rows - 1) / 2) * (moduleHeight + MODULE_GAP);
 
           // Apply tilt to Z position (affects Y and Z in world)
           const tiltedY = localZ * Math.sin(tiltRad);
@@ -145,28 +148,44 @@ export function PanelInstances({
           const worldOffsetX = localX * Math.cos(azimuth) - tiltedZ * Math.sin(azimuth);
           const worldOffsetZ = localX * Math.sin(azimuth) + tiltedZ * Math.cos(azimuth);
 
-          // Final module position
+          // Module frame position (full size module slot - silver border visible)
+          tempObject.position.set(
+            tableCenterX + worldOffsetX,
+            tableCenterY + tiltedY - 0.001, // Slightly behind module
+            tableCenterZ - worldOffsetZ
+          );
+          tempObject.rotation.order = 'YXZ';
+          tempObject.rotation.set(tiltRad, azimuth, 0);
+          tempObject.scale.set(moduleWidth, DEFAULT_PANEL_THICKNESS + 0.01, moduleHeight);
+          tempObject.updateMatrix();
+          moduleFrames.setMatrixAt(moduleIndex, tempObject.matrix);
+
+          // Module cell position (slightly smaller - shows silver frame border)
           tempObject.position.set(
             tableCenterX + worldOffsetX,
             tableCenterY + tiltedY,
             tableCenterZ - worldOffsetZ
           );
-          tempObject.rotation.order = 'YXZ';
-          tempObject.rotation.set(tiltRad, azimuth, 0);
-          tempObject.scale.set(moduleWidth, DEFAULT_PANEL_THICKNESS, moduleHeight);
+          tempObject.scale.set(
+            moduleWidth - MODULE_FRAME_INSET * 2,
+            DEFAULT_PANEL_THICKNESS,
+            moduleHeight - MODULE_FRAME_INSET * 2
+          );
           tempObject.updateMatrix();
-
           modules.setMatrixAt(moduleIndex, tempObject.matrix);
+
           moduleIndex++;
         }
       }
     });
 
     modules.instanceMatrix.needsUpdate = true;
-    frame.instanceMatrix.needsUpdate = true;
+    moduleFrames.instanceMatrix.needsUpdate = true;
+    tableFrame.instanceMatrix.needsUpdate = true;
 
     modules.computeBoundingSphere();
-    frame.computeBoundingSphere();
+    moduleFrames.computeBoundingSphere();
+    tableFrame.computeBoundingSphere();
   }, [panels, tempObject, mounted, totalModules]);
 
   // Handle click events - map module index back to panel index
@@ -211,7 +230,23 @@ export function PanelInstances({
 
   return (
     <group>
-      {/* Individual solar modules - shiny glass surface */}
+      {/* Module frames - silver aluminum border around each module */}
+      <instancedMesh
+        key={`module-frame-mesh-${totalModules}`}
+        ref={moduleFrameRef}
+        args={[undefined, undefined, totalModules]}
+        frustumCulled={false}
+      >
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial
+          color={PANEL_FRAME_COLOR}
+          metalness={0.7}
+          roughness={0.3}
+          side={DoubleSide}
+        />
+      </instancedMesh>
+
+      {/* Individual solar modules - shiny dark blue glass surface */}
       <instancedMesh
         key={`module-mesh-${totalModules}`}
         ref={moduleRef}
@@ -237,8 +272,8 @@ export function PanelInstances({
 
       {/* Panel table frames (wireframe outline showing table boundary) */}
       <instancedMesh
-        key={`frame-mesh-${panels.length}`}
-        ref={frameRef}
+        key={`table-frame-mesh-${panels.length}`}
+        ref={tableFrameRef}
         args={[undefined, undefined, panels.length]}
         frustumCulled={false}
       >
@@ -247,7 +282,7 @@ export function PanelInstances({
           color={PANEL_FRAME_COLOR}
           wireframe
           transparent
-          opacity={0.5}
+          opacity={0.4}
         />
       </instancedMesh>
 
