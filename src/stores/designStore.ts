@@ -11,7 +11,7 @@ interface DesignState {
     designs: Design[];
 
     // Actions
-    addDesign: (design: Omit<Design, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'creatorId' | 'versions' | 'currentVersionId'>) => void;
+    addDesign: (design: Omit<Design, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'creatorId' | 'versions' | 'currentVersionId'>) => string | undefined;
     updateDesign: (id: string, updates: Partial<Design>) => void;
     deleteDesign: (id: string) => Promise<void>;
     updateDesignStatus: (id: string, status: Design['status'], note?: string) => Promise<boolean>;
@@ -76,6 +76,7 @@ export const useDesignStore = create<DesignState>()(
                 }));
 
                 toast.success('Design created successfully');
+                return newDesign.id;
             },
 
             updateDesign: (id, updates) => {
