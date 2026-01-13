@@ -33,7 +33,7 @@ const MODULE_GAP = 0.02; // 20mm gap between modules (both rows and columns)
 const MODULE_FRAME_INSET = 0.015; // 15mm inset from module edge (makes silver frame visible)
 
 // Panel colors
-const PANEL_COLOR = new Color('#1e3a5f'); // Dark blue (solar cell color)
+const PANEL_COLOR = new Color('#0a1628'); // Dark blue-black (like real monocrystalline cells)
 const PANEL_FRAME_COLOR = new Color('#e2e8f0'); // Light silver/white frame (like real aluminum)
 
 export function PanelInstances({
@@ -142,7 +142,7 @@ export function PanelInstances({
           // Module frame position (full size module slot - silver border visible)
           tempObject.position.set(
             tableCenterX + worldOffsetX,
-            tableCenterY + tiltedY - 0.001, // Slightly behind module
+            tableCenterY + tiltedY - 0.01, // Behind module (1cm offset to prevent z-fighting)
             tableCenterZ - worldOffsetZ
           );
           tempObject.rotation.order = 'YXZ';
@@ -248,13 +248,10 @@ export function PanelInstances({
         frustumCulled={false}
       >
         <boxGeometry args={[1, 1, 1]} />
-        <meshPhysicalMaterial
+        <meshStandardMaterial
           color={PANEL_COLOR}
-          metalness={0.1}
-          roughness={0.15}
-          clearcoat={0.8}
-          clearcoatRoughness={0.1}
-          reflectivity={0.9}
+          metalness={0}
+          roughness={0.3}
           side={DoubleSide}
         />
       </instancedMesh>
