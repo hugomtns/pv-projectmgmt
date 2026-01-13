@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useDesignStore } from '@/stores/designStore';
@@ -7,21 +7,26 @@ import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Check, X, Box, Cpu } from 'lucide-react';
+import { MessageSquare, Check, X, Box, Cpu, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DesignComment } from '@/lib/types';
 
 interface DesignCommentPanelProps {
     designId: string;
     versionId: string;
+    onJumpToElement?: (elementType: string, elementId: string) => void;
+    highlightedElementKey?: string | null;
 }
 
 export function DesignCommentPanel({
     designId,
     versionId,
+    onJumpToElement,
+    highlightedElementKey,
 }: DesignCommentPanelProps) {
     const [newCommentText, setNewCommentText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const commentRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
 
     const addComment = useDesignStore((state) => state.addComment);
     const resolveComment = useDesignStore((state) => state.resolveComment);
@@ -76,6 +81,31 @@ export function DesignCommentPanel({
         return { designComments: design, elementComments: element };
     }, [filteredComments]);
 
+    // Scroll to highlighted comment when key changes
+    useEffect(() => {
+        if (!highlightedElementKey) return;
+
+        // Find the first comment that matches the highlighted element
+        const matchingComment = elementComments.find((c) => {
+            if (!c.elementAnchor) return false;
+            const key = `${c.elementAnchor.elementType}:${c.elementAnchor.elementId}`;
+            return key === highlightedElementKey;
+        });
+
+        if (matchingComment) {
+            const element = commentRefsMap.current.get(matchingComment.id);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [highlightedElementKey, elementComments]);
+
+    // Helper to get element key for a comment
+    const getCommentElementKey = useCallback((comment: DesignComment) => {
+        if (!comment.elementAnchor) return null;
+        return `${comment.elementAnchor.elementType}:${comment.elementAnchor.elementId}`;
+    }, []);
+
     // Get element type icon
     const getElementIcon = (type: string) => {
         switch (type) {
@@ -106,15 +136,25 @@ export function DesignCommentPanel({
         const canDelete = permissions.delete || isCreatorOf(comment);
         const canResolve = permissions.update || isCreatorOf(comment);
         const isElementComment = comment.type === 'element' && comment.elementAnchor;
+        const commentKey = getCommentElementKey(comment);
+        const isHighlighted = commentKey && commentKey === highlightedElementKey;
 
         return (
             <div
                 key={comment.id}
+                ref={(el) => {
+                    if (el) {
+                        commentRefsMap.current.set(comment.id, el);
+                    } else {
+                        commentRefsMap.current.delete(comment.id);
+                    }
+                }}
                 className={cn(
-                    'p-3 rounded-lg border transition-colors',
+                    'p-3 rounded-lg border transition-all duration-300',
                     'border-border bg-card',
                     comment.resolved && 'opacity-60',
-                    isElementComment && 'border-l-4 border-l-primary/50'
+                    isElementComment && 'border-l-4 border-l-primary/50',
+                    isHighlighted && 'border-primary bg-primary/5 ring-2 ring-primary/30'
                 )}
             >
                 {/* Element anchor info */}
@@ -125,9 +165,26 @@ export function DesignCommentPanel({
                             {comment.elementAnchor.elementType.charAt(0).toUpperCase() +
                                 comment.elementAnchor.elementType.slice(1)}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground flex-1">
                             {comment.elementAnchor.elementLabel}
                         </span>
+                        {onJumpToElement && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2"
+                                title="Jump to element in 3D view"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onJumpToElement(
+                                        comment.elementAnchor!.elementType,
+                                        comment.elementAnchor!.elementId
+                                    );
+                                }}
+                            >
+                                <MapPin className="h-3 w-3" />
+                            </Button>
+                        )}
                     </div>
                 )}
 

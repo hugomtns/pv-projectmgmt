@@ -1,15 +1,21 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
+import type { CameraControlsRef } from './CameraControls';
 import { ViewportToolbar } from './ViewportToolbar';
 import { SatelliteGround } from './SatelliteGround';
 import { PVLayoutRenderer, LayoutInfo } from './PVLayoutRenderer';
 import { ElementCommentDialog } from './ElementCommentDialog';
 import { parseDXFFromURL } from '@/lib/dxf/parser';
+import { getElementPosition } from './cameraUtils';
 import type { DXFParsedData, PanelGeometry } from '@/lib/dxf/types';
 import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+
+export interface PV3DCanvasRef {
+  focusOnElement: (elementType: string, elementId: string) => void;
+}
 
 interface PV3DCanvasProps {
   designId: string;
@@ -17,6 +23,8 @@ interface PV3DCanvasProps {
   fileUrl: string;
   gpsCoordinates?: GPSCoordinates;
   groundSizeMeters?: number;
+  highlightedElementKey?: string | null;
+  onBadgeClick?: (elementType: string, elementId: string) => void;
 }
 
 type CameraMode = '3d' | '2d';
@@ -25,10 +33,19 @@ type CameraMode = '3d' | '2d';
  * PV3DCanvas - Main WebGL canvas for 3D PV layout visualization
  * Uses React Three Fiber for declarative 3D rendering
  */
-export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groundSizeMeters }: PV3DCanvasProps) {
+export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV3DCanvas({
+  designId,
+  versionId,
+  fileUrl,
+  gpsCoordinates,
+  groundSizeMeters,
+  highlightedElementKey,
+  onBadgeClick,
+}, ref) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
   const zoomRef = useRef(8);
+  const cameraControlsRef = useRef<CameraControlsRef>(null);
 
   // DXF parsing state
   const [parsedData, setParsedData] = useState<DXFParsedData | null>(null);
@@ -110,6 +127,37 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
     setSelectedElement(null);
   }, []);
 
+  // Calculate center offset (same as PVLayoutRenderer)
+  const centerOffset = useMemo(() => {
+    if (!parsedData) return { x: 0, z: 0 };
+    return {
+      x: -parsedData.bounds.center[0],
+      z: parsedData.bounds.center[1], // Flip Y to Z
+    };
+  }, [parsedData]);
+
+  // Handle jump to element - focus camera on element position
+  const focusOnElement = useCallback((elementType: string, elementId: string) => {
+    if (!parsedData) return;
+
+    const position = getElementPosition(
+      elementType,
+      elementId,
+      parsedData.panels,
+      parsedData.electrical,
+      centerOffset
+    );
+
+    if (position) {
+      cameraControlsRef.current?.focusOn(position);
+    }
+  }, [parsedData, centerOffset]);
+
+  // Expose focusOnElement via ref
+  useImperativeHandle(ref, () => ({
+    focusOnElement,
+  }), [focusOnElement]);
+
   // Use designId and versionId for tracking
   console.log('PV3DCanvas loaded:', { designId, versionId });
 
@@ -150,7 +198,7 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
         style={{ cursor: elementCommentMode ? 'crosshair' : 'grab' }}
       >
         {/* Camera and controls based on mode */}
-        <CameraControls mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
+        <CameraControls ref={cameraControlsRef} mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
 
         {/* Lighting */}
         <ambientLight intensity={0.4} />
@@ -177,6 +225,8 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
             onElementSelected={handleElementSelected}
             designId={designId}
             versionId={versionId}
+            onBadgeClick={onBadgeClick}
+            highlightedElementKey={highlightedElementKey}
           />
         )}
 
@@ -204,4 +254,4 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
       )}
     </div>
   );
-}
+});

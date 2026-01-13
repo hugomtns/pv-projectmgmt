@@ -28,6 +28,9 @@ interface PVLayoutRendererProps {
   onElementSelected?: (element: ElementAnchor) => void;
   designId?: string;
   versionId?: string;
+  // Bidirectional navigation
+  onBadgeClick?: (elementType: string, elementId: string) => void;
+  highlightedElementKey?: string | null;
 }
 
 export function PVLayoutRenderer({
@@ -41,6 +44,8 @@ export function PVLayoutRenderer({
   onElementSelected,
   designId,
   versionId,
+  onBadgeClick,
+  highlightedElementKey,
 }: PVLayoutRendererProps) {
   // Center offset to position layout at origin
   const centerOffset = useMemo(() => ({
@@ -87,6 +92,8 @@ export function PVLayoutRenderer({
           electrical={parsedData.electrical}
           designId={designId}
           versionId={versionId}
+          onBadgeClick={onBadgeClick}
+          highlightedElementKey={highlightedElementKey}
         />
       )}
     </group>

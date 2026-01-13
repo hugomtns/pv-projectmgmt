@@ -21,6 +21,8 @@ interface ElementCommentMarkersProps {
   electrical: ElectricalComponent[];
   designId: string;
   versionId: string;
+  onBadgeClick?: (elementType: string, elementId: string) => void;
+  highlightedElementKey?: string | null;
 }
 
 interface ElementWithComments {
@@ -35,6 +37,8 @@ export function ElementCommentMarkers({
   electrical,
   designId,
   versionId,
+  onBadgeClick,
+  highlightedElementKey,
 }: ElementCommentMarkersProps) {
   const [elementsWithComments, setElementsWithComments] = useState<ElementWithComments[]>([]);
   const getElementsWithComments = useDesignStore((state) => state.getElementsWithComments);
@@ -83,6 +87,8 @@ export function ElementCommentMarkers({
             panel={panel}
             count={comments.count}
             hasUnresolved={comments.hasUnresolved}
+            isHighlighted={highlightedElementKey === key}
+            onClick={() => onBadgeClick?.('panel', String(index))}
           />
         );
       })}
@@ -101,6 +107,8 @@ export function ElementCommentMarkers({
               equipment={equipment}
               count={comments.count}
               hasUnresolved={comments.hasUnresolved}
+              isHighlighted={highlightedElementKey === key}
+              onClick={() => onBadgeClick?.(equipment.type, equipment.id)}
             />
           );
         })}
@@ -115,10 +123,14 @@ function PanelCommentMarker({
   panel,
   count,
   hasUnresolved,
+  isHighlighted,
+  onClick,
 }: {
   panel: PanelGeometry;
   count: number;
   hasUnresolved: boolean;
+  isHighlighted?: boolean;
+  onClick?: () => void;
 }) {
   const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
   const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
@@ -142,8 +154,8 @@ function PanelCommentMarker({
   ];
 
   return (
-    <Html position={position} distanceFactor={8} zIndexRange={[100, 0]}>
-      <CommentBadge count={count} hasUnresolved={hasUnresolved} />
+    <Html position={position} center distanceFactor={12} zIndexRange={[100, 0]}>
+      <CommentBadge count={count} hasUnresolved={hasUnresolved} isHighlighted={isHighlighted} onClick={onClick} />
     </Html>
   );
 }
@@ -155,10 +167,14 @@ function EquipmentCommentMarker({
   equipment,
   count,
   hasUnresolved,
+  isHighlighted,
+  onClick,
 }: {
   equipment: ElectricalComponent;
   count: number;
   hasUnresolved: boolean;
+  isHighlighted?: boolean;
+  onClick?: () => void;
 }) {
   // Get equipment height for marker positioning
   const defaultHeight =
@@ -175,31 +191,44 @@ function EquipmentCommentMarker({
   ];
 
   return (
-    <Html position={position} distanceFactor={8} zIndexRange={[100, 0]}>
-      <CommentBadge count={count} hasUnresolved={hasUnresolved} />
+    <Html position={position} center distanceFactor={12} zIndexRange={[100, 0]}>
+      <CommentBadge count={count} hasUnresolved={hasUnresolved} isHighlighted={isHighlighted} onClick={onClick} />
     </Html>
   );
 }
 
 /**
  * Comment Badge Component (DOM)
+ * Base size 60px, scales with distance via distanceFactor on Html component
  */
 function CommentBadge({
   count,
   hasUnresolved,
+  isHighlighted,
+  onClick,
 }: {
   count: number;
   hasUnresolved: boolean;
+  isHighlighted?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <div
+      style={{
+        width: '60px',
+        height: '60px',
+        fontSize: '28px',
+      }}
       className={cn(
-        'flex items-center justify-center min-w-16 h-16 px-3 rounded-full text-2xl font-bold shadow-xl cursor-pointer select-none',
-        'transition-transform hover:scale-110',
+        'flex items-center justify-center rounded-full font-bold shadow-2xl cursor-pointer select-none',
+        'transition-all hover:scale-110',
+        'border-4',
         hasUnresolved
-          ? 'bg-yellow-500 text-yellow-900 ring-4 ring-yellow-300 ring-offset-2'
-          : 'bg-green-500 text-green-900 ring-4 ring-green-300 ring-offset-2'
+          ? 'bg-yellow-500 text-yellow-900 ring-4 ring-yellow-300 ring-offset-2 border-yellow-600'
+          : 'bg-green-500 text-green-900 ring-4 ring-green-300 ring-offset-2 border-green-600',
+        isHighlighted && 'animate-pulse scale-125 ring-8'
       )}
+      onClick={onClick}
     >
       {count}
     </div>

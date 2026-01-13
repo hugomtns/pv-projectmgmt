@@ -1,14 +1,22 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import type { MutableRefObject } from 'react';
 import { useThree } from '@react-three/fiber';
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { OrthographicCamera as ThreeOrthographicCamera } from 'three';
 
+export interface CameraControlsRef {
+  focusOn: (position: [number, number, number]) => void;
+}
+
 interface CameraControlsProps {
   mode: '3d' | '2d';
   zoomRef: MutableRefObject<number>;
   elementCommentMode?: boolean;
+}
+
+export interface Turntable2DControlsRef {
+  focusOn: (position: [number, number, number]) => void;
 }
 
 interface Turntable2DControlsProps {
@@ -22,7 +30,8 @@ interface Turntable2DControlsProps {
  * Right-click drag: Pan
  * Scroll: Zoom (no limits)
  */
-function Turntable2DControls({ zoomRef, elementCommentMode = false }: Turntable2DControlsProps) {
+const Turntable2DControls = forwardRef<Turntable2DControlsRef, Turntable2DControlsProps>(
+  function Turntable2DControls({ zoomRef, elementCommentMode = false }, ref) {
   const { camera, gl } = useThree();
   const commentModeRef = useRef(elementCommentMode);
 
@@ -49,6 +58,16 @@ function Turntable2DControls({ zoomRef, elementCommentMode = false }: Turntable2
     camera.lookAt(target.current.x, 0, target.current.z);
     camera.updateProjectionMatrix();
   };
+
+  // Expose focusOn method via ref
+  useImperativeHandle(ref, () => ({
+    focusOn: (position: [number, number, number]) => {
+      // Update target to the element's X,Z position (Y is up in 3D, maps to ground plane)
+      target.current.x = position[0];
+      target.current.z = position[2];
+      updateCamera();
+    },
+  }), []);
 
   useEffect(() => {
     // Apply shared zoom on mount
@@ -138,7 +157,7 @@ function Turntable2DControls({ zoomRef, elementCommentMode = false }: Turntable2
   }, [camera, gl, zoomRef]);
 
   return null;
-}
+});
 
 /**
  * CameraControls - Manages camera mode switching between 3D and 2D views
@@ -146,9 +165,39 @@ function Turntable2DControls({ zoomRef, elementCommentMode = false }: Turntable2
  * 3D Mode: PerspectiveCamera with full orbit controls for natural 3D viewing
  * 2D Mode: OrthographicCamera with top-down turntable rotation
  */
-export function CameraControls({ mode, zoomRef, elementCommentMode = false }: CameraControlsProps) {
+export const CameraControls = forwardRef<CameraControlsRef, CameraControlsProps>(
+  function CameraControls({ mode, zoomRef, elementCommentMode = false }, ref) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  const turntableRef = useRef<Turntable2DControlsRef>(null);
   const { camera } = useThree();
+
+  // Expose focusOn method via ref
+  useImperativeHandle(ref, () => ({
+    focusOn: (position: [number, number, number]) => {
+      if (mode === '2d') {
+        // 2D mode: delegate to turntable controls
+        turntableRef.current?.focusOn(position);
+      } else {
+        // 3D mode: animate orbit controls target to position
+        const controls = controlsRef.current;
+        if (controls) {
+          // Set target to element position
+          controls.target.set(position[0], position[1], position[2]);
+
+          // Position camera at a nice viewing distance/angle from the target
+          const distance = 40; // Distance from target
+          const elevation = 25; // Height above target
+          camera.position.set(
+            position[0] + distance * 0.7,
+            position[1] + elevation,
+            position[2] + distance * 0.7
+          );
+
+          controls.update();
+        }
+      }
+    },
+  }), [mode, camera]);
 
   // Reset camera orientation when switching to 3D mode
   useEffect(() => {
@@ -169,7 +218,7 @@ export function CameraControls({ mode, zoomRef, elementCommentMode = false }: Ca
           near={0.1}
           far={1000}
         />
-        <Turntable2DControls zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
+        <Turntable2DControls ref={turntableRef} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
       </>
     );
   }
@@ -197,4 +246,4 @@ export function CameraControls({ mode, zoomRef, elementCommentMode = false }: Ca
       />
     </>
   );
-}
+});

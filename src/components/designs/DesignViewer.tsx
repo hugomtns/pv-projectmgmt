@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { db, getBlob } from '@/lib/db';
 import { blobCache } from '@/lib/blobCache';
 import { useDesignStore } from '@/stores/designStore';
@@ -9,6 +9,7 @@ import { DesignWorkflowActions } from './DesignWorkflowActions';
 import { DesignStatusBadge } from './DesignStatusBadge';
 import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
+import type { PV3DCanvasRef } from './viewer3d/PV3DCanvas';
 
 import {
     X,
@@ -39,6 +40,25 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const [fileType, setFileType] = useState<'dxf' | null>(null);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+
+    // Bidirectional navigation between 3D badges and comment panel
+    const [highlightedElementKey, setHighlightedElementKey] = useState<string | null>(null);
+    const pv3DCanvasRef = useRef<PV3DCanvasRef>(null);
+
+    // Handle badge click in 3D view → highlight comment in panel
+    const handleBadgeClick = useCallback((elementType: string, elementId: string) => {
+        setHighlightedElementKey(`${elementType}:${elementId}`);
+        // Ensure comments panel is visible
+        if (activeTab !== 'comments') {
+            setActiveTab('comments');
+        }
+    }, [activeTab]);
+
+    // Handle jump to element from comment panel → focus camera on element
+    const handleJumpToElement = useCallback((elementType: string, elementId: string) => {
+        setHighlightedElementKey(`${elementType}:${elementId}`);
+        pv3DCanvasRef.current?.focusOnElement(elementType, elementId);
+    }, []);
 
     // Sync selected version if design updates (e.g. initial load)
     useEffect(() => {
@@ -220,11 +240,14 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     {fileUrl && fileType === 'dxf' && (
                         <div className="flex-1 min-h-0">
                             <PV3DCanvas
+                                ref={pv3DCanvasRef}
                                 designId={designId}
                                 versionId={selectedVersionId || design.currentVersionId}
                                 fileUrl={fileUrl}
                                 gpsCoordinates={design.gpsCoordinates}
                                 groundSizeMeters={design.groundSizeMeters}
+                                highlightedElementKey={highlightedElementKey}
+                                onBadgeClick={handleBadgeClick}
                             />
                         </div>
                     )}
@@ -235,6 +258,8 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     <DesignCommentPanel
                         designId={designId}
                         versionId={selectedVersionId}
+                        onJumpToElement={handleJumpToElement}
+                        highlightedElementKey={highlightedElementKey}
                     />
                 )}
                 {activeTab === 'history' && selectedVersionId && (
