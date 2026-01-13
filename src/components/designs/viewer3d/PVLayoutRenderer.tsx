@@ -202,21 +202,3 @@ function ElectricalLine({ cable }: { cable: ElectricalComponent }) {
   );
 }
 
-/**
- * LayoutInfo component for debugging/info display
- */
-export function LayoutInfo({ parsedData }: { parsedData: DXFParsedData }) {
-  return (
-    <div className="absolute bottom-4 left-4 bg-background/90 p-3 rounded-lg border text-xs space-y-1">
-      <div className="font-medium text-sm mb-2">Layout Statistics</div>
-      <div>Panels: {parsedData.panels.length}</div>
-      <div>Boundaries: {parsedData.boundaries.length}</div>
-      <div>Electrical: {parsedData.electrical.length}</div>
-      <div>Mounting: {parsedData.mounting.length}</div>
-      <div className="pt-1 border-t">
-        Size: {parsedData.bounds.size[0].toFixed(1)}m × {parsedData.bounds.size[1].toFixed(1)}m
-      </div>
-      <div>Units: {parsedData.units}</div>
-    </div>
-  );
-}

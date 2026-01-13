@@ -5,7 +5,7 @@ import { CameraControls } from './CameraControls';
 import type { CameraControlsRef } from './CameraControls';
 import { ViewportToolbar } from './ViewportToolbar';
 import { SatelliteGround } from './SatelliteGround';
-import { PVLayoutRenderer, LayoutInfo } from './PVLayoutRenderer';
+import { PVLayoutRenderer } from './PVLayoutRenderer';
 import { ElementCommentDialog } from './ElementCommentDialog';
 import { parseDXFFromURL } from '@/lib/dxf/parser';
 import { getElementPosition } from './cameraUtils';
@@ -191,8 +191,6 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         </div>
       )}
 
-      {/* Layout info overlay */}
-      {parsedData && <LayoutInfo parsedData={parsedData} />}
 
       <Canvas
         style={{ cursor: elementCommentMode ? 'crosshair' : 'grab' }}
