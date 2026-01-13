@@ -26,6 +26,8 @@ interface AnnotationLayerProps {
   highlightedCommentId?: string;
   /** Whether annotation mode is active (click to add comments) */
   annotationMode: boolean;
+  /** Whether to show comment pins (default true) */
+  showPins?: boolean;
   /** Callback when pin is clicked */
   onPinClick: (commentId: string) => void;
   /** Callback when layer is clicked in annotation mode */
@@ -49,6 +51,7 @@ export function AnnotationLayer({
   comments,
   highlightedCommentId,
   annotationMode,
+  showPins = true,
   onPinClick,
   onAddComment,
 }: AnnotationLayerProps) {
@@ -221,40 +224,44 @@ export function AnnotationLayer({
       onMouseLeave={handleMouseUp}
     >
       {/* Layer 1: Highlight rectangles (bottom layer) */}
-      <g className="highlights-layer">
-        {highlightComments.map((comment) => {
-          if (!comment.location) return null;
-          return (
-            <HighlightRectangle
-              key={comment.id}
-              location={comment.location}
-              highlighted={comment.id === highlightedCommentId}
-              onClick={() => onPinClick(comment.id)}
-            />
-          );
-        })}
-      </g>
+      {showPins && (
+        <g className="highlights-layer">
+          {highlightComments.map((comment) => {
+            if (!comment.location) return null;
+            return (
+              <HighlightRectangle
+                key={comment.id}
+                location={comment.location}
+                highlighted={comment.id === highlightedCommentId}
+                onClick={() => onPinClick(comment.id)}
+              />
+            );
+          })}
+        </g>
+      )}
 
       {/* Layer 2: Location comment pins (above highlights) */}
-      <g className="pins-layer">
-        {pointComments.map((comment, index) => {
-          if (!comment.location) return null;
-          return (
-            <LocationCommentPin
-              key={comment.id}
-              location={{
-                x: comment.location.x,
-                y: comment.location.y,
-                page: comment.location.page,
-              }}
-              number={index + 1}
-              resolved={comment.resolved}
-              highlighted={comment.id === highlightedCommentId}
-              onClick={() => onPinClick(comment.id)}
-            />
-          );
-        })}
-      </g>
+      {showPins && (
+        <g className="pins-layer">
+          {pointComments.map((comment, index) => {
+            if (!comment.location) return null;
+            return (
+              <LocationCommentPin
+                key={comment.id}
+                location={{
+                  x: comment.location.x,
+                  y: comment.location.y,
+                  page: comment.location.page,
+                }}
+                number={index + 1}
+                resolved={comment.resolved}
+                highlighted={comment.id === highlightedCommentId}
+                onClick={() => onPinClick(comment.id)}
+              />
+            );
+          })}
+        </g>
+      )}
 
       {/* Layer 3: Drag preview (top layer) */}
       {dragPreviewBounds && (

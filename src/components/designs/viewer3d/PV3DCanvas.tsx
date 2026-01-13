@@ -57,6 +57,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   const [elementCommentMode, setElementCommentMode] = useState(false);
   const [selectedElement, setSelectedElement] = useState<ElementAnchor | null>(null);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [showPins, setShowPins] = useState(true);
 
   // Load and parse DXF file when URL changes
   useEffect(() => {
@@ -169,6 +170,8 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         onModeChange={setCameraMode}
         elementCommentMode={elementCommentMode}
         onElementCommentModeChange={setElementCommentMode}
+        showPins={showPins}
+        onShowPinsChange={setShowPins}
       />
 
       {/* Loading overlay */}
@@ -225,6 +228,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
             versionId={versionId}
             onBadgeClick={onBadgeClick}
             highlightedElementKey={highlightedElementKey}
+            showPins={showPins}
           />
         )}
 

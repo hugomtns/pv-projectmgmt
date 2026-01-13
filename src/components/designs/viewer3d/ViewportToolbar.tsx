@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Box, Square, MessageSquarePlus } from 'lucide-react';
+import { Box, Square, MessageSquarePlus, Eye, EyeOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type CameraMode = '3d' | '2d';
@@ -9,6 +9,8 @@ interface ViewportToolbarProps {
   onModeChange: (mode: CameraMode) => void;
   elementCommentMode?: boolean;
   onElementCommentModeChange?: (enabled: boolean) => void;
+  showPins?: boolean;
+  onShowPinsChange?: (show: boolean) => void;
 }
 
 /**
@@ -21,6 +23,8 @@ export function ViewportToolbar({
   onModeChange,
   elementCommentMode = false,
   onElementCommentModeChange,
+  showPins = true,
+  onShowPinsChange,
 }: ViewportToolbarProps) {
   return (
     <div className="absolute top-4 left-4 z-10 flex gap-1 bg-background/80 backdrop-blur-sm rounded-lg p-1 border shadow-sm">
@@ -60,10 +64,28 @@ export function ViewportToolbar({
               {elementCommentMode ? 'Click Element' : 'Comment'}
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
+          <TooltipContent className="z-50">
             {elementCommentMode
               ? 'Click an element to add a comment. Press Escape to cancel.'
               : 'Add a comment to a design element'}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      {/* Show/Hide Comment Pins */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant={showPins ? 'ghost' : 'default'}
+              onClick={() => onShowPinsChange?.(!showPins)}
+            >
+              {showPins ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent className="z-50">
+            {showPins ? 'Hide comment pins' : 'Show comment pins'}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

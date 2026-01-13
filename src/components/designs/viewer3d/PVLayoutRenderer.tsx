@@ -31,6 +31,7 @@ interface PVLayoutRendererProps {
   // Bidirectional navigation
   onBadgeClick?: (elementType: string, elementId: string) => void;
   highlightedElementKey?: string | null;
+  showPins?: boolean;
 }
 
 export function PVLayoutRenderer({
@@ -46,6 +47,7 @@ export function PVLayoutRenderer({
   versionId,
   onBadgeClick,
   highlightedElementKey,
+  showPins = true,
 }: PVLayoutRendererProps) {
   // Center offset to position layout at origin
   const centerOffset = useMemo(() => ({
@@ -94,6 +96,7 @@ export function PVLayoutRenderer({
           versionId={versionId}
           onBadgeClick={onBadgeClick}
           highlightedElementKey={highlightedElementKey}
+          showPins={showPins}
         />
       )}
     </group>

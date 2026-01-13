@@ -28,6 +28,8 @@ import {
   X,
   MessageSquare,
   MapPin,
+  Eye,
+  EyeOff,
   Pencil,
   History,
   ListTodo,
@@ -66,6 +68,7 @@ export function DocumentViewer({
   const [annotationMode, setAnnotationMode] = useState(false);
   const [highlightedCommentId, setHighlightedCommentId] = useState<string>();
   const [showComments, setShowComments] = useState(true);
+  const [showPins, setShowPins] = useState(true);
   const [drawingMode, setDrawingMode] = useState(false);
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('select');
   const [drawingColor, setDrawingColor] = useState<DrawingColor>('#EF4444');
@@ -385,6 +388,14 @@ export function DocumentViewer({
               <MapPin className="h-4 w-4" />
             </Button>
             <Button
+              variant={showPins ? 'ghost' : 'default'}
+              size="icon"
+              onClick={() => setShowPins(!showPins)}
+              title={showPins ? 'Hide comment pins' : 'Show comment pins'}
+            >
+              {showPins ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            </Button>
+            <Button
               variant={drawingMode ? 'default' : 'ghost'}
               size="icon"
               onClick={() => {
@@ -567,6 +578,7 @@ export function DocumentViewer({
                         comments={comments}
                         highlightedCommentId={highlightedCommentId}
                         annotationMode={annotationMode}
+                        showPins={showPins}
                         onPinClick={handlePinClick}
                         onAddComment={handleAddLocationComment}
                       />

@@ -23,6 +23,7 @@ interface ElementCommentMarkersProps {
   versionId: string;
   onBadgeClick?: (elementType: string, elementId: string) => void;
   highlightedElementKey?: string | null;
+  showPins?: boolean;
 }
 
 interface ElementWithComments {
@@ -39,6 +40,7 @@ export function ElementCommentMarkers({
   versionId,
   onBadgeClick,
   highlightedElementKey,
+  showPins = true,
 }: ElementCommentMarkersProps) {
   const [elementsWithComments, setElementsWithComments] = useState<ElementWithComments[]>([]);
   const getElementsWithComments = useDesignStore((state) => state.getElementsWithComments);
@@ -71,7 +73,7 @@ export function ElementCommentMarkers({
     return map;
   }, [elementsWithComments]);
 
-  if (elementsWithComments.length === 0) return null;
+  if (!showPins || elementsWithComments.length === 0) return null;
 
   return (
     <group>
