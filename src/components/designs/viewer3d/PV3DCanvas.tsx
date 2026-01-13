@@ -55,6 +55,18 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
             boundaries: data.boundaries.length,
             bounds: data.bounds,
           });
+          // Log first panel's extended data for debugging
+          if (data.panels.length > 0) {
+            const p = data.panels[0];
+            console.log('First panel extended data:', {
+              tiltAngle: p.tiltAngle,
+              tableWidth: p.tableWidth,
+              tableHeight: p.tableHeight,
+              mountingHeight: p.mountingHeight,
+              moduleRows: p.moduleRows,
+              moduleColumns: p.moduleColumns,
+            });
+          }
         }
       } catch (err) {
         if (!cancelled) {

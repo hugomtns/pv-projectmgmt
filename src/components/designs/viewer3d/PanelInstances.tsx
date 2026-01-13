@@ -18,7 +18,8 @@ interface PanelInstancesProps {
 // Default panel table dimensions (in meters) - fallback if not in extended data
 const DEFAULT_TABLE_WIDTH = 16.0; // ~12 modules wide
 const DEFAULT_TABLE_HEIGHT = 4.5; // ~2 rows
-const DEFAULT_PANEL_THICKNESS = 0.04;
+const DEFAULT_PANEL_THICKNESS = 0.15; // Visible thickness for 3D effect (150mm)
+const DEFAULT_TILT_ANGLE = 20; // degrees - typical ground mount tilt
 
 // Panel colors
 const PANEL_COLOR = new Color('#1e40af'); // Blue
@@ -39,20 +40,34 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
       // Get actual table dimensions from extended data or use defaults
       const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
       const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
-      const mountingHeight = panel.mountingHeight || panel.position[2] || 0.5;
+      const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
+      const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
+
+      // Convert tilt angle to radians (negative because we tilt back)
+      const tiltRad = -(tiltAngle * Math.PI) / 180;
+
+      // Calculate the center height accounting for tilt
+      // The panel rotates around its center, so we need to offset Y
+      const tiltedCenterHeight = mountingHeight + (tableHeight / 2) * Math.sin(-tiltRad);
 
       // Set position (DXF uses X, Y as horizontal; Z typically mounting height)
       // We map DXF X -> Three.js X, DXF Y -> Three.js Z, and use Y for height
       tempObject.position.set(
         panel.position[0],
-        mountingHeight + DEFAULT_PANEL_THICKNESS / 2, // Height above ground
+        tiltedCenterHeight + DEFAULT_PANEL_THICKNESS / 2,
         -panel.position[1] // Flip Y to Z (DXF Y goes up, Three.js Z comes towards camera)
       );
 
-      // Apply rotation around Y axis (azimuth angle from DXF)
-      tempObject.rotation.set(0, -panel.rotation, 0);
+      // Apply rotation: first tilt around X axis, then azimuth around Y axis
+      // Order matters: Y rotation (azimuth) then X rotation (tilt)
+      tempObject.rotation.set(
+        tiltRad,           // X: tilt angle (panels lean back)
+        -panel.rotation,   // Y: azimuth angle
+        0                  // Z: no roll
+      );
 
       // Apply actual table dimensions
+      // In Three.js with PlaneGeometry laid flat: X=width, Y=thickness, Z=height(depth)
       tempObject.scale.set(
         tableWidth,
         DEFAULT_PANEL_THICKNESS,
@@ -128,16 +143,19 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
 function SelectionHighlight({ panel }: { panel: PanelGeometry }) {
   const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
   const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
-  const mountingHeight = panel.mountingHeight || panel.position[2] || 0.5;
+  const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
+  const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
+  const tiltRad = -(tiltAngle * Math.PI) / 180;
+  const tiltedCenterHeight = mountingHeight + (tableHeight / 2) * Math.sin(-tiltRad);
 
   return (
     <mesh
       position={[
         panel.position[0],
-        mountingHeight + DEFAULT_PANEL_THICKNESS / 2 + 0.1,
+        tiltedCenterHeight + DEFAULT_PANEL_THICKNESS / 2 + 0.1,
         -panel.position[1]
       ]}
-      rotation={[0, -panel.rotation, 0]}
+      rotation={[tiltRad, -panel.rotation, 0]}
       scale={[
         tableWidth * 1.05,
         DEFAULT_PANEL_THICKNESS * 3,
