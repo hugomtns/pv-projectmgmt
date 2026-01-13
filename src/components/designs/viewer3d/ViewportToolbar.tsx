@@ -64,7 +64,7 @@ export function ViewportToolbar({
               {elementCommentMode ? 'Click Element' : 'Comment'}
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="z-50">
+          <TooltipContent side="bottom">
             {elementCommentMode
               ? 'Click an element to add a comment. Press Escape to cancel.'
               : 'Add a comment to a design element'}
@@ -84,7 +84,7 @@ export function ViewportToolbar({
               {showPins ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="z-50">
+          <TooltipContent side="bottom">
             {showPins ? 'Hide comment pins' : 'Show comment pins'}
           </TooltipContent>
         </Tooltip>
