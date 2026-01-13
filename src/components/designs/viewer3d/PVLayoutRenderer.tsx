@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import type { DXFParsedData, PanelGeometry, BoundaryGeometry, ElectricalComponent } from '@/lib/dxf/types';
 import { PanelInstances } from './PanelInstances';
+import { Equipment3D } from './Equipment3D';
 
 interface PVLayoutRendererProps {
   parsedData: DXFParsedData;
@@ -56,9 +57,14 @@ export function PVLayoutRenderer({
         <BoundaryLines boundaries={parsedData.boundaries} />
       )}
 
-      {/* Electrical Components */}
+      {/* Electrical Components - Lines (cables) */}
       {showElectrical && (
         <ElectricalLines electrical={parsedData.electrical} />
+      )}
+
+      {/* Electrical Components - 3D Equipment (inverters, transformers) */}
+      {showElectrical && (
+        <Equipment3D equipment={parsedData.electrical} />
       )}
     </group>
   );
