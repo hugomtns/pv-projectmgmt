@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle, type MutableRefObject } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
 import type { CameraControlsRef } from './CameraControls';
@@ -13,8 +13,35 @@ import type { DXFParsedData, PanelGeometry } from '@/lib/dxf/types';
 import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
+/**
+ * CanvasCaptureProvider - Internal component to capture canvas
+ * Must be used inside a Canvas component to access useThree()
+ */
+function CanvasCaptureProvider({
+  captureRef,
+}: {
+  captureRef: MutableRefObject<(() => string) | null>;
+}) {
+  const { gl, scene, camera } = useThree();
+
+  useEffect(() => {
+    captureRef.current = () => {
+      // Ensure the current frame is rendered
+      gl.render(scene, camera);
+      // Get the canvas data URL and extract the base64 portion
+      const dataUrl = gl.domElement.toDataURL('image/png');
+      return dataUrl.split(',')[1];
+    };
+  }, [gl, scene, camera, captureRef]);
+
+  return null;
+}
+
 export interface PV3DCanvasRef {
   focusOnElement: (elementType: string, elementId: string) => void;
+  captureCanvas: () => string;
+  cameraMode: '3d' | '2d';
+  parsedData: DXFParsedData | null;
 }
 
 interface PV3DCanvasProps {
@@ -46,6 +73,8 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
   const zoomRef = useRef(8);
   const cameraControlsRef = useRef<CameraControlsRef>(null);
+  // Canvas capture function ref (populated by CanvasCaptureProvider inside Canvas)
+  const captureRef = useRef<(() => string) | null>(null);
 
   // DXF parsing state
   const [parsedData, setParsedData] = useState<DXFParsedData | null>(null);
@@ -154,10 +183,13 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
     }
   }, [parsedData, centerOffset]);
 
-  // Expose focusOnElement via ref
+  // Expose methods via ref
   useImperativeHandle(ref, () => ({
     focusOnElement,
-  }), [focusOnElement]);
+    captureCanvas: () => captureRef.current?.() ?? '',
+    cameraMode,
+    parsedData,
+  }), [focusOnElement, cameraMode, parsedData]);
 
   // Use designId and versionId for tracking
   console.log('PV3DCanvas loaded:', { designId, versionId });
@@ -197,7 +229,11 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
 
       <Canvas
         style={{ cursor: elementCommentMode ? 'crosshair' : 'grab' }}
+        gl={{ preserveDrawingBuffer: true }} // Required for canvas capture
       >
+        {/* Canvas capture provider - must be inside Canvas */}
+        <CanvasCaptureProvider captureRef={captureRef} />
+
         {/* Camera and controls based on mode */}
         <CameraControls ref={cameraControlsRef} mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
 

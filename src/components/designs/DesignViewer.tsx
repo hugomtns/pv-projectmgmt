@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { db, getBlob } from '@/lib/db';
 import { blobCache } from '@/lib/blobCache';
 import { useDesignStore } from '@/stores/designStore';
@@ -10,6 +10,8 @@ import { DesignStatusBadge } from './DesignStatusBadge';
 import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
 import type { PV3DCanvasRef } from './viewer3d/PV3DCanvas';
+import { ImageGenerationModal } from './ImageGenerationModal';
+import type { DesignContext } from '@/lib/gemini';
 
 import {
     X,
@@ -17,6 +19,7 @@ import {
     History,
     Activity,
     Upload,
+    Sparkles,
 } from 'lucide-react';
 
 interface DesignViewerProps {
@@ -45,6 +48,9 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const [highlightedElementKey, setHighlightedElementKey] = useState<string | null>(null);
     const pv3DCanvasRef = useRef<PV3DCanvasRef>(null);
 
+    // AI image generation modal
+    const [showImageModal, setShowImageModal] = useState(false);
+
     // Handle badge click in 3D view → highlight comment in panel
     const handleBadgeClick = useCallback((elementType: string, elementId: string) => {
         setHighlightedElementKey(`${elementType}:${elementId}`);
@@ -58,6 +64,39 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const handleJumpToElement = useCallback((elementType: string, elementId: string) => {
         setHighlightedElementKey(`${elementType}:${elementId}`);
         pv3DCanvasRef.current?.focusOnElement(elementType, elementId);
+    }, []);
+
+    // Build design context for AI image generation
+    const designContext = useMemo((): DesignContext => {
+        const parsedData = pv3DCanvasRef.current?.parsedData;
+        const cameraMode = pv3DCanvasRef.current?.cameraMode ?? '3d';
+
+        if (!parsedData || parsedData.panels.length === 0) {
+            return {
+                panelCount: 0,
+                panelDimensions: { width: 2, height: 1 },
+                tiltAngle: 0,
+                equipmentTypes: [],
+                cameraMode,
+            };
+        }
+
+        const firstPanel = parsedData.panels[0];
+        return {
+            panelCount: parsedData.panels.length,
+            panelDimensions: {
+                width: firstPanel.tableWidth ?? 2,
+                height: firstPanel.tableHeight ?? 1,
+            },
+            tiltAngle: firstPanel.tiltAngle ?? 0,
+            equipmentTypes: [...new Set(parsedData.electrical.map((e) => e.type))],
+            cameraMode,
+        };
+    }, []);
+
+    // Capture canvas for AI image generation
+    const handleCaptureCanvas = useCallback(() => {
+        return pv3DCanvasRef.current?.captureCanvas() ?? '';
     }, []);
 
     // Sync selected version if design updates (e.g. initial load)
@@ -168,6 +207,22 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* AI Image Generation */}
+                    {fileUrl && fileType === 'dxf' && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setShowImageModal(true)}
+                        >
+                            <Sparkles className="h-4 w-4" />
+                            Generate AI Image
+                        </Button>
+                    )}
+
+                    {/* Separator */}
+                    <div className="w-px h-6 bg-border mx-1" />
+
                     {/* Sidebar Toggles */}
                     <Button
                         variant={activeTab === 'comments' ? 'secondary' : 'ghost'}
@@ -275,6 +330,14 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     <DesignWorkflowHistory designId={designId} />
                 )}
             </div>
+
+            {/* AI Image Generation Modal */}
+            <ImageGenerationModal
+                open={showImageModal}
+                onOpenChange={setShowImageModal}
+                onCapture={handleCaptureCanvas}
+                designContext={designContext}
+            />
         </div>
     );
 }
