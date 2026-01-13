@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDesignStore } from '@/stores/designStore';
+import type { GPSCoordinates } from '@/lib/types';
 
 const createDesignSchema = z.object({
     name: z.string().min(1, 'Name is required'),
@@ -27,6 +28,8 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
     const addVersion = useDesignStore((state) => state.addVersion);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [latitude, setLatitude] = useState('');
+    const [longitude, setLongitude] = useState('');
 
     const {
         register,
@@ -44,11 +47,20 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
     const onSubmit = async (data: CreateDesignFormValues) => {
         setIsSubmitting(true);
         try {
+            // Parse GPS coordinates if provided
+            let gpsCoordinates: GPSCoordinates | undefined;
+            const lat = parseFloat(latitude);
+            const lon = parseFloat(longitude);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                gpsCoordinates = { latitude: lat, longitude: lon };
+            }
+
             const designId = addDesign({
                 projectId,
                 name: data.name,
                 description: data.description || '',
                 status: 'draft',
+                gpsCoordinates,
             });
 
             // If a file was selected, upload it as the first version
@@ -58,6 +70,8 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
 
             reset();
             setSelectedFile(null);
+            setLatitude('');
+            setLongitude('');
             onOpenChange(false);
         } catch (error) {
             console.error(error);
@@ -99,6 +113,32 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                                 Selected: {selectedFile.name}
                             </p>
                         )}
+                    </div>
+                    <div className="space-y-2">
+                        <Label>GPS Coordinates (optional)</Label>
+                        <p className="text-xs text-muted-foreground">
+                            For satellite imagery overlay in 3D view
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <Input
+                                    type="number"
+                                    step="0.000001"
+                                    placeholder="Latitude (e.g., 37.7749)"
+                                    value={latitude}
+                                    onChange={(e) => setLatitude(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <Input
+                                    type="number"
+                                    step="0.000001"
+                                    placeholder="Longitude (e.g., -122.4194)"
+                                    value={longitude}
+                                    onChange={(e) => setLongitude(e.target.value)}
+                                />
+                            </div>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -139,6 +139,12 @@ export type {
 } from './types/document';
 
 // Design Management
+export interface GPSCoordinates {
+  latitude: number;   // e.g., 37.7749
+  longitude: number;  // e.g., -122.4194
+  elevation?: number; // meters above sea level (optional)
+}
+
 export interface Design {
   id: string;
   projectId: string;
@@ -152,6 +158,9 @@ export interface Design {
   updatedAt: string;
   versions: string[]; // IDs of DesignVersion
   currentVersionId: string;
+  // GPS coordinates for satellite imagery overlay
+  gpsCoordinates?: GPSCoordinates;
+  satelliteZoomLevel?: number; // Default: 18 (high detail, ~0.5m/pixel)
 }
 
 export interface DesignVersion {

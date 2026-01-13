@@ -223,6 +223,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                                 designId={designId}
                                 versionId={selectedVersionId || design.currentVersionId}
                                 fileUrl={fileUrl}
+                                gpsCoordinates={design.gpsCoordinates}
                             />
                         </div>
                     )}

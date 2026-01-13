@@ -3,11 +3,14 @@ import { Canvas } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
 import { ViewportToolbar } from './ViewportToolbar';
+import { SatelliteGround } from './SatelliteGround';
+import type { GPSCoordinates } from '@/lib/types';
 
 interface PV3DCanvasProps {
   designId: string;
   versionId: string;
   fileUrl: string;
+  gpsCoordinates?: GPSCoordinates;
 }
 
 type CameraMode = '3d' | '2d';
@@ -16,7 +19,7 @@ type CameraMode = '3d' | '2d';
  * PV3DCanvas - Main WebGL canvas for 3D PV layout visualization
  * Uses React Three Fiber for declarative 3D rendering
  */
-export function PV3DCanvas({ designId, versionId, fileUrl }: PV3DCanvasProps) {
+export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates }: PV3DCanvasProps) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
   const zoomRef = useRef(8);
@@ -39,8 +42,12 @@ export function PV3DCanvas({ designId, versionId, fileUrl }: PV3DCanvasProps) {
         <directionalLight position={[10, 10, 5]} intensity={0.8} />
         <directionalLight position={[-10, -10, -5]} intensity={0.3} />
 
-        {/* Ground grid (temporary, will be replaced by satellite imagery) */}
-        <Grid args={[100, 100]} cellColor="#6e6e6e" sectionColor="#9d4b4b" />
+        {/* Ground: Satellite imagery if GPS coordinates available, otherwise grid */}
+        {gpsCoordinates ? (
+          <SatelliteGround gpsCoordinates={gpsCoordinates} />
+        ) : (
+          <Grid args={[100, 100]} cellColor="#6e6e6e" sectionColor="#9d4b4b" />
+        )}
 
         {/* Placeholder cube for testing */}
         <mesh position={[0, 1, 0]}>
