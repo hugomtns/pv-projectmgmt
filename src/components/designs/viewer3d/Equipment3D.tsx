@@ -71,10 +71,13 @@ function EquipmentBox({ equipment }: { equipment: ElectricalComponent }) {
   }, [equipment.type]);
 
   // Position: DXF X,Y -> Three.js X,Z (Y negated), height centered
+  // Transformers need an offset because their INSERT point is offset from center
+  // Based on analysis: transformer INSERT is ~4.5m left and ~7m behind cable connection point
+  const isTransformer = equipment.type === 'transformer';
   const position: [number, number, number] = [
-    equipment.position[0],
+    equipment.position[0] + (isTransformer ? 4.5 : 0),
     dims.height / 2, // Center height
-    -equipment.position[1],
+    -equipment.position[1] + (isTransformer ? 7 : 0),
   ];
 
   return (
