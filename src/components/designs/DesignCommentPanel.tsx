@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useDesignStore } from '@/stores/designStore';
@@ -7,7 +7,7 @@ import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Check, X } from 'lucide-react';
+import { MessageSquare, Check, X, Box, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DesignComment } from '@/lib/types';
 
@@ -60,6 +60,36 @@ export function DesignCommentPanel({
 
     const filteredComments = (comments || []).filter(c => c.versionId === versionId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
+    // Group comments by type
+    const { designComments, elementComments } = useMemo(() => {
+        const design: DesignComment[] = [];
+        const element: DesignComment[] = [];
+
+        for (const comment of filteredComments) {
+            if (comment.type === 'element' && comment.elementAnchor) {
+                element.push(comment);
+            } else {
+                design.push(comment);
+            }
+        }
+
+        return { designComments: design, elementComments: element };
+    }, [filteredComments]);
+
+    // Get element type icon
+    const getElementIcon = (type: string) => {
+        switch (type) {
+            case 'panel':
+                return <Box className="h-3 w-3" />;
+            case 'inverter':
+            case 'transformer':
+            case 'combiner':
+                return <Cpu className="h-3 w-3" />;
+            default:
+                return <Box className="h-3 w-3" />;
+        }
+    };
+
     const handleAddComment = async () => {
         if (!newCommentText.trim()) return;
 
@@ -75,6 +105,7 @@ export function DesignCommentPanel({
     const renderComment = (comment: DesignComment) => {
         const canDelete = permissions.delete || isCreatorOf(comment);
         const canResolve = permissions.update || isCreatorOf(comment);
+        const isElementComment = comment.type === 'element' && comment.elementAnchor;
 
         return (
             <div
@@ -82,9 +113,24 @@ export function DesignCommentPanel({
                 className={cn(
                     'p-3 rounded-lg border transition-colors',
                     'border-border bg-card',
-                    comment.resolved && 'opacity-60'
+                    comment.resolved && 'opacity-60',
+                    isElementComment && 'border-l-4 border-l-primary/50'
                 )}
             >
+                {/* Element anchor info */}
+                {isElementComment && comment.elementAnchor && (
+                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border">
+                        <Badge variant="outline" className="gap-1 text-xs">
+                            {getElementIcon(comment.elementAnchor.elementType)}
+                            {comment.elementAnchor.elementType.charAt(0).toUpperCase() +
+                                comment.elementAnchor.elementType.slice(1)}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                            {comment.elementAnchor.elementLabel}
+                        </span>
+                    </div>
+                )}
+
                 <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                         <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -151,7 +197,30 @@ export function DesignCommentPanel({
                         No comments yet for this version.
                     </div>
                 )}
-                {filteredComments.map(renderComment)}
+
+                {/* Element Comments */}
+                {elementComments.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            <Box className="h-3 w-3" />
+                            Element Comments ({elementComments.length})
+                        </div>
+                        {elementComments.map(renderComment)}
+                    </div>
+                )}
+
+                {/* Design Comments */}
+                {designComments.length > 0 && (
+                    <div className="space-y-2">
+                        {elementComments.length > 0 && (
+                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">
+                                <MessageSquare className="h-3 w-3" />
+                                General Comments ({designComments.length})
+                            </div>
+                        )}
+                        {designComments.map(renderComment)}
+                    </div>
+                )}
             </div>
 
             {/* Add comment form */}

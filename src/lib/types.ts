@@ -175,6 +175,16 @@ export interface DesignVersion {
   fileType: 'dxf';
 }
 
+// Element types that can have comments attached in 3D viewer
+export type CommentableElementType = 'panel' | 'inverter' | 'transformer' | 'combiner';
+
+// Anchor for element-based comments (similar to LocationAnchor for documents)
+export interface ElementAnchor {
+  elementType: CommentableElementType;
+  elementId: string;  // For panels: instance index as string; for equipment: equipment.id
+  elementLabel?: string;  // Human-readable label, e.g., "Panel #42", "Inverter INV-01"
+}
+
 export interface DesignComment {
   id: string;
   designId: string;
@@ -183,6 +193,8 @@ export interface DesignComment {
   author: string;
   createdAt: string;
   resolved: boolean;
+  type: 'design' | 'element';  // Comment type: design-level or element-anchored
+  elementAnchor?: ElementAnchor;  // Only present when type === 'element'
 }
 
 export interface DesignWorkflowEvent {

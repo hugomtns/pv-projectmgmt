@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
 import { ViewportToolbar } from './ViewportToolbar';
 import { SatelliteGround } from './SatelliteGround';
 import { PVLayoutRenderer, LayoutInfo } from './PVLayoutRenderer';
+import { ElementCommentDialog } from './ElementCommentDialog';
 import { parseDXFFromURL } from '@/lib/dxf/parser';
 import type { DXFParsedData, PanelGeometry } from '@/lib/dxf/types';
-import type { GPSCoordinates } from '@/lib/types';
+import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
 interface PV3DCanvasProps {
@@ -34,6 +35,11 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPanelIndex, setSelectedPanelIndex] = useState<number | null>(null);
+
+  // Element comment mode state
+  const [elementCommentMode, setElementCommentMode] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<ElementAnchor | null>(null);
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
 
   // Load and parse DXF file when URL changes
   useEffect(() => {
@@ -72,11 +78,37 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
     };
   }, [fileUrl]);
 
-  // Handle panel selection
+  // Handle panel selection (for non-comment mode)
   const handlePanelClick = (index: number, panel: PanelGeometry) => {
+    if (elementCommentMode) return; // Don't handle regular selection in comment mode
     setSelectedPanelIndex(index === selectedPanelIndex ? null : index);
     console.log('Panel selected:', index, panel);
   };
+
+  // Handle element selection for commenting
+  const handleElementSelected = useCallback((element: ElementAnchor) => {
+    console.log('Element selected for comment:', element);
+    setSelectedElement(element);
+    setCommentDialogOpen(true);
+    setElementCommentMode(false); // Exit comment mode after selection
+  }, []);
+
+  // Handle escape key to cancel comment mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && elementCommentMode) {
+        setElementCommentMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [elementCommentMode]);
+
+  // Handle comment dialog close
+  const handleCommentDialogClose = useCallback(() => {
+    setCommentDialogOpen(false);
+    setSelectedElement(null);
+  }, []);
 
   // Use designId and versionId for tracking
   console.log('PV3DCanvas loaded:', { designId, versionId });
@@ -84,7 +116,12 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
   return (
     <div className="w-full h-full relative">
       {/* Viewport toolbar overlay */}
-      <ViewportToolbar mode={cameraMode} onModeChange={setCameraMode} />
+      <ViewportToolbar
+        mode={cameraMode}
+        onModeChange={setCameraMode}
+        elementCommentMode={elementCommentMode}
+        onElementCommentModeChange={setElementCommentMode}
+      />
 
       {/* Loading overlay */}
       {loading && (
@@ -109,9 +146,11 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
       {/* Layout info overlay */}
       {parsedData && <LayoutInfo parsedData={parsedData} />}
 
-      <Canvas>
+      <Canvas
+        style={{ cursor: elementCommentMode ? 'crosshair' : 'grab' }}
+      >
         {/* Camera and controls based on mode */}
-        <CameraControls mode={cameraMode} zoomRef={zoomRef} />
+        <CameraControls mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
 
         {/* Lighting */}
         <ambientLight intensity={0.4} />
@@ -134,6 +173,10 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
             showPanels={true}
             showBoundaries={true}
             showElectrical={true}
+            elementCommentMode={elementCommentMode}
+            onElementSelected={handleElementSelected}
+            designId={designId}
+            versionId={versionId}
           />
         )}
 
@@ -145,6 +188,20 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
           </mesh>
         )}
       </Canvas>
+
+      {/* Element Comment Dialog */}
+      {selectedElement && (
+        <ElementCommentDialog
+          open={commentDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) handleCommentDialogClose();
+          }}
+          elementAnchor={selectedElement}
+          designId={designId}
+          versionId={versionId}
+          onCommentAdded={handleCommentDialogClose}
+        />
+      )}
     </div>
   );
 }

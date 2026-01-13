@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Design, DesignComment } from '@/lib/types';
+import type { Design, DesignComment, ElementAnchor } from '@/lib/types';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { db, storeBlob, deleteBlob } from '@/lib/db';
@@ -20,10 +20,12 @@ interface DesignState {
     addVersion: (designId: string, file: File) => Promise<string | null>;
 
     // Comments
-    addComment: (designId: string, versionId: string, text: string) => Promise<string | null>;
+    addComment: (designId: string, versionId: string, text: string, elementAnchor?: ElementAnchor) => Promise<string | null>;
     resolveComment: (commentId: string) => Promise<boolean>;
     deleteComment: (commentId: string) => Promise<boolean>;
     getComments: (designId: string, versionId: string) => Promise<DesignComment[]>;
+    getElementComments: (designId: string, versionId: string, elementType: string, elementId: string) => Promise<DesignComment[]>;
+    getElementsWithComments: (designId: string, versionId: string) => Promise<Array<{ elementType: string; elementId: string; count: number; hasUnresolved: boolean }>>;
 
     // Helpers
     getDesignsByProject: (projectId: string) => Design[];
@@ -313,7 +315,7 @@ export const useDesignStore = create<DesignState>()(
                 }
             },
 
-            addComment: async (designId, versionId, text) => {
+            addComment: async (designId, versionId, text, elementAnchor) => {
                 const userState = useUserStore.getState();
                 const currentUser = userState.currentUser;
                 if (!currentUser) {
@@ -329,15 +331,19 @@ export const useDesignStore = create<DesignState>()(
                     const now = new Date().toISOString();
                     const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
 
-                    await db.designComments.add({
+                    const comment: DesignComment = {
                         id: commentId,
                         designId,
                         versionId,
                         text,
                         author: userFullName,
                         createdAt: now,
-                        resolved: false
-                    });
+                        resolved: false,
+                        type: elementAnchor ? 'element' : 'design',
+                        ...(elementAnchor && { elementAnchor }),
+                    };
+
+                    await db.designComments.add(comment);
 
                     return commentId;
                 } catch (e) {
@@ -377,6 +383,51 @@ export const useDesignStore = create<DesignState>()(
                     .where('designId').equals(designId)
                     .filter(c => c.versionId === versionId)
                     .toArray();
+            },
+
+            getElementComments: async (designId, versionId, elementType, elementId) => {
+                const comments = await db.designComments
+                    .where('designId').equals(designId)
+                    .filter(c =>
+                        c.versionId === versionId &&
+                        c.type === 'element' &&
+                        c.elementAnchor?.elementType === elementType &&
+                        c.elementAnchor?.elementId === elementId
+                    )
+                    .toArray();
+                return comments;
+            },
+
+            getElementsWithComments: async (designId, versionId) => {
+                const comments = await db.designComments
+                    .where('designId').equals(designId)
+                    .filter(c => c.versionId === versionId && c.type === 'element' && !!c.elementAnchor)
+                    .toArray();
+
+                // Group by element
+                const elementMap = new Map<string, { elementType: string; elementId: string; count: number; hasUnresolved: boolean }>();
+
+                for (const comment of comments) {
+                    if (!comment.elementAnchor) continue;
+                    const key = `${comment.elementAnchor.elementType}:${comment.elementAnchor.elementId}`;
+
+                    if (!elementMap.has(key)) {
+                        elementMap.set(key, {
+                            elementType: comment.elementAnchor.elementType,
+                            elementId: comment.elementAnchor.elementId,
+                            count: 0,
+                            hasUnresolved: false,
+                        });
+                    }
+
+                    const entry = elementMap.get(key)!;
+                    entry.count++;
+                    if (!comment.resolved) {
+                        entry.hasUnresolved = true;
+                    }
+                }
+
+                return Array.from(elementMap.values());
             },
 
             getDesignsByProject: (projectId) => {

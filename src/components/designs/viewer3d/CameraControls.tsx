@@ -8,10 +8,12 @@ import type { OrthographicCamera as ThreeOrthographicCamera } from 'three';
 interface CameraControlsProps {
   mode: '3d' | '2d';
   zoomRef: MutableRefObject<number>;
+  elementCommentMode?: boolean;
 }
 
 interface Turntable2DControlsProps {
   zoomRef: MutableRefObject<number>;
+  elementCommentMode?: boolean;
 }
 
 /**
@@ -20,8 +22,14 @@ interface Turntable2DControlsProps {
  * Right-click drag: Pan
  * Scroll: Zoom (no limits)
  */
-function Turntable2DControls({ zoomRef }: Turntable2DControlsProps) {
+function Turntable2DControls({ zoomRef, elementCommentMode = false }: Turntable2DControlsProps) {
   const { camera, gl } = useThree();
+  const commentModeRef = useRef(elementCommentMode);
+
+  // Keep ref in sync with prop
+  useEffect(() => {
+    commentModeRef.current = elementCommentMode;
+  }, [elementCommentMode]);
   const isDragging = useRef(false);
   const isPanning = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
@@ -52,6 +60,10 @@ function Turntable2DControls({ zoomRef }: Turntable2DControlsProps) {
     const canvas = gl.domElement;
 
     const handleMouseDown = (e: MouseEvent) => {
+      // In comment mode, don't intercept left-clicks (allow R3F events through)
+      if (commentModeRef.current && e.button === 0) {
+        return;
+      }
       if (e.button === 0) {
         isDragging.current = true;
       } else if (e.button === 2) {
@@ -134,7 +146,7 @@ function Turntable2DControls({ zoomRef }: Turntable2DControlsProps) {
  * 3D Mode: PerspectiveCamera with full orbit controls for natural 3D viewing
  * 2D Mode: OrthographicCamera with top-down turntable rotation
  */
-export function CameraControls({ mode, zoomRef }: CameraControlsProps) {
+export function CameraControls({ mode, zoomRef, elementCommentMode = false }: CameraControlsProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
 
@@ -157,7 +169,7 @@ export function CameraControls({ mode, zoomRef }: CameraControlsProps) {
           near={0.1}
           far={1000}
         />
-        <Turntable2DControls zoomRef={zoomRef} />
+        <Turntable2DControls zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
       </>
     );
   }
@@ -174,10 +186,10 @@ export function CameraControls({ mode, zoomRef }: CameraControlsProps) {
       />
       <OrbitControls
         ref={controlsRef}
-        enableRotate
+        enableRotate={!elementCommentMode}
         enableDamping
         dampingFactor={0.1}
-        enablePan
+        enablePan={!elementCommentMode}
         enableZoom
         zoomSpeed={1}
         panSpeed={1}

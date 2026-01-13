@@ -11,8 +11,10 @@
 import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import type { DXFParsedData, PanelGeometry, BoundaryGeometry, ElectricalComponent } from '@/lib/dxf/types';
+import type { ElementAnchor } from '@/lib/types';
 import { PanelInstances } from './PanelInstances';
 import { Equipment3D } from './Equipment3D';
+import { ElementCommentMarkers } from './ElementCommentMarkers';
 
 interface PVLayoutRendererProps {
   parsedData: DXFParsedData;
@@ -21,6 +23,11 @@ interface PVLayoutRendererProps {
   showElectrical?: boolean;
   selectedPanelIndex?: number | null;
   onPanelClick?: (index: number, panel: PanelGeometry) => void;
+  // Element comment mode
+  elementCommentMode?: boolean;
+  onElementSelected?: (element: ElementAnchor) => void;
+  designId?: string;
+  versionId?: string;
 }
 
 export function PVLayoutRenderer({
@@ -30,6 +37,10 @@ export function PVLayoutRenderer({
   showElectrical = false,
   selectedPanelIndex,
   onPanelClick,
+  elementCommentMode = false,
+  onElementSelected,
+  designId,
+  versionId,
 }: PVLayoutRendererProps) {
   // Center offset to position layout at origin
   const centerOffset = useMemo(() => ({
@@ -45,6 +56,8 @@ export function PVLayoutRenderer({
           panels={parsedData.panels}
           selectedIndex={selectedPanelIndex}
           onPanelClick={onPanelClick}
+          elementCommentMode={elementCommentMode}
+          onElementSelected={onElementSelected}
         />
       )}
 
@@ -60,7 +73,21 @@ export function PVLayoutRenderer({
 
       {/* Electrical Components - 3D Equipment (inverters, transformers) */}
       {showElectrical && (
-        <Equipment3D equipment={parsedData.electrical} />
+        <Equipment3D
+          equipment={parsedData.electrical}
+          elementCommentMode={elementCommentMode}
+          onElementSelected={onElementSelected}
+        />
+      )}
+
+      {/* Element Comment Markers */}
+      {designId && versionId && (
+        <ElementCommentMarkers
+          panels={parsedData.panels}
+          electrical={parsedData.electrical}
+          designId={designId}
+          versionId={versionId}
+        />
       )}
     </group>
   );

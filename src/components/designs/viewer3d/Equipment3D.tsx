@@ -2,12 +2,15 @@
  * Equipment3D - Renders 3D electrical equipment (inverters, transformers, etc.)
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Color, DoubleSide } from 'three';
 import type { ElectricalComponent } from '@/lib/dxf/types';
+import type { ElementAnchor, CommentableElementType } from '@/lib/types';
 
 interface Equipment3DProps {
   equipment: ElectricalComponent[];
+  elementCommentMode?: boolean;
+  onElementSelected?: (element: ElementAnchor) => void;
 }
 
 // Equipment colors
@@ -27,7 +30,11 @@ const DEFAULT_DIMS = {
   default: { width: 1.0, height: 1.0, depth: 1.0 },
 };
 
-export function Equipment3D({ equipment }: Equipment3DProps) {
+export function Equipment3D({
+  equipment,
+  elementCommentMode = false,
+  onElementSelected,
+}: Equipment3DProps) {
   // Filter to only 3D equipment (inverters, transformers, combiners)
   const equipment3D = useMemo(() =>
     equipment.filter(e =>
@@ -43,13 +50,30 @@ export function Equipment3D({ equipment }: Equipment3DProps) {
   return (
     <group>
       {equipment3D.map((item) => (
-        <EquipmentBox key={item.id} equipment={item} />
+        <EquipmentBox
+          key={item.id}
+          equipment={item}
+          elementCommentMode={elementCommentMode}
+          onElementSelected={onElementSelected}
+        />
       ))}
     </group>
   );
 }
 
-function EquipmentBox({ equipment }: { equipment: ElectricalComponent }) {
+interface EquipmentBoxProps {
+  equipment: ElectricalComponent;
+  elementCommentMode?: boolean;
+  onElementSelected?: (element: ElementAnchor) => void;
+}
+
+function EquipmentBox({
+  equipment,
+  elementCommentMode = false,
+  onElementSelected,
+}: EquipmentBoxProps) {
+  const [hovered, setHovered] = useState(false);
+
   // Get dimensions
   const dims = useMemo(() => {
     const defaults = DEFAULT_DIMS[equipment.type as keyof typeof DEFAULT_DIMS] || DEFAULT_DIMS.default;
@@ -80,10 +104,41 @@ function EquipmentBox({ equipment }: { equipment: ElectricalComponent }) {
     -equipment.position[1] + (isTransformer ? 7 : 0),
   ];
 
+  // Handle click for element selection
+  const handleClick = useCallback((e: { stopPropagation: () => void }) => {
+    if (!elementCommentMode || !onElementSelected) return;
+    e.stopPropagation();
+
+    // Get element label
+    const typeName = equipment.type.charAt(0).toUpperCase() + equipment.type.slice(1);
+    const label = equipment.label || `${typeName} ${equipment.id.slice(0, 8)}`;
+
+    onElementSelected({
+      elementType: equipment.type as CommentableElementType,
+      elementId: equipment.id,
+      elementLabel: label,
+    });
+  }, [elementCommentMode, onElementSelected, equipment]);
+
+  // Handle hover
+  const handlePointerEnter = useCallback(() => {
+    if (elementCommentMode) setHovered(true);
+  }, [elementCommentMode]);
+
+  const handlePointerLeave = useCallback(() => {
+    setHovered(false);
+  }, []);
+
   return (
     <group position={position}>
       {/* Main box */}
-      <mesh castShadow receiveShadow>
+      <mesh
+        castShadow
+        receiveShadow
+        onClick={handleClick}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+      >
         <boxGeometry args={[dims.width, dims.height, dims.depth]} />
         <meshStandardMaterial
           color={color}
@@ -104,7 +159,18 @@ function EquipmentBox({ equipment }: { equipment: ElectricalComponent }) {
         />
       </mesh>
 
-      {/* Label (optional - could add Html label here) */}
+      {/* Hover highlight in comment mode */}
+      {elementCommentMode && hovered && (
+        <mesh>
+          <boxGeometry args={[dims.width * 1.1, dims.height * 1.1, dims.depth * 1.1]} />
+          <meshBasicMaterial
+            color="#f97316"
+            transparent
+            opacity={0.4}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
     </group>
   );
 }

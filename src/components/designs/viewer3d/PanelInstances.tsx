@@ -5,14 +5,18 @@
  * with a single draw call, ensuring 60 FPS even with 10,000+ panels.
  */
 
-import { useRef, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useLayoutEffect, useMemo, useState, useCallback } from 'react';
 import { InstancedMesh, Object3D, Color, DoubleSide } from 'three';
 import type { PanelGeometry } from '@/lib/dxf/types';
+import type { ElementAnchor } from '@/lib/types';
 
 interface PanelInstancesProps {
   panels: PanelGeometry[];
   selectedIndex?: number | null;
   onPanelClick?: (index: number, panel: PanelGeometry) => void;
+  // Element comment mode
+  elementCommentMode?: boolean;
+  onElementSelected?: (element: ElementAnchor) => void;
 }
 
 // Default panel table dimensions (in meters) - fallback if not in extended data
@@ -25,10 +29,17 @@ const DEFAULT_TILT_ANGLE = 20; // degrees - typical ground mount tilt
 const PANEL_COLOR = new Color('#1e40af'); // Blue
 const PANEL_FRAME_COLOR = new Color('#94a3b8'); // Silver frame
 
-export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelInstancesProps) {
+export function PanelInstances({
+  panels,
+  selectedIndex,
+  onPanelClick,
+  elementCommentMode = false,
+  onElementSelected,
+}: PanelInstancesProps) {
   const meshRef = useRef<InstancedMesh>(null);
   const frameRef = useRef<InstancedMesh>(null);
   const [mounted, setMounted] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Temporary object for matrix calculations
   const tempObject = useMemo(() => new Object3D(), []);
@@ -37,6 +48,13 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Reset hover state when comment mode is disabled
+  useEffect(() => {
+    if (!elementCommentMode) {
+      setHoveredIndex(null);
+    }
+  }, [elementCommentMode]);
 
   // Update instance matrices when panels change or after mount
   // Using useLayoutEffect to ensure matrices are set before paint
@@ -103,15 +121,48 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
 
     mesh.instanceMatrix.needsUpdate = true;
     frame.instanceMatrix.needsUpdate = true;
+
+    // Compute bounding sphere for raycasting to work properly
+    mesh.computeBoundingSphere();
+    frame.computeBoundingSphere();
   }, [panels, tempObject, mounted]);
 
   // Handle click events
-  const handleClick = (event: { stopPropagation: () => void; instanceId?: number }) => {
+  const handleClick = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
+    console.log('Panel click event:', event.instanceId, 'commentMode:', elementCommentMode);
     event.stopPropagation();
-    if (event.instanceId !== undefined && onPanelClick) {
+    if (event.instanceId === undefined) return;
+
+    if (elementCommentMode && onElementSelected) {
+      // In comment mode, select element for commenting
+      console.log('Selecting panel for comment:', event.instanceId);
+      onElementSelected({
+        elementType: 'panel',
+        elementId: String(event.instanceId),
+        elementLabel: `Panel #${event.instanceId + 1}`,
+      });
+    } else if (onPanelClick) {
+      // Normal selection mode
       onPanelClick(event.instanceId, panels[event.instanceId]);
     }
-  };
+  }, [elementCommentMode, onElementSelected, onPanelClick, panels]);
+
+  // Handle pointer over for hover highlighting (better than onPointerMove for InstancedMesh)
+  const handlePointerOver = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
+    console.log('Panel pointer over:', event.instanceId, 'commentMode:', elementCommentMode);
+    if (!elementCommentMode) return;
+    event.stopPropagation();
+    if (event.instanceId !== undefined) {
+      setHoveredIndex(event.instanceId);
+    }
+  }, [elementCommentMode]);
+
+  // Handle pointer out
+  const handlePointerOut = useCallback((event: { stopPropagation: () => void }) => {
+    console.log('Panel pointer out');
+    event.stopPropagation();
+    setHoveredIndex(null);
+  }, []);
 
   if (panels.length === 0) return null;
 
@@ -123,6 +174,8 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
         ref={meshRef}
         args={[undefined, undefined, panels.length]}
         onClick={handleClick}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
         castShadow
         receiveShadow
         frustumCulled={false}
@@ -156,6 +209,11 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
       {selectedIndex !== null && selectedIndex !== undefined && panels[selectedIndex] && (
         <SelectionHighlight panel={panels[selectedIndex]} />
       )}
+
+      {/* Hover highlight in comment mode */}
+      {elementCommentMode && hoveredIndex !== null && panels[hoveredIndex] && (
+        <HoverHighlight panel={panels[hoveredIndex]} />
+      )}
     </group>
   );
 }
@@ -171,12 +229,19 @@ function SelectionHighlight({ panel }: { panel: PanelGeometry }) {
   const tiltRad = (tiltAngle * Math.PI) / 180;
   const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
 
+  // Calculate the offset to center (same as in the matrix update)
+  const halfWidth = tableWidth / 2;
+  const halfDepth = (tableHeight / 2) * Math.cos(tiltRad);
+  const azimuth = panel.rotation;
+  const offsetX = halfWidth * Math.cos(azimuth) + halfDepth * Math.sin(azimuth);
+  const offsetY = halfWidth * Math.sin(azimuth) - halfDepth * Math.cos(azimuth);
+
   return (
     <mesh
       position={[
-        panel.position[0],
-        centerHeight + 0.2, // Slightly above panel
-        -panel.position[1]
+        panel.position[0] + offsetX,
+        centerHeight + 0.1, // Slightly above panel
+        -(panel.position[1] + offsetY)
       ]}
       rotation-order="YXZ"
       rotation={[tiltRad, panel.rotation, 0]}
@@ -191,6 +256,50 @@ function SelectionHighlight({ panel }: { panel: PanelGeometry }) {
         color="#fbbf24"
         transparent
         opacity={0.4}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
+/**
+ * Hover highlight - Shows a glow when hovering over panel in comment mode
+ */
+function HoverHighlight({ panel }: { panel: PanelGeometry }) {
+  const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
+  const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
+  const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
+  const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
+  const tiltRad = (tiltAngle * Math.PI) / 180;
+  const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
+
+  // Calculate the offset to center (same as in the matrix update)
+  const halfWidth = tableWidth / 2;
+  const halfDepth = (tableHeight / 2) * Math.cos(tiltRad);
+  const azimuth = panel.rotation;
+  const offsetX = halfWidth * Math.cos(azimuth) + halfDepth * Math.sin(azimuth);
+  const offsetY = halfWidth * Math.sin(azimuth) - halfDepth * Math.cos(azimuth);
+
+  return (
+    <mesh
+      position={[
+        panel.position[0] + offsetX,
+        centerHeight + 0.15, // Slightly above panel
+        -(panel.position[1] + offsetY)
+      ]}
+      rotation-order="YXZ"
+      rotation={[tiltRad, panel.rotation, 0]}
+      scale={[
+        tableWidth * 1.08,
+        DEFAULT_PANEL_THICKNESS * 2.5,
+        tableHeight * 1.08
+      ]}
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      <meshBasicMaterial
+        color="#f97316"  // Orange for hover
+        transparent
+        opacity={0.5}
         depthWrite={false}
       />
     </mesh>
