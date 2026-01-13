@@ -40,6 +40,8 @@ const MOUNTING_PATTERNS = [
 
 const ELECTRICAL_PATTERNS = [
   /inverter/i,
+  /transformer/i,
+  /substation/i,
   /combiner/i,
   /cables?/i,
   /strings?/i,
@@ -49,6 +51,7 @@ const ELECTRICAL_PATTERNS = [
   /wiring/i,
   /harness/i,
   /sld/i, // Single Line Diagram
+  /trench/i,
 ];
 
 const BOUNDARY_PATTERNS = [

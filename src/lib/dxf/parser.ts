@@ -474,8 +474,36 @@ function convertInsertToElectrical(entity: DXFEntity): ElectricalComponent {
   const pos = getEntityPosition(entity);
   let type: ElectricalComponent['type'] = 'unknown';
 
-  if (name.includes('inverter') || layerName.includes('inverter')) type = 'inverter';
-  else if (name.includes('combiner') || layerName.includes('combiner')) type = 'combiner';
+  // Detect component type
+  if (name.includes('transformer') || layerName.includes('transformer')) {
+    type = 'transformer';
+  } else if (name.includes('inverter') || layerName.includes('inverter')) {
+    type = 'inverter';
+  } else if (name.includes('combiner') || layerName.includes('combiner')) {
+    type = 'combiner';
+  }
+
+  // Default dimensions for 3D equipment (meters)
+  let width: number | undefined;
+  let height: number | undefined;
+  let depth: number | undefined;
+
+  if (type === 'transformer') {
+    // Typical pad-mounted transformer
+    width = 3.0;
+    height = 2.5;
+    depth = 2.5;
+  } else if (type === 'inverter') {
+    // Typical central inverter/skid
+    width = 6.0;
+    height = 2.5;
+    depth = 2.0;
+  } else if (type === 'combiner') {
+    // Combiner box
+    width = 0.6;
+    height = 1.2;
+    depth = 0.3;
+  }
 
   return {
     id: generateId(),
@@ -483,6 +511,9 @@ function convertInsertToElectrical(entity: DXFEntity): ElectricalComponent {
     position: pos,
     layer: entity.layer || '0',
     label: entity.name,
+    width,
+    height,
+    depth,
   };
 }
 

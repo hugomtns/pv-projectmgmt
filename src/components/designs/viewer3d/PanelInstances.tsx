@@ -48,17 +48,26 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
       // Convert tilt angle to radians
       // Tilt is rotation around X axis - positive tilts back (top away from viewer)
       const tiltRad = (tiltAngle * Math.PI) / 180;
+      const azimuth = panel.rotation; // Already in radians
 
       // Panel base height - the mounting height is the lowest edge
       // After tilt, the center is higher by half the tilted height
       const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
 
-      // Set position (DXF uses X, Y as horizontal plane)
-      // We map: DXF X -> Three.js X, DXF Y -> Three.js Z (negated), height -> Three.js Y
+      // The INSERT position in DXF is at corner of panel table
+      // Offset to center: +halfWidth in X direction, -halfDepth in facing direction
+      const halfWidth = tableWidth / 2;
+      const halfDepth = (tableHeight / 2) * Math.cos(tiltRad); // Ground projection
+
+      // Apply offset rotated by azimuth (INSERT is at left-front corner)
+      const offsetX = halfWidth * Math.cos(azimuth) + halfDepth * Math.sin(azimuth);
+      const offsetY = halfWidth * Math.sin(azimuth) - halfDepth * Math.cos(azimuth);
+
+      // DXF X,Y horizontal -> Three.js X,Z (with Y negated)
       tempObject.position.set(
-        panel.position[0],
+        panel.position[0] + offsetX,
         centerHeight,
-        -panel.position[1]
+        -(panel.position[1] + offsetY)
       );
 
       // Set rotation using Euler order 'YXZ' for proper azimuth then tilt

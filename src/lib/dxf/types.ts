@@ -40,11 +40,15 @@ export interface MountingGeometry {
 
 export interface ElectricalComponent {
   id: string;
-  type: 'inverter' | 'combiner' | 'cable' | 'string' | 'unknown';
+  type: 'inverter' | 'transformer' | 'combiner' | 'cable' | 'string' | 'unknown';
   position: [number, number, number];
   vertices?: [number, number, number][]; // For cable paths (polylines)
   layer: string;
   label?: string;
+  // Dimensions for 3D equipment (meters)
+  width?: number;
+  height?: number;
+  depth?: number;
 }
 
 export interface BoundaryGeometry {
