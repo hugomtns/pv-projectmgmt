@@ -30,9 +30,11 @@ interface DXFEntity {
   type?: string;
   layer?: string;
   name?: string;
+  // Position can be either direct properties or nested in position object
   x?: number;
   y?: number;
   z?: number;
+  position?: { x: number; y: number; z?: number };
   rotation?: number;
   xScale?: number;
   yScale?: number;
@@ -42,6 +44,10 @@ interface DXFEntity {
   end?: { x: number; y: number; z?: number };
   center?: { x: number; y: number; z?: number };
   shape?: boolean;
+  // Extended data from PVcase
+  extendedData?: {
+    customStrings?: string[];
+  };
 }
 
 // DXF unit codes to unit names
@@ -287,9 +293,14 @@ function countEntitiesByLayer(dxf: ReturnType<DxfParser['parseSync']>): Record<s
 }
 
 /**
- * Get position from entity
+ * Get position from entity (handles both direct properties and nested position object)
  */
-function getEntityPosition(entity: { x?: number; y?: number; z?: number }): [number, number, number] {
+function getEntityPosition(entity: DXFEntity): [number, number, number] {
+  // Check for nested position object first (used by INSERT entities)
+  if (entity.position) {
+    return [entity.position.x || 0, entity.position.y || 0, entity.position.z || 0];
+  }
+  // Fall back to direct properties
   return [entity.x || 0, entity.y || 0, entity.z || 0];
 }
 
@@ -352,43 +363,94 @@ function getCircleCenter(entity: {
 /**
  * Convert INSERT entity to panel geometry
  */
-function convertInsertToPanel(entity: {
-  name?: string;
-  layer?: string;
-  x?: number;
-  y?: number;
-  z?: number;
-  rotation?: number;
-  xScale?: number;
-  yScale?: number;
-  zScale?: number;
-}): PanelGeometry {
+function convertInsertToPanel(entity: DXFEntity): PanelGeometry {
   const blockName = entity.name || 'Unknown';
   const parsed = parsePanelBlockName(blockName);
+  const pos = getEntityPosition(entity);
+
+  // Extract PVcase extended data if available
+  const extData = parsePVcaseExtendedData(entity.extendedData?.customStrings);
 
   return {
     id: generateId(),
-    position: [entity.x || 0, entity.y || 0, entity.z || 0],
-    rotation: degToRad(entity.rotation || 0),
+    position: pos,
+    rotation: degToRad(extData.azimuth ?? entity.rotation ?? 0),
     scale: [entity.xScale || 1, entity.yScale || 1, entity.zScale || 1],
     blockName,
     layer: entity.layer || '0',
-    tiltAngle: parsed.tiltAngle,
+    tiltAngle: extData.tiltAngle ?? parsed.tiltAngle,
     configuration: parsed.configuration,
+    tableWidth: extData.tableWidth,
+    tableHeight: extData.tableHeight,
+    moduleRows: extData.rows,
+    moduleColumns: extData.columns,
+    mountingHeight: extData.height,
   };
+}
+
+/**
+ * Parse PVcase extended data from customStrings array
+ * Based on observed PVcase format with known indices
+ */
+function parsePVcaseExtendedData(customStrings?: string[]): {
+  moduleWidth?: number;
+  moduleHeight?: number;
+  rows?: number;
+  columns?: number;
+  tiltAngle?: number;
+  azimuth?: number;
+  height?: number;
+  tableWidth?: number;
+  tableHeight?: number;
+} {
+  if (!customStrings || customStrings.length < 17) {
+    return {};
+  }
+
+  try {
+    const moduleWidth = parseFloat(customStrings[5]) || undefined;
+    const moduleHeight = parseFloat(customStrings[6]) || undefined;
+    const gapX = parseFloat(customStrings[9]) || 0.02;
+    const gapY = parseFloat(customStrings[10]) || 0.02;
+    const rows = parseInt(customStrings[11]) || undefined;
+    const columns = parseInt(customStrings[13]) || undefined;
+    const tiltAngle = parseFloat(customStrings[14]) || undefined;
+    const azimuth = parseFloat(customStrings[15]) || undefined;
+    const height = parseFloat(customStrings[16]) || undefined;
+
+    // Calculate table dimensions
+    let tableWidth: number | undefined;
+    let tableHeight: number | undefined;
+
+    if (moduleWidth && columns) {
+      tableWidth = columns * (moduleWidth + gapX) - gapX;
+    }
+    if (moduleHeight && rows) {
+      tableHeight = rows * (moduleHeight + gapY) - gapY;
+    }
+
+    return {
+      moduleWidth,
+      moduleHeight,
+      rows,
+      columns,
+      tiltAngle,
+      azimuth,
+      height,
+      tableWidth,
+      tableHeight,
+    };
+  } catch {
+    return {};
+  }
 }
 
 /**
  * Convert INSERT entity to mounting geometry
  */
-function convertInsertToMounting(entity: {
-  name?: string;
-  layer?: string;
-  x?: number;
-  y?: number;
-  z?: number;
-}): MountingGeometry {
+function convertInsertToMounting(entity: DXFEntity): MountingGeometry {
   const name = (entity.name || '').toLowerCase();
+  const pos = getEntityPosition(entity);
   let type: MountingGeometry['type'] = 'unknown';
 
   if (name.includes('pole')) type = 'pole';
@@ -398,7 +460,7 @@ function convertInsertToMounting(entity: {
   return {
     id: generateId(),
     type,
-    position: [entity.x || 0, entity.y || 0, entity.z || 0],
+    position: pos,
     layer: entity.layer || '0',
   };
 }
@@ -406,15 +468,10 @@ function convertInsertToMounting(entity: {
 /**
  * Convert INSERT entity to electrical component
  */
-function convertInsertToElectrical(entity: {
-  name?: string;
-  layer?: string;
-  x?: number;
-  y?: number;
-  z?: number;
-}): ElectricalComponent {
+function convertInsertToElectrical(entity: DXFEntity): ElectricalComponent {
   const name = (entity.name || '').toLowerCase();
   const layerName = (entity.layer || '').toLowerCase();
+  const pos = getEntityPosition(entity);
   let type: ElectricalComponent['type'] = 'unknown';
 
   if (name.includes('inverter') || layerName.includes('inverter')) type = 'inverter';
@@ -423,7 +480,7 @@ function convertInsertToElectrical(entity: {
   return {
     id: generateId(),
     type,
-    position: [entity.x || 0, entity.y || 0, entity.z || 0],
+    position: pos,
     layer: entity.layer || '0',
     label: entity.name,
   };

@@ -137,7 +137,7 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
             onPanelClick={handlePanelClick}
             showPanels={true}
             showBoundaries={true}
-            showElectrical={false}
+            showElectrical={true}
           />
         )}
 

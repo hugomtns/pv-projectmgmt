@@ -15,9 +15,9 @@ interface PanelInstancesProps {
   onPanelClick?: (index: number, panel: PanelGeometry) => void;
 }
 
-// Default panel dimensions (in meters) - typical residential panel
-const DEFAULT_PANEL_WIDTH = 1.0;
-const DEFAULT_PANEL_HEIGHT = 2.0;
+// Default panel table dimensions (in meters) - fallback if not in extended data
+const DEFAULT_TABLE_WIDTH = 16.0; // ~12 modules wide
+const DEFAULT_TABLE_HEIGHT = 4.5; // ~2 rows
 const DEFAULT_PANEL_THICKNESS = 0.04;
 
 // Panel colors
@@ -36,22 +36,27 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
     if (!meshRef.current || !frameRef.current) return;
 
     panels.forEach((panel, i) => {
-      // Set position (DXF uses X, Y as horizontal; Z typically 0 or small)
-      // We map DXF X -> Three.js X, DXF Y -> Three.js Z, and use small Y for height
+      // Get actual table dimensions from extended data or use defaults
+      const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
+      const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
+      const mountingHeight = panel.mountingHeight || panel.position[2] || 0.5;
+
+      // Set position (DXF uses X, Y as horizontal; Z typically mounting height)
+      // We map DXF X -> Three.js X, DXF Y -> Three.js Z, and use Y for height
       tempObject.position.set(
         panel.position[0],
-        panel.position[2] + DEFAULT_PANEL_THICKNESS / 2, // Lift slightly above ground
+        mountingHeight + DEFAULT_PANEL_THICKNESS / 2, // Height above ground
         -panel.position[1] // Flip Y to Z (DXF Y goes up, Three.js Z comes towards camera)
       );
 
-      // Apply rotation around Y axis (DXF rotation is around Z)
+      // Apply rotation around Y axis (azimuth angle from DXF)
       tempObject.rotation.set(0, -panel.rotation, 0);
 
-      // Apply scale from DXF (typically 1,1,1 but can vary)
+      // Apply actual table dimensions
       tempObject.scale.set(
-        panel.scale[0] * DEFAULT_PANEL_WIDTH,
+        tableWidth,
         DEFAULT_PANEL_THICKNESS,
-        panel.scale[1] * DEFAULT_PANEL_HEIGHT
+        tableHeight
       );
 
       tempObject.updateMatrix();
@@ -121,18 +126,22 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
  * Selection highlight - Shows a glowing outline around selected panel
  */
 function SelectionHighlight({ panel }: { panel: PanelGeometry }) {
+  const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
+  const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
+  const mountingHeight = panel.mountingHeight || panel.position[2] || 0.5;
+
   return (
     <mesh
       position={[
         panel.position[0],
-        panel.position[2] + DEFAULT_PANEL_THICKNESS / 2 + 0.01,
+        mountingHeight + DEFAULT_PANEL_THICKNESS / 2 + 0.1,
         -panel.position[1]
       ]}
       rotation={[0, -panel.rotation, 0]}
       scale={[
-        panel.scale[0] * DEFAULT_PANEL_WIDTH * 1.1,
-        DEFAULT_PANEL_THICKNESS * 2,
-        panel.scale[1] * DEFAULT_PANEL_HEIGHT * 1.1
+        tableWidth * 1.05,
+        DEFAULT_PANEL_THICKNESS * 3,
+        tableHeight * 1.05
       ]}
     >
       <boxGeometry args={[1, 1, 1]} />

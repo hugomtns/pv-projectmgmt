@@ -14,14 +14,20 @@ export interface DXFParsedData {
 
 export interface PanelGeometry {
   id: string;
-  position: [number, number, number]; // x, y, z
-  rotation: number; // radians around Z axis
-  scale: [number, number, number]; // x, y, z scale
+  position: [number, number, number]; // x, y, z (center of panel table)
+  rotation: number; // radians around Z axis (azimuth)
+  scale: [number, number, number]; // x, y, z scale from DXF
   blockName: string;
   layer: string;
   // Parsed from block name (e.g., "2P12@20DEG F FX A12 ID1 PVBlock")
   tiltAngle?: number; // degrees
   configuration?: string; // e.g., "2P12"
+  // Actual table dimensions from extended data (meters)
+  tableWidth?: number; // Width of panel table (X direction)
+  tableHeight?: number; // Height of panel table (Y direction)
+  moduleRows?: number; // Number of module rows
+  moduleColumns?: number; // Number of module columns
+  mountingHeight?: number; // Height above ground
 }
 
 export interface MountingGeometry {
