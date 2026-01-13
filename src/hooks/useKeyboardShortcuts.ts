@@ -32,7 +32,7 @@ export function useKeyboardShortcuts({
   enabled = true,
 }: UseKeyboardShortcutsOptions = {}) {
   const sequenceRef = useRef<string[]>([]);
-  const timeoutRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearSequence = useCallback(() => {
     sequenceRef.current = [];

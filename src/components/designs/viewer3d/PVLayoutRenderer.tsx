@@ -1,0 +1,182 @@
+/**
+ * PVLayoutRenderer - Orchestrates rendering of parsed DXF PV layout
+ *
+ * Renders all geometry types from parsed DXF data:
+ * - Panels (via PanelInstances for performance)
+ * - Mounting structures
+ * - Electrical components
+ * - Boundaries/areas
+ */
+
+import { useMemo } from 'react';
+import { Line } from '@react-three/drei';
+import type { DXFParsedData, PanelGeometry, BoundaryGeometry, ElectricalComponent } from '@/lib/dxf/types';
+import { PanelInstances } from './PanelInstances';
+
+interface PVLayoutRendererProps {
+  parsedData: DXFParsedData;
+  showPanels?: boolean;
+  showBoundaries?: boolean;
+  showElectrical?: boolean;
+  selectedPanelIndex?: number | null;
+  onPanelClick?: (index: number, panel: PanelGeometry) => void;
+}
+
+export function PVLayoutRenderer({
+  parsedData,
+  showPanels = true,
+  showBoundaries = true,
+  showElectrical = false,
+  selectedPanelIndex,
+  onPanelClick,
+}: PVLayoutRendererProps) {
+  // Center offset to position layout at origin
+  const centerOffset = useMemo(() => ({
+    x: -parsedData.bounds.center[0],
+    z: parsedData.bounds.center[1], // Flip Y to Z
+  }), [parsedData.bounds.center]);
+
+  return (
+    <group position={[centerOffset.x, 0, centerOffset.z]}>
+      {/* Solar Panels */}
+      {showPanels && (
+        <PanelInstances
+          panels={parsedData.panels}
+          selectedIndex={selectedPanelIndex}
+          onPanelClick={onPanelClick}
+        />
+      )}
+
+      {/* Boundaries and Areas */}
+      {showBoundaries && (
+        <BoundaryLines boundaries={parsedData.boundaries} />
+      )}
+
+      {/* Electrical Components */}
+      {showElectrical && (
+        <ElectricalLines electrical={parsedData.electrical} />
+      )}
+    </group>
+  );
+}
+
+/**
+ * BoundaryLines - Renders boundary polylines
+ */
+function BoundaryLines({ boundaries }: { boundaries: BoundaryGeometry[] }) {
+  return (
+    <group>
+      {boundaries.map((boundary) => (
+        <BoundaryLine key={boundary.id} boundary={boundary} />
+      ))}
+    </group>
+  );
+}
+
+function BoundaryLine({ boundary }: { boundary: BoundaryGeometry }) {
+  // Convert DXF coordinates to Three.js (flip Y to Z)
+  const points = useMemo(() => {
+    const pts = boundary.vertices.map((v): [number, number, number] => [
+      v[0],
+      v[2] + 0.1, // Slight elevation above ground
+      -v[1],
+    ]);
+
+    // Close the shape if needed
+    if (boundary.closed && pts.length > 2) {
+      pts.push(pts[0]);
+    }
+
+    return pts;
+  }, [boundary.vertices, boundary.closed]);
+
+  // Color based on boundary type
+  const color = useMemo(() => {
+    switch (boundary.type) {
+      case 'pv_area': return '#22c55e'; // Green
+      case 'fence': return '#f59e0b'; // Orange
+      case 'road': return '#6b7280'; // Gray
+      case 'alignment': return '#3b82f6'; // Blue
+      default: return '#a855f7'; // Purple
+    }
+  }, [boundary.type]);
+
+  if (points.length < 2) return null;
+
+  return (
+    <Line
+      points={points}
+      color={color}
+      lineWidth={2}
+      dashed={boundary.type === 'alignment'}
+    />
+  );
+}
+
+/**
+ * ElectricalLines - Renders electrical cable paths
+ */
+function ElectricalLines({ electrical }: { electrical: ElectricalComponent[] }) {
+  // Filter to only show cable/string paths (those with vertices)
+  const cables = useMemo(() =>
+    electrical.filter((e) => e.vertices && e.vertices.length >= 2),
+    [electrical]
+  );
+
+  return (
+    <group>
+      {cables.map((cable) => (
+        <ElectricalLine key={cable.id} cable={cable} />
+      ))}
+    </group>
+  );
+}
+
+function ElectricalLine({ cable }: { cable: ElectricalComponent }) {
+  const points = useMemo(() => {
+    if (!cable.vertices) return [];
+    return cable.vertices.map((v): [number, number, number] => [
+      v[0],
+      v[2] + 0.15, // Slight elevation
+      -v[1],
+    ]);
+  }, [cable.vertices]);
+
+  // Color based on cable type
+  const color = useMemo(() => {
+    switch (cable.type) {
+      case 'string': return '#ef4444'; // Red for DC strings
+      case 'cable': return '#f97316'; // Orange for cables
+      default: return '#8b5cf6'; // Purple
+    }
+  }, [cable.type]);
+
+  if (points.length < 2) return null;
+
+  return (
+    <Line
+      points={points}
+      color={color}
+      lineWidth={1.5}
+    />
+  );
+}
+
+/**
+ * LayoutInfo component for debugging/info display
+ */
+export function LayoutInfo({ parsedData }: { parsedData: DXFParsedData }) {
+  return (
+    <div className="absolute bottom-4 left-4 bg-background/90 p-3 rounded-lg border text-xs space-y-1">
+      <div className="font-medium text-sm mb-2">Layout Statistics</div>
+      <div>Panels: {parsedData.panels.length}</div>
+      <div>Boundaries: {parsedData.boundaries.length}</div>
+      <div>Electrical: {parsedData.electrical.length}</div>
+      <div>Mounting: {parsedData.mounting.length}</div>
+      <div className="pt-1 border-t">
+        Size: {parsedData.bounds.size[0].toFixed(1)}m × {parsedData.bounds.size[1].toFixed(1)}m
+      </div>
+      <div>Units: {parsedData.units}</div>
+    </div>
+  );
+}
