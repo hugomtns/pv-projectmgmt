@@ -39,7 +39,7 @@ const PANEL_FRAME_COLOR = new Color('#e2e8f0'); // Light silver/white frame (lik
 export function PanelInstances({
   panels,
   selectedIndex,
-  onPanelClick,
+  onPanelClick: _onPanelClick, // Unused - interaction only in comment mode
   elementCommentMode = false,
   onElementSelected,
 }: PanelInstancesProps) {
@@ -177,24 +177,23 @@ export function PanelInstances({
     moduleFrames.computeBoundingSphere();
   }, [panels, tempObject, mounted, totalModules]);
 
-  // Handle click events - map module index back to panel index
+  // Handle click events - only active in comment mode
   const handleClick = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
+    if (!elementCommentMode) return; // Only allow interaction in comment mode
     event.stopPropagation();
     if (event.instanceId === undefined) return;
 
     const panelIndex = moduleToPanel[event.instanceId];
     if (panelIndex === undefined) return;
 
-    if (elementCommentMode && onElementSelected) {
+    if (onElementSelected) {
       onElementSelected({
         elementType: 'panel',
         elementId: String(panelIndex),
         elementLabel: `Panel #${panelIndex + 1}`,
       });
-    } else if (onPanelClick) {
-      onPanelClick(panelIndex, panels[panelIndex]);
     }
-  }, [elementCommentMode, onElementSelected, onPanelClick, panels, moduleToPanel]);
+  }, [elementCommentMode, onElementSelected, moduleToPanel]);
 
   // Handle pointer over for hover highlighting
   const handlePointerOver = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
@@ -208,12 +207,12 @@ export function PanelInstances({
     }
   }, [elementCommentMode, moduleToPanel]);
 
-  // Handle pointer out
+  // Handle pointer out - only active in comment mode
   const handlePointerOut = useCallback((event: { stopPropagation: () => void }) => {
-    console.log('Panel pointer out');
+    if (!elementCommentMode) return;
     event.stopPropagation();
     setHoveredIndex(null);
-  }, []);
+  }, [elementCommentMode]);
 
   if (panels.length === 0 || totalModules === 0) return null;
 
