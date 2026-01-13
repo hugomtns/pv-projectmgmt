@@ -7,6 +7,7 @@ import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { MapPin, MessageSquare, Check, X, Highlighter } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -39,6 +40,7 @@ export function CommentPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'location' | 'document'>('location');
   const highlightedCommentRef = useRef<HTMLDivElement>(null);
 
   const addComment = useDocumentStore((state) => state.addComment);
@@ -56,16 +58,6 @@ export function CommentPanel({
     permissionOverrides,
     roles
   );
-
-  // Auto-scroll to highlighted comment
-  useEffect(() => {
-    if (highlightedCommentId && highlightedCommentRef.current) {
-      highlightedCommentRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }
-  }, [highlightedCommentId]);
 
   // Fetch comments from IndexedDB
   const comments = useLiveQuery(
@@ -95,6 +87,28 @@ export function CommentPanel({
   // Group comments by type
   const documentComments = filteredComments.filter((c: DocumentComment) => c.type === 'document');
   const locationComments = filteredComments.filter((c: DocumentComment) => c.type === 'location');
+
+  // Auto-switch tab and scroll to highlighted comment
+  useEffect(() => {
+    if (!highlightedCommentId) return;
+
+    // Find the comment to determine which tab it's in
+    const comment = filteredComments.find(c => c.id === highlightedCommentId);
+    if (comment) {
+      // Switch to the appropriate tab
+      setActiveTab(comment.type === 'location' ? 'location' : 'document');
+
+      // Small delay to allow tab switch to render
+      setTimeout(() => {
+        if (highlightedCommentRef.current) {
+          highlightedCommentRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }
+      }, 100);
+    }
+  }, [highlightedCommentId, filteredComments]);
 
   const handleAddComment = async () => {
     if (!newCommentText.trim()) return;
@@ -245,40 +259,44 @@ export function CommentPanel({
         <h3 className="font-semibold">Comments</h3>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 space-y-6">
-        {/* Location Comments */}
-        {locationComments.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'location' | 'document')} className="flex-1 flex flex-col min-h-0">
+        <div className="px-4 pt-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="location" className="gap-2">
               <MapPin className="h-4 w-4" />
-              Location Comments ({locationComments.length})
-            </h4>
-            <div className="space-y-2">
-              {locationComments.map(renderComment)}
-            </div>
-          </div>
-        )}
-
-        {/* Document Comments */}
-        {documentComments.length > 0 && (
-          <div>
-            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              Location ({locationComments.length})
+            </TabsTrigger>
+            <TabsTrigger value="document" className="gap-2">
               <MessageSquare className="h-4 w-4" />
-              Document Comments ({documentComments.length})
-            </h4>
-            <div className="space-y-2">
-              {documentComments.map(renderComment)}
-            </div>
-          </div>
-        )}
+              Document ({documentComments.length})
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        {/* Empty state */}
-        {filteredComments.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            No comments yet. Add one below.
-          </div>
-        )}
-      </div>
+        <TabsContent value="location" className="flex-1 overflow-auto px-4 pb-4 mt-4 space-y-2">
+          {locationComments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No location comments yet.
+              <br />
+              <span className="text-xs">Click on the document to add pinned comments.</span>
+            </div>
+          ) : (
+            locationComments.map(renderComment)
+          )}
+        </TabsContent>
+
+        <TabsContent value="document" className="flex-1 overflow-auto px-4 pb-4 mt-4 space-y-2">
+          {documentComments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No document comments yet.
+              <br />
+              <span className="text-xs">Add one below.</span>
+            </div>
+          ) : (
+            documentComments.map(renderComment)
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Add comment form */}
       {permissions.update && (

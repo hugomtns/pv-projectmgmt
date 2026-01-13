@@ -7,6 +7,7 @@ import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MessageSquare, Check, X, Box, Cpu, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DesignComment } from '@/lib/types';
@@ -26,6 +27,7 @@ export function DesignCommentPanel({
 }: DesignCommentPanelProps) {
     const [newCommentText, setNewCommentText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [activeTab, setActiveTab] = useState<'element' | 'general'>('element');
     const commentRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
 
     const addComment = useDesignStore((state) => state.addComment);
@@ -81,9 +83,12 @@ export function DesignCommentPanel({
         return { designComments: design, elementComments: element };
     }, [filteredComments]);
 
-    // Scroll to highlighted comment when key changes
+    // Auto-switch to element tab and scroll when highlight changes
     useEffect(() => {
         if (!highlightedElementKey) return;
+
+        // Switch to element tab
+        setActiveTab('element');
 
         // Find the first comment that matches the highlighted element
         const matchingComment = elementComments.find((c) => {
@@ -93,10 +98,13 @@ export function DesignCommentPanel({
         });
 
         if (matchingComment) {
-            const element = commentRefsMap.current.get(matchingComment.id);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+            // Small delay to allow tab switch to render
+            setTimeout(() => {
+                const element = commentRefsMap.current.get(matchingComment.id);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
         }
     }, [highlightedElementKey, elementComments]);
 
@@ -248,37 +256,44 @@ export function DesignCommentPanel({
                 <h3 className="font-semibold">Comments</h3>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 space-y-4">
-                {filteredComments.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground text-sm">
-                        No comments yet for this version.
-                    </div>
-                )}
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'element' | 'general')} className="flex-1 flex flex-col min-h-0">
+                <div className="px-4 pt-4">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="element" className="gap-2">
+                            <Box className="h-4 w-4" />
+                            Elements ({elementComments.length})
+                        </TabsTrigger>
+                        <TabsTrigger value="general" className="gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            General ({designComments.length})
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-                {/* Element Comments */}
-                {elementComments.length > 0 && (
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            <Box className="h-3 w-3" />
-                            Element Comments ({elementComments.length})
+                <TabsContent value="element" className="flex-1 overflow-auto px-4 pb-4 mt-4 space-y-2">
+                    {elementComments.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                            No element comments yet.
+                            <br />
+                            <span className="text-xs">Click elements in the 3D view to add comments.</span>
                         </div>
-                        {elementComments.map(renderComment)}
-                    </div>
-                )}
+                    ) : (
+                        elementComments.map(renderComment)
+                    )}
+                </TabsContent>
 
-                {/* Design Comments */}
-                {designComments.length > 0 && (
-                    <div className="space-y-2">
-                        {elementComments.length > 0 && (
-                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide pt-2">
-                                <MessageSquare className="h-3 w-3" />
-                                General Comments ({designComments.length})
-                            </div>
-                        )}
-                        {designComments.map(renderComment)}
-                    </div>
-                )}
-            </div>
+                <TabsContent value="general" className="flex-1 overflow-auto px-4 pb-4 mt-4 space-y-2">
+                    {designComments.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground text-sm">
+                            No general comments yet.
+                            <br />
+                            <span className="text-xs">Add one below.</span>
+                        </div>
+                    ) : (
+                        designComments.map(renderComment)
+                    )}
+                </TabsContent>
+            </Tabs>
 
             {/* Add comment form */}
             {canComment && (
