@@ -5,7 +5,7 @@
  * with a single draw call, ensuring 60 FPS even with 10,000+ panels.
  */
 
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { InstancedMesh, Object3D, Color, DoubleSide } from 'three';
 import type { PanelGeometry } from '@/lib/dxf/types';
 
@@ -28,15 +28,22 @@ const PANEL_FRAME_COLOR = new Color('#94a3b8'); // Silver frame
 export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelInstancesProps) {
   const meshRef = useRef<InstancedMesh>(null);
   const frameRef = useRef<InstancedMesh>(null);
+  const [mounted, setMounted] = useState(false);
 
   // Temporary object for matrix calculations
   const tempObject = useMemo(() => new Object3D(), []);
 
-  // Update instance matrices when panels change
+  // Trigger re-render after mount to ensure refs are available
   useEffect(() => {
-    if (!meshRef.current || !frameRef.current) return;
+    setMounted(true);
+  }, []);
 
-    console.log('PanelInstances: Updating matrices for', panels.length, 'panels');
+  // Update instance matrices when panels change or after mount
+  // Using useLayoutEffect to ensure matrices are set before paint
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    const frame = frameRef.current;
+    if (!mesh || !frame || !mounted) return;
 
     panels.forEach((panel, i) => {
       // Get actual table dimensions from extended data or use defaults
@@ -90,22 +97,13 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
       tempObject.updateMatrix();
 
       // Apply to both panel and frame meshes
-      meshRef.current!.setMatrixAt(i, tempObject.matrix);
-      frameRef.current!.setMatrixAt(i, tempObject.matrix);
-
-      // Log first panel's transform for debugging
-      if (i === 0) {
-        console.log('First panel transform:', {
-          position: [tempObject.position.x, tempObject.position.y, tempObject.position.z],
-          rotation: [tempObject.rotation.x, tempObject.rotation.y, tempObject.rotation.z],
-          scale: [tempObject.scale.x, tempObject.scale.y, tempObject.scale.z],
-        });
-      }
+      mesh.setMatrixAt(i, tempObject.matrix);
+      frame.setMatrixAt(i, tempObject.matrix);
     });
 
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    frameRef.current.instanceMatrix.needsUpdate = true;
-  }, [panels, tempObject]);
+    mesh.instanceMatrix.needsUpdate = true;
+    frame.instanceMatrix.needsUpdate = true;
+  }, [panels, tempObject, mounted]);
 
   // Handle click events
   const handleClick = (event: { stopPropagation: () => void; instanceId?: number }) => {
@@ -121,11 +119,13 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
     <group>
       {/* Main panel surface */}
       <instancedMesh
+        key={`panel-mesh-${panels.length}`}
         ref={meshRef}
         args={[undefined, undefined, panels.length]}
         onClick={handleClick}
         castShadow
         receiveShadow
+        frustumCulled={false}
       >
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
@@ -133,16 +133,15 @@ export function PanelInstances({ panels, selectedIndex, onPanelClick }: PanelIns
           metalness={0.6}
           roughness={0.3}
           side={DoubleSide}
-          polygonOffset
-          polygonOffsetFactor={-1}
-          polygonOffsetUnits={-1}
         />
       </instancedMesh>
 
       {/* Panel frames (wireframe outline) */}
       <instancedMesh
+        key={`frame-mesh-${panels.length}`}
         ref={frameRef}
         args={[undefined, undefined, panels.length]}
+        frustumCulled={false}
       >
         <boxGeometry args={[1.01, 1.01, 1.01]} />
         <meshBasicMaterial

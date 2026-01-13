@@ -16,11 +16,14 @@ const TRANSFORMER_COLOR = new Color('#7c3aed'); // Purple
 const COMBINER_COLOR = new Color('#ea580c'); // Orange
 const DEFAULT_COLOR = new Color('#6b7280'); // Gray
 
-// Default dimensions if not provided
+// Default dimensions if not provided (realistic sizes in meters)
 const DEFAULT_DIMS = {
-  inverter: { width: 6.0, height: 2.5, depth: 2.0 },
-  transformer: { width: 3.0, height: 2.5, depth: 2.5 },
-  combiner: { width: 0.6, height: 1.2, depth: 0.3 },
+  // String inverter - small box mounted on structure
+  inverter: { width: 0.5, height: 0.6, depth: 0.25 },
+  // Pad-mounted transformer - large rectangular equipment (not cubic)
+  transformer: { width: 4.0, height: 3.0, depth: 2.0 },
+  // Combiner box - small electrical enclosure
+  combiner: { width: 0.6, height: 0.8, depth: 0.3 },
   default: { width: 1.0, height: 1.0, depth: 1.0 },
 };
 

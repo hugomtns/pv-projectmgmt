@@ -32,14 +32,10 @@ export function PVLayoutRenderer({
   onPanelClick,
 }: PVLayoutRendererProps) {
   // Center offset to position layout at origin
-  const centerOffset = useMemo(() => {
-    const offset = {
-      x: -parsedData.bounds.center[0],
-      z: parsedData.bounds.center[1], // Flip Y to Z
-    };
-    console.log('PVLayoutRenderer centerOffset:', offset, 'bounds:', parsedData.bounds);
-    return offset;
-  }, [parsedData.bounds.center, parsedData.bounds]);
+  const centerOffset = useMemo(() => ({
+    x: -parsedData.bounds.center[0],
+    z: parsedData.bounds.center[1], // Flip Y to Z
+  }), [parsedData.bounds.center]);
 
   return (
     <group position={[centerOffset.x, 0, centerOffset.z]}>

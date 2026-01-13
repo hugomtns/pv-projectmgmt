@@ -50,23 +50,7 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groun
         const data = await parseDXFFromURL(fileUrl);
         if (!cancelled) {
           setParsedData(data);
-          console.log('DXF parsed:', {
-            panels: data.panels.length,
-            boundaries: data.boundaries.length,
-            bounds: data.bounds,
-          });
-          // Log first panel's extended data for debugging
-          if (data.panels.length > 0) {
-            const p = data.panels[0];
-            console.log('First panel extended data:', {
-              tiltAngle: p.tiltAngle,
-              tableWidth: p.tableWidth,
-              tableHeight: p.tableHeight,
-              mountingHeight: p.mountingHeight,
-              moduleRows: p.moduleRows,
-              moduleColumns: p.moduleColumns,
-            });
-          }
+          console.log('DXF parsed:', data.panels.length, 'panels,', data.electrical.length, 'electrical');
         }
       } catch (err) {
         if (!cancelled) {

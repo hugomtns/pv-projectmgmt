@@ -483,25 +483,25 @@ function convertInsertToElectrical(entity: DXFEntity): ElectricalComponent {
     type = 'combiner';
   }
 
-  // Default dimensions for 3D equipment (meters)
+  // Default dimensions for 3D equipment (realistic sizes in meters)
   let width: number | undefined;
   let height: number | undefined;
   let depth: number | undefined;
 
   if (type === 'transformer') {
-    // Typical pad-mounted transformer
-    width = 3.0;
-    height = 2.5;
-    depth = 2.5;
-  } else if (type === 'inverter') {
-    // Typical central inverter/skid
-    width = 6.0;
-    height = 2.5;
+    // Pad-mounted transformer - large rectangular equipment
+    width = 4.0;
+    height = 3.0;
     depth = 2.0;
+  } else if (type === 'inverter') {
+    // String inverter - small box mounted on structure
+    width = 0.5;
+    height = 0.6;
+    depth = 0.25;
   } else if (type === 'combiner') {
-    // Combiner box
+    // Combiner box - small electrical enclosure
     width = 0.6;
-    height = 1.2;
+    height = 0.8;
     depth = 0.3;
   }
 
