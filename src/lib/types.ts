@@ -161,6 +161,7 @@ export interface Design {
   // GPS coordinates for satellite imagery overlay
   gpsCoordinates?: GPSCoordinates;
   satelliteZoomLevel?: number; // Default: 18 (high detail, ~0.5m/pixel)
+  groundSizeMeters?: number; // Ground plane size in meters (default: 200)
 }
 
 export interface DesignVersion {

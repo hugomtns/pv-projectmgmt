@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { MapPin, Search, X, Loader2 } from 'lucide-react';
+import { MapPin, Search, X, Loader2, Map } from 'lucide-react';
+import { LocationMapSheet } from './LocationMapSheet';
 import type { GPSCoordinates } from '@/lib/types';
 
 interface LocationPickerProps {
   value?: GPSCoordinates;
   onChange: (coordinates: GPSCoordinates | undefined) => void;
+  groundSize?: number;
+  onGroundSizeChange?: (size: number) => void;
 }
 
 interface NominatimResult {
@@ -19,13 +22,15 @@ interface NominatimResult {
 /**
  * LocationPicker - Address search with geocoding using OpenStreetMap Nominatim
  * Users can search for an address and select from results to get GPS coordinates
+ * Includes "Select on Map" button for precise location with interactive map
  */
-export function LocationPicker({ value, onChange }: LocationPickerProps) {
+export function LocationPicker({ value, onChange, groundSize = 200, onGroundSizeChange }: LocationPickerProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState('');
+  const [mapSheetOpen, setMapSheetOpen] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -100,6 +105,12 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
     setResults([]);
   };
 
+  const handleMapConfirm = (coordinates: GPSCoordinates, newGroundSize: number) => {
+    onChange(coordinates);
+    setSelectedAddress(`${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`);
+    onGroundSizeChange?.(newGroundSize);
+  };
+
   return (
     <div className="space-y-2" ref={containerRef}>
       {value && selectedAddress ? (
@@ -166,6 +177,33 @@ export function LocationPicker({ value, onChange }: LocationPickerProps) {
           )}
         </div>
       )}
+
+      {/* Select on Map button */}
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={() => setMapSheetOpen(true)}
+      >
+        <Map className="h-4 w-4 mr-2" />
+        {value ? 'Adjust on Map' : 'Select on Map'}
+      </Button>
+
+      {/* Ground size display when set */}
+      {value && groundSize && (
+        <p className="text-xs text-muted-foreground">
+          Ground area: {groundSize}m × {groundSize}m
+        </p>
+      )}
+
+      {/* Map Sheet */}
+      <LocationMapSheet
+        open={mapSheetOpen}
+        onOpenChange={setMapSheetOpen}
+        initialCoordinates={value}
+        initialGroundSize={groundSize}
+        onConfirm={handleMapConfirm}
+      />
     </div>
   );
 }

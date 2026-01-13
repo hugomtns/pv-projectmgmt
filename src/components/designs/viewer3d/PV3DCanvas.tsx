@@ -11,6 +11,7 @@ interface PV3DCanvasProps {
   versionId: string;
   fileUrl: string;
   gpsCoordinates?: GPSCoordinates;
+  groundSizeMeters?: number;
 }
 
 type CameraMode = '3d' | '2d';
@@ -19,7 +20,7 @@ type CameraMode = '3d' | '2d';
  * PV3DCanvas - Main WebGL canvas for 3D PV layout visualization
  * Uses React Three Fiber for declarative 3D rendering
  */
-export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates }: PV3DCanvasProps) {
+export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates, groundSizeMeters }: PV3DCanvasProps) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
   const zoomRef = useRef(8);
@@ -44,7 +45,7 @@ export function PV3DCanvas({ designId, versionId, fileUrl, gpsCoordinates }: PV3
 
         {/* Ground: Satellite imagery if GPS coordinates available, otherwise grid */}
         {gpsCoordinates ? (
-          <SatelliteGround gpsCoordinates={gpsCoordinates} />
+          <SatelliteGround gpsCoordinates={gpsCoordinates} groundSizeMeters={groundSizeMeters} />
         ) : (
           <Grid args={[100, 100]} cellColor="#6e6e6e" sectionColor="#9d4b4b" />
         )}

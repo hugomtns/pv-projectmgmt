@@ -30,6 +30,7 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [gpsCoordinates, setGpsCoordinates] = useState<GPSCoordinates | undefined>(undefined);
+    const [groundSizeMeters, setGroundSizeMeters] = useState(200);
 
     const {
         register,
@@ -53,6 +54,7 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                 description: data.description || '',
                 status: 'draft',
                 gpsCoordinates,
+                groundSizeMeters: gpsCoordinates ? groundSizeMeters : undefined,
             });
 
             // If a file was selected, upload it as the first version
@@ -63,6 +65,7 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
             reset();
             setSelectedFile(null);
             setGpsCoordinates(undefined);
+            setGroundSizeMeters(200);
             onOpenChange(false);
         } catch (error) {
             console.error(error);
@@ -113,6 +116,8 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                         <LocationPicker
                             value={gpsCoordinates}
                             onChange={setGpsCoordinates}
+                            groundSize={groundSizeMeters}
+                            onGroundSizeChange={setGroundSizeMeters}
                         />
                     </div>
                     <DialogFooter>

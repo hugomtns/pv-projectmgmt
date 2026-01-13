@@ -224,6 +224,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                                 versionId={selectedVersionId || design.currentVersionId}
                                 fileUrl={fileUrl}
                                 gpsCoordinates={design.gpsCoordinates}
+                                groundSizeMeters={design.groundSizeMeters}
                             />
                         </div>
                     )}
