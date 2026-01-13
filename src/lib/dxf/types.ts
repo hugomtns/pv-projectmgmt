@@ -7,6 +7,7 @@ export interface DXFParsedData {
   mounting: MountingGeometry[];
   electrical: ElectricalComponent[];
   boundaries: BoundaryGeometry[];
+  trees: TreeGeometry[];
   bounds: BoundingBox;
   layers: LayerInfo[];
   units: DXFUnits;
@@ -59,6 +60,18 @@ export interface BoundaryGeometry {
   layer: string;
 }
 
+export interface TreeGeometry {
+  id: string;
+  position: [number, number, number];
+  treeType: 'simple' | 'conical' | 'unknown';
+  trunkDiameter: number; // meters
+  trunkHeight: number; // meters (calculated from total height - crown starts)
+  crownDiameter: number; // meters
+  crownHeight: number; // meters
+  totalHeight: number; // meters
+  layer: string;
+}
+
 export interface BoundingBox {
   min: [number, number, number];
   max: [number, number, number];
@@ -79,6 +92,7 @@ export type LayerClassification =
   | 'mounting'
   | 'electrical'
   | 'boundaries'
+  | 'vegetation'
   | 'terrain'
   | 'labels'
   | 'unknown';

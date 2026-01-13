@@ -6,6 +6,7 @@
  * - Mounting structures
  * - Electrical components
  * - Boundaries/areas
+ * - Trees (for shading visualization)
  */
 
 import { useMemo } from 'react';
@@ -14,6 +15,7 @@ import type { DXFParsedData, PanelGeometry, BoundaryGeometry, ElectricalComponen
 import type { ElementAnchor } from '@/lib/types';
 import { PanelInstances } from './PanelInstances';
 import { Equipment3D } from './Equipment3D';
+import { Tree3D } from './Tree3D';
 import { ElementCommentMarkers } from './ElementCommentMarkers';
 
 interface PVLayoutRendererProps {
@@ -21,6 +23,7 @@ interface PVLayoutRendererProps {
   showPanels?: boolean;
   showBoundaries?: boolean;
   showElectrical?: boolean;
+  showTrees?: boolean;
   selectedPanelIndex?: number | null;
   onPanelClick?: (index: number, panel: PanelGeometry) => void;
   // Element comment mode
@@ -39,6 +42,7 @@ export function PVLayoutRenderer({
   showPanels = true,
   showBoundaries = true,
   showElectrical = false,
+  showTrees = true,
   selectedPanelIndex,
   onPanelClick,
   elementCommentMode = false,
@@ -85,6 +89,11 @@ export function PVLayoutRenderer({
           elementCommentMode={elementCommentMode}
           onElementSelected={onElementSelected}
         />
+      )}
+
+      {/* Trees for shading visualization */}
+      {showTrees && parsedData.trees && (
+        <Tree3D trees={parsedData.trees} />
       )}
 
       {/* Element Comment Markers */}

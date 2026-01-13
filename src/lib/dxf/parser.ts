@@ -12,6 +12,7 @@ import type {
   MountingGeometry,
   ElectricalComponent,
   BoundaryGeometry,
+  TreeGeometry,
   BoundingBox,
   LayerInfo,
   DXFUnits,
@@ -22,6 +23,7 @@ import {
   isMountingLayer,
   isElectricalLayer,
   isBoundaryLayer,
+  isVegetationLayer,
   parsePanelBlockName,
 } from './pvLayerDetection';
 
@@ -103,6 +105,7 @@ export async function parseDXFFile(content: string | ArrayBuffer): Promise<DXFPa
   const mounting: MountingGeometry[] = [];
   const electrical: ElectricalComponent[] = [];
   const boundaries: BoundaryGeometry[] = [];
+  const trees: TreeGeometry[] = [];
 
   // Track bounds
   let minX = Infinity, minY = Infinity, minZ = Infinity;
@@ -135,6 +138,11 @@ export async function parseDXFFile(content: string | ArrayBuffer): Promise<DXFPa
         mounting.push(convertInsertToMounting(e));
       } else if (isElectricalLayer(layerName)) {
         electrical.push(convertInsertToElectrical(e));
+      } else if (isVegetationLayer(layerName)) {
+        const tree = convertInsertToTree(e);
+        if (tree) {
+          trees.push(tree);
+        }
       }
     }
 
@@ -223,6 +231,7 @@ export async function parseDXFFile(content: string | ArrayBuffer): Promise<DXFPa
     mounting,
     electrical,
     boundaries,
+    trees,
     bounds,
     layers,
     units,
@@ -515,6 +524,141 @@ function convertInsertToElectrical(entity: DXFEntity): ElectricalComponent {
     height,
     depth,
   };
+}
+
+/**
+ * Convert INSERT entity to tree geometry
+ */
+function convertInsertToTree(entity: DXFEntity): TreeGeometry | null {
+  const blockName = entity.name || '';
+
+  // Check if this is a tree block
+  if (!blockName.toLowerCase().includes('tree')) {
+    return null;
+  }
+
+  const pos = getEntityPosition(entity);
+  const extData = parseTreeExtendedData(entity.extendedData?.customStrings);
+
+  // Also try to parse from block name as fallback
+  // Format: "PVcase Simple Tree H5 TRUNK0.25 TOPWIDTH10 TOPHEIGHT10"
+  const blockParams = parseTreeBlockName(blockName);
+
+  // Use extended data with block name as fallback
+  const totalHeight = extData.treeSize ?? blockParams.height ?? 5;
+  const trunkDiameter = extData.trunkDiameter ?? blockParams.trunkDiameter ?? 0.25;
+  const crownDiameter = extData.topDiameter ?? blockParams.topWidth ?? 5;
+  const crownHeight = extData.topHeight ?? blockParams.topHeight ?? 5;
+
+  // Calculate trunk height (from ground to where crown starts)
+  // Crown center is at totalHeight, crown extends crownHeight/2 up and down
+  const trunkHeight = Math.max(0.5, totalHeight - crownHeight / 2);
+
+  // Determine tree type from block name
+  let treeType: TreeGeometry['treeType'] = 'simple';
+  if (blockName.toLowerCase().includes('conical') || blockName.toLowerCase().includes('cone')) {
+    treeType = 'conical';
+  }
+
+  return {
+    id: generateId(),
+    position: pos,
+    treeType,
+    trunkDiameter,
+    trunkHeight,
+    crownDiameter,
+    crownHeight,
+    totalHeight,
+    layer: entity.layer || '0',
+  };
+}
+
+/**
+ * Parse tree extended data from customStrings
+ */
+function parseTreeExtendedData(customStrings?: string[]): {
+  treeSize?: number;
+  trunkDiameter?: number;
+  topDiameter?: number;
+  topHeight?: number;
+  treeType?: string;
+} {
+  if (!customStrings || customStrings.length === 0) {
+    return {};
+  }
+
+  const result: {
+    treeSize?: number;
+    trunkDiameter?: number;
+    topDiameter?: number;
+    topHeight?: number;
+    treeType?: string;
+  } = {};
+
+  // Extended data comes as pairs: key name at odd indices, value at even indices
+  // We need to search through the array for known keys
+  for (let i = 0; i < customStrings.length - 1; i++) {
+    const key = customStrings[i];
+    const value = customStrings[i + 1];
+
+    if (key === 'PVCaseTreeSize') {
+      result.treeSize = parseFloat(value) || undefined;
+    } else if (key === 'PVCaseTreeTrunkDiameter') {
+      result.trunkDiameter = parseFloat(value) || undefined;
+    } else if (key === 'PVCaseTreeTopDiameter') {
+      result.topDiameter = parseFloat(value) || undefined;
+    } else if (key === 'PVCaseTreeTopHeight') {
+      result.topHeight = parseFloat(value) || undefined;
+    } else if (key === 'PVCaseTreeType') {
+      result.treeType = value;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Parse tree block name for parameters
+ * Format: "PVcase Simple Tree H5 TRUNK0.25 TOPWIDTH10 TOPHEIGHT10"
+ */
+function parseTreeBlockName(blockName: string): {
+  height?: number;
+  trunkDiameter?: number;
+  topWidth?: number;
+  topHeight?: number;
+} {
+  const result: {
+    height?: number;
+    trunkDiameter?: number;
+    topWidth?: number;
+    topHeight?: number;
+  } = {};
+
+  // Extract height (H5 = 5 meters)
+  const heightMatch = blockName.match(/H(\d+(?:\.\d+)?)/i);
+  if (heightMatch) {
+    result.height = parseFloat(heightMatch[1]);
+  }
+
+  // Extract trunk diameter (TRUNK0.25)
+  const trunkMatch = blockName.match(/TRUNK(\d+(?:\.\d+)?)/i);
+  if (trunkMatch) {
+    result.trunkDiameter = parseFloat(trunkMatch[1]);
+  }
+
+  // Extract top width (TOPWIDTH10)
+  const topWidthMatch = blockName.match(/TOPWIDTH(\d+(?:\.\d+)?)/i);
+  if (topWidthMatch) {
+    result.topWidth = parseFloat(topWidthMatch[1]);
+  }
+
+  // Extract top height (TOPHEIGHT10)
+  const topHeightMatch = blockName.match(/TOPHEIGHT(\d+(?:\.\d+)?)/i);
+  if (topHeightMatch) {
+    result.topHeight = parseFloat(topHeightMatch[1]);
+  }
+
+  return result;
 }
 
 /**

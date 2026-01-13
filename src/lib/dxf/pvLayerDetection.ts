@@ -13,6 +13,7 @@ interface LayerClassificationResult {
   mounting: string[];
   electrical: string[];
   boundaries: string[];
+  vegetation: string[];
   terrain: string[];
   labels: string[];
   unknown: string[];
@@ -65,6 +66,14 @@ const BOUNDARY_PATTERNS = [
   /offset/i,
 ];
 
+const VEGETATION_PATTERNS = [
+  /trees?/i,
+  /vegetation/i,
+  /plant/i,
+  /forest/i,
+  /hedge/i,
+];
+
 const TERRAIN_PATTERNS = [
   /topograph/i,
   /terrain/i,
@@ -72,7 +81,6 @@ const TERRAIN_PATTERNS = [
   /elevation/i,
   /ground/i,
   /site/i,
-  /trees?/i,
   /shading/i,
 ];
 
@@ -115,6 +123,10 @@ export function classifyLayer(layerName: string): LayerClassification {
     return 'boundaries';
   }
 
+  if (VEGETATION_PATTERNS.some((p) => p.test(name))) {
+    return 'vegetation';
+  }
+
   if (TERRAIN_PATTERNS.some((p) => p.test(name))) {
     return 'terrain';
   }
@@ -135,6 +147,7 @@ export function classifyAllLayers(layerNames: string[]): LayerClassificationResu
     mounting: [],
     electrical: [],
     boundaries: [],
+    vegetation: [],
     terrain: [],
     labels: [],
     unknown: [],
@@ -182,6 +195,13 @@ export function isMountingLayer(layerName: string): boolean {
  */
 export function isBoundaryLayer(layerName: string): boolean {
   return classifyLayer(layerName) === 'boundaries';
+}
+
+/**
+ * Check if a layer contains vegetation (trees, etc.)
+ */
+export function isVegetationLayer(layerName: string): boolean {
+  return classifyLayer(layerName) === 'vegetation';
 }
 
 /**
