@@ -267,7 +267,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
             {isEditing
               ? 'Update the component specifications and pricing.'
               : isFromDesign
-              ? 'Complete the component details. Physical dimensions have been extracted from the design file.'
+              ? 'Enter manufacturer and model. Specifications can be added later.'
               : 'Add a PV module or inverter to your component library.'}
           </DialogDescription>
         </DialogHeader>

@@ -224,8 +224,8 @@ export function ImportFromDesignDialog({
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-amber-600 mt-2">
-                        You will need to enter: manufacturer, model, electrical specs, and pricing
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Manufacturer and model required. Specs can be added later.
                       </p>
                     </div>
                     {addedModules ? (
@@ -264,8 +264,8 @@ export function ImportFromDesignDialog({
                           <span className="font-medium">{extractedData.inverters.count.toLocaleString()} inverters</span>
                         </div>
                       </div>
-                      <p className="text-xs text-amber-600 mt-2">
-                        All specifications must be entered manually
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Manufacturer and model required. Specs can be added later.
                       </p>
                     </div>
                     {addedInverters ? (
