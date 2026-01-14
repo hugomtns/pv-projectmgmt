@@ -523,32 +523,53 @@ export function LineItemsManager({
                     <div className="border-t">
                       {items.length > 0 ? (
                         <ScrollArea className="w-full">
-                          <Table>
+                          <Table className="table-fixed w-full">
+                            {isCapexTab ? (
+                              <colgroup>
+                                <col className="w-auto" /> {/* Item Name - flexible */}
+                                <col className="w-[120px]" /> {/* Price/Item */}
+                                <col className="w-[110px]" /> {/* Qty */}
+                                <col className="w-[80px]" /> {/* Unit */}
+                                <col className="w-[120px]" /> {/* Subtotal */}
+                                <col className="w-[90px]" /> {/* Margin % */}
+                                <col className="w-[120px]" /> {/* Total */}
+                                <col className="w-[50px]" /> {/* Delete */}
+                              </colgroup>
+                            ) : (
+                              <colgroup>
+                                <col className="w-auto" /> {/* Item Name - flexible */}
+                                <col className="w-[100px]" /> {/* Unit */}
+                                <col className="w-[140px]" /> {/* Amount */}
+                                <col className="w-[50px]" /> {/* Delete */}
+                              </colgroup>
+                            )}
                             <TableHeader>
                               <TableRow className="bg-muted/30">
-                                <TableHead className="min-w-[200px]">Item Name</TableHead>
+                                <TableHead>Item Name</TableHead>
                                 {isCapexTab ? (
                                   <>
-                                    <TableHead className="text-right min-w-[100px]">Price/Item</TableHead>
-                                    <TableHead className="text-right min-w-[80px]">Qty</TableHead>
-                                    <TableHead className="min-w-[80px]">Unit</TableHead>
-                                    <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
-                                    <TableHead className="text-right min-w-[80px]">Margin %</TableHead>
-                                    <TableHead className="text-right min-w-[100px]">Total</TableHead>
+                                    <TableHead className="text-right">Price/Item</TableHead>
+                                    <TableHead className="text-right">Qty</TableHead>
+                                    <TableHead>Unit</TableHead>
+                                    <TableHead className="text-right">Subtotal</TableHead>
+                                    <TableHead className="text-right">Margin %</TableHead>
+                                    <TableHead className="text-right">Total</TableHead>
                                   </>
                                 ) : (
                                   <>
-                                    <TableHead className="min-w-[80px]">Unit</TableHead>
-                                    <TableHead className="text-right min-w-[120px]">Amount (€/year)</TableHead>
+                                    <TableHead>Unit</TableHead>
+                                    <TableHead className="text-right">Amount (€/yr)</TableHead>
                                   </>
                                 )}
-                                <TableHead className="w-[60px]"></TableHead>
+                                <TableHead></TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {items.map((item) => (
                                 <TableRow key={item.id}>
-                                  <TableCell className="font-medium">{item.name}</TableCell>
+                                  <TableCell className="font-medium truncate" title={item.name}>
+                                    {item.name}
+                                  </TableCell>
                                   {isCapexTab ? (
                                     <>
                                       <TableCell className="text-right font-mono text-sm">
@@ -566,10 +587,10 @@ export function LineItemsManager({
                                               parseFloat(e.target.value) || 0
                                             )
                                           }
-                                          className="w-20 h-8 text-right"
+                                          className="w-full h-8 text-right px-2"
                                         />
                                       </TableCell>
-                                      <TableCell className="text-muted-foreground text-sm">
+                                      <TableCell className="text-muted-foreground text-sm truncate" title={item.unit || '-'}>
                                         {item.unit || '-'}
                                       </TableCell>
                                       <TableCell className="text-right font-mono text-sm">
@@ -586,7 +607,7 @@ export function LineItemsManager({
                                             const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
                                             handleUpdateItemMargin(item.id, value);
                                           }}
-                                          className="w-16 h-8 text-right"
+                                          className="w-full h-8 text-right px-2"
                                           title={
                                             item.margin_percent !== undefined
                                               ? 'Custom margin (overrides global)'
@@ -600,7 +621,7 @@ export function LineItemsManager({
                                     </>
                                   ) : (
                                     <>
-                                      <TableCell className="text-muted-foreground text-sm">
+                                      <TableCell className="text-muted-foreground text-sm truncate" title={item.unit || '-'}>
                                         {item.unit || '-'}
                                       </TableCell>
                                       <TableCell className="text-right font-mono text-sm">
@@ -608,7 +629,7 @@ export function LineItemsManager({
                                       </TableCell>
                                     </>
                                   )}
-                                  <TableCell>
+                                  <TableCell className="text-center">
                                     <Button
                                       variant="ghost"
                                       size="icon"
