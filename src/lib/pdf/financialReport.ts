@@ -82,10 +82,17 @@ export class PDFReportGenerator {
   }
 
   /**
-   * Add chart section to PDF - always starts on a new page
+   * Add chart section to PDF
+   * @param title - Section title
+   * @param elementId - DOM element ID to capture
+   * @param targetHeight - Target height in mm (optional, for fitting multiple charts)
    * Returns true if chart was added, false if element not found
    */
-  private async addChartSection(title: string, elementId: string): Promise<boolean> {
+  private async addChartSection(
+    title: string,
+    elementId: string,
+    targetHeight?: number
+  ): Promise<boolean> {
     const element = document.getElementById(elementId);
     if (!element) {
       console.warn(`Element ${elementId} not found for PDF capture`);
@@ -97,17 +104,15 @@ export class PDFReportGenerator {
       return false;
     }
 
-    // Charts always start on a new page to prevent cutoff
-    this.startNewPage();
     this.addSectionHeader(title);
-
-    // Calculate proper aspect ratio from element dimensions
-    const rect = element.getBoundingClientRect();
-    const aspectRatio = rect.width / rect.height;
 
     // A4 width = 210mm, margins = 14mm each side, so available width = 182mm
     const pdfWidth = 182;
-    const pdfHeight = pdfWidth / aspectRatio;
+
+    // Use target height if provided, otherwise use a reasonable default
+    // Charts have fixed 350px height in HTML, typical screen width ~1000px
+    // Use a 2:1 aspect ratio as default which looks good in PDF
+    const pdfHeight = targetHeight || 90; // ~90mm gives good proportions
 
     this.doc.addImage(imgData, 'PNG', 14, this.currentY, pdfWidth, pdfHeight);
     this.currentY += pdfHeight + 10;
@@ -156,20 +161,33 @@ export class PDFReportGenerator {
     const fcfChartId = isMonthly ? 'monthly-fcf-chart' : 'yearly-fcf-chart';
     const viewLabel = isMonthly ? 'Monthly' : 'Yearly';
 
-    // Revenue chart (if requested)
-    if (options.includeRevenueChart !== false) {
-      await this.addChartSection(
-        `Revenue & Costs (${viewLabel})`,
-        revenueChartId
-      );
-    }
+    // Check which charts are requested
+    const includeRevenue = options.includeRevenueChart !== false;
+    const includeCashFlow = options.includeCashFlowChart !== false;
 
-    // Cash flow chart (if requested)
-    if (options.includeCashFlowChart !== false) {
-      await this.addChartSection(
-        `Cumulative Cash Flow to Equity (${viewLabel})`,
-        fcfChartId
-      );
+    // Both charts on the same page - use smaller height (100mm each)
+    // Single chart can be taller (120mm)
+    if (includeRevenue || includeCashFlow) {
+      this.startNewPage();
+
+      const bothCharts = includeRevenue && includeCashFlow;
+      const chartHeight = bothCharts ? 100 : 120;
+
+      if (includeRevenue) {
+        await this.addChartSection(
+          `Revenue & Costs (${viewLabel})`,
+          revenueChartId,
+          chartHeight
+        );
+      }
+
+      if (includeCashFlow) {
+        await this.addChartSection(
+          `Cumulative Cash Flow to Equity (${viewLabel})`,
+          fcfChartId,
+          chartHeight
+        );
+      }
     }
 
     // Yearly projections table on its own page
