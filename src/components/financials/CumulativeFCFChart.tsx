@@ -10,11 +10,13 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts';
-import type { YearlyData } from '@/lib/types/financial';
+import type { YearlyData, MonthlyDataPoint } from '@/lib/types/financial';
 
 interface CumulativeFCFChartProps {
   yearlyData: YearlyData;
   equityPaybackYears: number | null;
+  viewMode?: 'yearly' | 'monthly';
+  monthlyData?: MonthlyDataPoint[];
 }
 
 function formatCurrency(value: number): string {
@@ -27,16 +29,34 @@ function formatCurrency(value: number): string {
   return value.toFixed(0);
 }
 
-export function CumulativeFCFChart({ yearlyData, equityPaybackYears }: CumulativeFCFChartProps) {
-  const data = yearlyData.years.map((year, index) => ({
-    year: `Y${year}`,
-    yearNum: year,
-    fcf: yearlyData.fcf_to_equity[index],
-    cumulative: yearlyData.cumulative_fcf_to_equity[index],
-  }));
+export function CumulativeFCFChart({
+  yearlyData,
+  equityPaybackYears,
+  viewMode = 'yearly',
+  monthlyData,
+}: CumulativeFCFChartProps) {
+  // Prepare data based on view mode
+  const data = viewMode === 'yearly'
+    ? yearlyData.years.map((year, index) => ({
+        label: `Y${year}`,
+        yearNum: year,
+        fcf: yearlyData.fcf_to_equity[index],
+        cumulative: yearlyData.cumulative_fcf_to_equity[index],
+      }))
+    : (monthlyData || []).map((point) => ({
+        label: `${point.year}-${String(point.month).padStart(2, '0')}`,
+        yearNum: point.year + (point.month - 1) / 12,
+        fcf: point.fcf_to_equity,
+        cumulative: point.cumulative_fcf_to_equity,
+      }));
 
-  // Find the break-even point for visual indicator
-  const breakEvenYear = equityPaybackYears ? Math.ceil(equityPaybackYears) : null;
+  // Find the break-even point for visual indicator (only for yearly view)
+  const breakEvenLabel = viewMode === 'yearly' && equityPaybackYears
+    ? `Y${Math.ceil(equityPaybackYears)}`
+    : null;
+
+  // For monthly view, only show every 12th label to avoid crowding
+  const interval = viewMode === 'yearly' ? 4 : 11;
 
   return (
     <div className="h-[350px] w-full">
@@ -53,11 +73,11 @@ export function CumulativeFCFChart({ yearlyData, equityPaybackYears }: Cumulativ
           </defs>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
-            dataKey="year"
+            dataKey="label"
             tick={{ fontSize: 12 }}
             tickLine={false}
             axisLine={false}
-            interval={4}
+            interval={interval}
           />
           <YAxis
             tick={{ fontSize: 12 }}
@@ -84,9 +104,9 @@ export function CumulativeFCFChart({ yearlyData, equityPaybackYears }: Cumulativ
           {/* Zero line */}
           <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
           {/* Break-even indicator */}
-          {breakEvenYear && (
+          {breakEvenLabel && (
             <ReferenceLine
-              x={`Y${breakEvenYear}`}
+              x={breakEvenLabel}
               stroke="#22c55e"
               strokeWidth={2}
               strokeDasharray="5 5"

@@ -2,8 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { KeyMetricsCard } from './KeyMetricsCard';
 import { FinancingStructureCard } from './FinancingStructureCard';
-import { CashFlowCharts } from './CashFlowCharts';
-import { CashFlowTables } from './CashFlowTables';
+import { CashFlowAnalysis } from './CashFlowAnalysis';
 import type { ProjectResults } from '@/lib/types/financial';
 import { CheckCircle2, AlertTriangle, XCircle, Zap } from 'lucide-react';
 
@@ -151,19 +150,12 @@ export function FinancialResults({ results }: FinancialResultsProps) {
         summary={results.project_summary}
       />
 
-      {/* Cash Flow Charts */}
-      {results.yearly_data && (
-        <CashFlowCharts
-          yearlyData={results.yearly_data}
-          equityPaybackYears={results.key_metrics.equity_payback_years}
-        />
-      )}
-
-      {/* Cash Flow Tables */}
+      {/* Cash Flow Analysis (Charts + Tables with unified toggle) */}
       {results.yearly_data && results.monthly_data && (
-        <CashFlowTables
+        <CashFlowAnalysis
           yearlyData={results.yearly_data}
           monthlyData={results.monthly_data}
+          equityPaybackYears={results.key_metrics.equity_payback_years}
         />
       )}
     </div>

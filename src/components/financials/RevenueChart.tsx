@@ -8,10 +8,12 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import type { YearlyData } from '@/lib/types/financial';
+import type { YearlyData, MonthlyDataPoint } from '@/lib/types/financial';
 
 interface RevenueChartProps {
   yearlyData: YearlyData;
+  viewMode?: 'yearly' | 'monthly';
+  monthlyData?: MonthlyDataPoint[];
 }
 
 function formatCurrency(value: number): string {
@@ -24,13 +26,24 @@ function formatCurrency(value: number): string {
   return value.toFixed(0);
 }
 
-export function RevenueChart({ yearlyData }: RevenueChartProps) {
-  const data = yearlyData.years.map((year, index) => ({
-    year: `Y${year}`,
-    revenue: yearlyData.revenue[index],
-    omCosts: yearlyData.om_costs[index],
-    ebitda: yearlyData.ebitda[index],
-  }));
+export function RevenueChart({ yearlyData, viewMode = 'yearly', monthlyData }: RevenueChartProps) {
+  // Prepare data based on view mode
+  const data = viewMode === 'yearly'
+    ? yearlyData.years.map((year, index) => ({
+        label: `Y${year}`,
+        revenue: yearlyData.revenue[index],
+        omCosts: yearlyData.om_costs[index],
+        ebitda: yearlyData.ebitda[index],
+      }))
+    : (monthlyData || []).map((point) => ({
+        label: `${point.year}-${String(point.month).padStart(2, '0')}`,
+        revenue: point.revenue,
+        omCosts: point.om_costs,
+        ebitda: point.ebitda,
+      }));
+
+  // For monthly view, only show every 12th label to avoid crowding
+  const interval = viewMode === 'yearly' ? 4 : 11;
 
   return (
     <div className="h-[350px] w-full">
@@ -55,11 +68,11 @@ export function RevenueChart({ yearlyData }: RevenueChartProps) {
           </defs>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
           <XAxis
-            dataKey="year"
+            dataKey="label"
             tick={{ fontSize: 12 }}
             tickLine={false}
             axisLine={false}
-            interval={4}
+            interval={interval}
           />
           <YAxis
             tick={{ fontSize: 12 }}
