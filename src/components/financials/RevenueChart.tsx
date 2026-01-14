@@ -45,8 +45,11 @@ export function RevenueChart({ yearlyData, viewMode = 'yearly', monthlyData }: R
   // For monthly view, only show every 12th label to avoid crowding
   const interval = viewMode === 'yearly' ? 4 : 11;
 
+  // ID for PDF export capture - changes based on view mode
+  const chartId = viewMode === 'monthly' ? 'monthly-revenue-chart' : 'yearly-revenue-chart';
+
   return (
-    <div className="h-[350px] w-full">
+    <div id={chartId} className="h-[350px] w-full bg-background">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}

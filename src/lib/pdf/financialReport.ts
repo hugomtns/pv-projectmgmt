@@ -12,10 +12,10 @@ import type { ProjectResults, CostLineItem } from '@/lib/types/financial';
 import { formatCurrency, formatPercent, formatNumber, formatWithSuffix } from './formatter';
 
 export interface PDFExportOptions {
-  includeYearlyChart?: boolean;
+  includeRevenueChart?: boolean;
+  includeCashFlowChart?: boolean;
   includeYearlyTable?: boolean;
-  includeMonthlyChart?: boolean;
-  includeCostBreakdown?: boolean;
+  includeMonthlyView?: boolean;  // If true, uses monthly charts instead of yearly
 }
 
 // Colors for professional report styling
@@ -86,6 +86,12 @@ export class PDFReportGenerator {
    * Returns true if chart was added, false if element not found
    */
   private async addChartSection(title: string, elementId: string): Promise<boolean> {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      console.warn(`Element ${elementId} not found for PDF capture`);
+      return false;
+    }
+
     const imgData = await this.captureChartAsImage(elementId);
     if (!imgData) {
       return false;
@@ -95,10 +101,16 @@ export class PDFReportGenerator {
     this.startNewPage();
     this.addSectionHeader(title);
 
-    // Add image to PDF (A4 width = 210mm, margins = 14mm each side)
-    // Image width = 182mm, height proportional
-    this.doc.addImage(imgData, 'PNG', 14, this.currentY, 182, 100);
-    this.currentY += 110;
+    // Calculate proper aspect ratio from element dimensions
+    const rect = element.getBoundingClientRect();
+    const aspectRatio = rect.width / rect.height;
+
+    // A4 width = 210mm, margins = 14mm each side, so available width = 182mm
+    const pdfWidth = 182;
+    const pdfHeight = pdfWidth / aspectRatio;
+
+    this.doc.addImage(imgData, 'PNG', 14, this.currentY, pdfWidth, pdfHeight);
+    this.currentY += pdfHeight + 10;
     return true;
   }
 
@@ -132,24 +144,31 @@ export class PDFReportGenerator {
     this.ensureSpace(60);
     this.addFirstYearOperations(results.first_year_operations);
 
-    // Cost breakdown on its own page
-    if (options.includeCostBreakdown !== false && results.cost_items_breakdown) {
+    // Cost breakdown on its own page (always included if data exists)
+    if (results.cost_items_breakdown) {
       this.startNewPage();
       this.addCostBreakdown(results.cost_items_breakdown);
     }
 
-    // Charts - each on its own page
-    if (options.includeYearlyChart) {
+    // Determine chart IDs based on view mode
+    const isMonthly = options.includeMonthlyView === true;
+    const revenueChartId = isMonthly ? 'monthly-revenue-chart' : 'yearly-revenue-chart';
+    const fcfChartId = isMonthly ? 'monthly-fcf-chart' : 'yearly-fcf-chart';
+    const viewLabel = isMonthly ? 'Monthly' : 'Yearly';
+
+    // Revenue chart (if requested)
+    if (options.includeRevenueChart !== false) {
       await this.addChartSection(
-        'Cumulative Cash Flow to Equity (Yearly)',
-        'yearly-fcf-chart'
+        `Revenue & Costs (${viewLabel})`,
+        revenueChartId
       );
     }
 
-    if (options.includeMonthlyChart) {
+    // Cash flow chart (if requested)
+    if (options.includeCashFlowChart !== false) {
       await this.addChartSection(
-        'Cumulative Cash Flow to Equity (Monthly)',
-        'monthly-fcf-chart'
+        `Cumulative Cash Flow to Equity (${viewLabel})`,
+        fcfChartId
       );
     }
 

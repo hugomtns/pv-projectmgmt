@@ -31,10 +31,10 @@ export function ExportPDFDialog({
 }: ExportPDFDialogProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [options, setOptions] = useState<PDFExportOptions>({
-    includeYearlyChart: true,
+    includeRevenueChart: true,
+    includeCashFlowChart: true,
     includeYearlyTable: true,
-    includeMonthlyChart: false,
-    includeCostBreakdown: true,
+    includeMonthlyView: false,
   });
 
   const handleOptionChange = (key: keyof PDFExportOptions, value: boolean) => {
@@ -73,6 +73,32 @@ export function ExportPDFDialog({
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
               <Checkbox
+                id="revenue-chart"
+                checked={options.includeRevenueChart}
+                onCheckedChange={(checked) =>
+                  handleOptionChange('includeRevenueChart', checked === true)
+                }
+              />
+              <Label htmlFor="revenue-chart" className="cursor-pointer">
+                Revenue & Costs Chart
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="cashflow-chart"
+                checked={options.includeCashFlowChart}
+                onCheckedChange={(checked) =>
+                  handleOptionChange('includeCashFlowChart', checked === true)
+                }
+              />
+              <Label htmlFor="cashflow-chart" className="cursor-pointer">
+                Cumulative Cash Flow Chart
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <Checkbox
                 id="yearly-table"
                 checked={options.includeYearlyTable}
                 onCheckedChange={(checked) =>
@@ -86,49 +112,22 @@ export function ExportPDFDialog({
 
             <div className="flex items-center space-x-3">
               <Checkbox
-                id="yearly-chart"
-                checked={options.includeYearlyChart}
+                id="monthly-view"
+                checked={options.includeMonthlyView}
                 onCheckedChange={(checked) =>
-                  handleOptionChange('includeYearlyChart', checked === true)
+                  handleOptionChange('includeMonthlyView', checked === true)
                 }
               />
-              <Label htmlFor="yearly-chart" className="cursor-pointer">
-                Yearly Cash Flow Chart
+              <Label htmlFor="monthly-view" className="cursor-pointer">
+                Use Monthly View (instead of Yearly)
               </Label>
             </div>
-
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="monthly-chart"
-                checked={options.includeMonthlyChart}
-                onCheckedChange={(checked) =>
-                  handleOptionChange('includeMonthlyChart', checked === true)
-                }
-              />
-              <Label htmlFor="monthly-chart" className="cursor-pointer">
-                Monthly Cash Flow Chart
-              </Label>
-            </div>
-
-            {hasCostBreakdown && (
-              <div className="flex items-center space-x-3">
-                <Checkbox
-                  id="cost-breakdown"
-                  checked={options.includeCostBreakdown}
-                  onCheckedChange={(checked) =>
-                    handleOptionChange('includeCostBreakdown', checked === true)
-                  }
-                />
-                <Label htmlFor="cost-breakdown" className="cursor-pointer">
-                  CAPEX/OPEX Cost Breakdown
-                </Label>
-              </div>
-            )}
           </div>
 
           <p className="text-sm text-muted-foreground">
             The report will always include project summary, key metrics,
-            financing structure, and first year operations.
+            financing structure, first year operations, and assessment.
+            {hasCostBreakdown && ' Cost breakdown will be included automatically.'}
           </p>
         </div>
 
