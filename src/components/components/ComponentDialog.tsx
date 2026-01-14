@@ -135,48 +135,52 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
         setLinkedDesigns(prefilledData.linkedDesigns || []);
 
         if (prefilledData.type === 'module') {
-          // If from PAN file, use all extracted specs
+          // If from PAN file, use extracted specs only (no fake defaults)
           if (prefilledData.fromPVsyst && prefilledData.moduleSpecs) {
             const panSpecs = prefilledData.moduleSpecs;
             setModuleSpecs({
-              length: panSpecs.length ?? 2278,
-              width: panSpecs.width ?? 1134,
-              thickness: panSpecs.thickness ?? 30,
-              weight: panSpecs.weight ?? 28,
-              powerRating: panSpecs.powerRating ?? 580,
-              voc: panSpecs.voc ?? 51.5,
-              isc: panSpecs.isc ?? 14.35,
-              vmp: panSpecs.vmp ?? 43.2,
-              imp: panSpecs.imp ?? 13.43,
-              efficiency: panSpecs.efficiency ?? 22.5,
-              cellType: panSpecs.cellType ?? 'mono-Si',
-              cellCount: panSpecs.cellCount ?? 144,
-              bifacial: panSpecs.bifacial ?? false,
+              // Required fields - use extracted or 0
+              length: panSpecs.length ?? 0,
+              width: panSpecs.width ?? 0,
+              powerRating: panSpecs.powerRating ?? 0,
+              voc: panSpecs.voc ?? 0,
+              isc: panSpecs.isc ?? 0,
+              vmp: panSpecs.vmp ?? 0,
+              imp: panSpecs.imp ?? 0,
+              efficiency: panSpecs.efficiency ?? 0,
+              // Optional fields - use extracted or undefined
+              thickness: panSpecs.thickness,
+              weight: panSpecs.weight,
+              cellType: panSpecs.cellType,
+              cellCount: panSpecs.cellCount,
+              bifacial: panSpecs.bifacial,
               bifacialityFactor: panSpecs.bifacialityFactor,
-              tempCoeffPmax: panSpecs.tempCoeffPmax ?? -0.34,
-              tempCoeffVoc: panSpecs.tempCoeffVoc ?? -0.25,
-              tempCoeffIsc: panSpecs.tempCoeffIsc ?? 0.04,
+              tempCoeffPmax: panSpecs.tempCoeffPmax,
+              tempCoeffVoc: panSpecs.tempCoeffVoc,
+              tempCoeffIsc: panSpecs.tempCoeffIsc,
             });
           } else {
-            // Use extracted dimensions from DXF if available, otherwise defaults
+            // From DXF - only use extracted dimensions, everything else is 0/empty
             setModuleSpecs({
-              length: prefilledData.heightMm || 2278,
-              width: prefilledData.widthMm || 1134,
-              thickness: 30,
-              weight: 28,
-              powerRating: 580,
-              voc: 51.5,
-              isc: 14.35,
-              vmp: 43.2,
-              imp: 13.43,
-              efficiency: 22.5,
-              cellType: 'mono-Si',
-              cellCount: 144,
-              bifacial: true,
-              bifacialityFactor: 0.7,
-              tempCoeffPmax: -0.34,
-              tempCoeffVoc: -0.25,
-              tempCoeffIsc: 0.04,
+              // Required fields - only dimensions from DXF, rest is 0
+              length: prefilledData.heightMm || 0,
+              width: prefilledData.widthMm || 0,
+              powerRating: 0,
+              voc: 0,
+              isc: 0,
+              vmp: 0,
+              imp: 0,
+              efficiency: 0,
+              // Optional fields - all undefined (not extracted from DXF)
+              thickness: undefined,
+              weight: undefined,
+              cellType: undefined,
+              cellCount: undefined,
+              bifacial: undefined,
+              bifacialityFactor: undefined,
+              tempCoeffPmax: undefined,
+              tempCoeffVoc: undefined,
+              tempCoeffIsc: undefined,
             });
           }
         } else {
@@ -184,45 +188,50 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           if (prefilledData.fromPVsyst && prefilledData.inverterSpecs) {
             const ondSpecs = prefilledData.inverterSpecs;
             setInverterSpecs({
-              length: ondSpecs.length ?? 1055,
-              width: ondSpecs.width ?? 660,
-              height: ondSpecs.height ?? 2094,
-              weight: ondSpecs.weight ?? 1850,
-              maxDcPower: ondSpecs.maxDcPower ?? 5500,
-              maxDcVoltage: ondSpecs.maxDcVoltage ?? 1500,
-              mpptVoltageMin: ondSpecs.mpptVoltageMin ?? 860,
-              mpptVoltageMax: ondSpecs.mpptVoltageMax ?? 1300,
-              maxDcCurrent: ondSpecs.maxDcCurrent ?? 6500,
-              mpptCount: ondSpecs.mpptCount ?? 18,
-              stringsPerMppt: ondSpecs.stringsPerMppt ?? 24,
-              acPowerRating: ondSpecs.acPowerRating ?? 5000,
-              acVoltage: ondSpecs.acVoltage ?? 690,
-              acFrequency: ondSpecs.acFrequency ?? 50,
-              maxAcCurrent: ondSpecs.maxAcCurrent ?? 4184,
-              maxEfficiency: ondSpecs.maxEfficiency ?? 98.9,
-              euroEfficiency: ondSpecs.euroEfficiency ?? 98.7,
-              inverterType: ondSpecs.inverterType ?? 'central',
+              // Required fields - use extracted or 0
+              maxDcPower: ondSpecs.maxDcPower ?? 0,
+              maxDcVoltage: ondSpecs.maxDcVoltage ?? 0,
+              mpptVoltageMin: ondSpecs.mpptVoltageMin ?? 0,
+              mpptVoltageMax: ondSpecs.mpptVoltageMax ?? 0,
+              maxDcCurrent: ondSpecs.maxDcCurrent ?? 0,
+              mpptCount: ondSpecs.mpptCount ?? 0,
+              acPowerRating: ondSpecs.acPowerRating ?? 0,
+              acVoltage: ondSpecs.acVoltage ?? 0,
+              maxEfficiency: ondSpecs.maxEfficiency ?? 0,
+              // Optional fields - use extracted or undefined
+              length: ondSpecs.length,
+              width: ondSpecs.width,
+              height: ondSpecs.height,
+              weight: ondSpecs.weight,
+              stringsPerMppt: ondSpecs.stringsPerMppt,
+              acFrequency: ondSpecs.acFrequency,
+              maxAcCurrent: ondSpecs.maxAcCurrent,
+              euroEfficiency: ondSpecs.euroEfficiency,
+              inverterType: ondSpecs.inverterType,
             });
           } else {
+            // From DXF - no inverter specs can be extracted, all 0/empty
             setInverterSpecs({
-              length: 1055,
-              width: 660,
-              height: 2094,
-              weight: 1850,
-              maxDcPower: 5500,
-              maxDcVoltage: 1500,
-              mpptVoltageMin: 860,
-              mpptVoltageMax: 1300,
-              maxDcCurrent: 6500,
-              mpptCount: 18,
-              stringsPerMppt: 24,
-              acPowerRating: 5000,
-              acVoltage: 690,
-              acFrequency: 50,
-              maxAcCurrent: 4184,
-              maxEfficiency: 98.9,
-              euroEfficiency: 98.7,
-              inverterType: 'central',
+              // Required fields - all 0
+              maxDcPower: 0,
+              maxDcVoltage: 0,
+              mpptVoltageMin: 0,
+              mpptVoltageMax: 0,
+              maxDcCurrent: 0,
+              mpptCount: 0,
+              acPowerRating: 0,
+              acVoltage: 0,
+              maxEfficiency: 0,
+              // Optional fields - all undefined
+              length: undefined,
+              width: undefined,
+              height: undefined,
+              weight: undefined,
+              stringsPerMppt: undefined,
+              acFrequency: undefined,
+              maxAcCurrent: undefined,
+              euroEfficiency: undefined,
+              inverterType: undefined,
             });
           }
         }
