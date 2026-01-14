@@ -36,3 +36,23 @@ export const MILESTONE_STATUS_COLORS = {
   completed: '#22c55e', // Green
   overdue: '#ef4444',   // Red
 } as const;
+
+// Drawing annotation colors (used in DocumentViewer drawing toolbar)
+export const DRAWING_COLORS = [
+  '#EF4444', // red
+  '#F59E0B', // amber
+  '#22C55E', // green
+  '#3B82F6', // blue
+  '#8B5CF6', // purple
+  '#EC4899', // pink
+  '#000000', // black
+  '#FFFFFF', // white
+] as const;
+
+// Standard dialog sizes for consistent modal widths
+export const DIALOG_SIZES = {
+  sm: 'sm:max-w-[400px]',  // Simple confirmations, single field
+  md: 'sm:max-w-[500px]',  // Standard forms (2-4 fields)
+  lg: 'sm:max-w-[600px]',  // Complex forms, with preview
+  xl: 'sm:max-w-[800px]',  // Multi-step, with side panel
+} as const;

@@ -4,31 +4,14 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Search, X, Loader2, Map, FileText } from 'lucide-react';
 import { LocationMapSheet } from './LocationMapSheet';
 import { MapContainer, TileLayer, Marker, Rectangle } from 'react-leaflet';
-import { LatLng, LatLngBounds, Icon } from 'leaflet';
+import { LatLng } from 'leaflet';
 import type { GPSCoordinates } from '@/lib/types';
-
-// Fix for default marker icon in react-leaflet
-const defaultIcon = new Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-// Calculate rectangle bounds from center and size in meters
-function calculateBounds(center: LatLng, sizeMeters: number): LatLngBounds {
-  const metersPerDegreeLat = 111139;
-  const metersPerDegreeLon = 111139 * Math.cos(center.lat * Math.PI / 180);
-  const halfSizeLat = (sizeMeters / 2) / metersPerDegreeLat;
-  const halfSizeLon = (sizeMeters / 2) / metersPerDegreeLon;
-  return new LatLngBounds(
-    [center.lat - halfSizeLat, center.lng - halfSizeLon],
-    [center.lat + halfSizeLat, center.lng + halfSizeLon]
-  );
-}
+import {
+  DEFAULT_LEAFLET_ICON,
+  DEFAULT_GROUND_SIZE,
+  calculateBounds,
+  type NominatimResult,
+} from '@/lib/geo-utils';
 
 interface LocationPickerProps {
   value?: GPSCoordinates;
@@ -39,20 +22,13 @@ interface LocationPickerProps {
   extractedFromFile?: boolean;
 }
 
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-}
-
 /**
  * LocationPicker - Address search with geocoding using OpenStreetMap Nominatim
  * Users can search for an address and select from results to get GPS coordinates
  * Includes "Select on Map" button for precise location with interactive map
  * Shows inline map preview when coordinates are set (e.g., extracted from DXF)
  */
-export function LocationPicker({ value, onChange, groundSize = 400, onGroundSizeChange, extractedFromFile }: LocationPickerProps) {
+export function LocationPicker({ value, onChange, groundSize = DEFAULT_GROUND_SIZE, onGroundSizeChange, extractedFromFile }: LocationPickerProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -208,7 +184,7 @@ export function LocationPicker({ value, onChange, groundSize = 400, onGroundSize
                 <TileLayer
                   url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                 />
-                <Marker position={mapPosition} icon={defaultIcon} />
+                <Marker position={mapPosition} icon={DEFAULT_LEAFLET_ICON} />
                 <Rectangle
                   bounds={rectangleBounds}
                   pathOptions={{

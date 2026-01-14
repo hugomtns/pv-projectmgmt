@@ -5,21 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { MapContainer, TileLayer, Marker, Rectangle, useMap, useMapEvents } from 'react-leaflet';
-import { LatLng, LatLngBounds, Icon } from 'leaflet';
+import { LatLng } from 'leaflet';
 import { Search, Loader2, MapPin, Satellite, Map } from 'lucide-react';
 import type { GPSCoordinates } from '@/lib/types';
+import {
+  DEFAULT_LEAFLET_ICON,
+  DEFAULT_GROUND_SIZE,
+  DEFAULT_MAP_CENTER,
+  calculateBounds,
+  type NominatimResult,
+} from '@/lib/geo-utils';
 import 'leaflet/dist/leaflet.css';
-
-// Fix for default marker icon in react-leaflet
-const defaultIcon = new Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
 
 interface LocationMapSheetProps {
   open: boolean;
@@ -27,13 +23,6 @@ interface LocationMapSheetProps {
   initialCoordinates?: GPSCoordinates;
   initialGroundSize?: number;
   onConfirm: (coordinates: GPSCoordinates, groundSizeMeters: number) => void;
-}
-
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
 }
 
 // Component to handle map center updates
@@ -73,7 +62,7 @@ function DraggableMarker({
       eventHandlers={eventHandlers}
       position={position}
       ref={markerRef}
-      icon={defaultIcon}
+      icon={DEFAULT_LEAFLET_ICON}
     />
   );
 }
@@ -88,34 +77,17 @@ function MapClickHandler({ onMapClick }: { onMapClick: (latlng: LatLng) => void 
   return null;
 }
 
-// Calculate rectangle bounds from center and size in meters
-function calculateBounds(center: LatLng, sizeMeters: number): LatLngBounds {
-  // Approximate meters per degree at the equator
-  // 1 degree latitude ≈ 111,139 meters
-  // 1 degree longitude varies with latitude
-  const metersPerDegreeLat = 111139;
-  const metersPerDegreeLon = 111139 * Math.cos(center.lat * Math.PI / 180);
-
-  const halfSizeLat = (sizeMeters / 2) / metersPerDegreeLat;
-  const halfSizeLon = (sizeMeters / 2) / metersPerDegreeLon;
-
-  return new LatLngBounds(
-    [center.lat - halfSizeLat, center.lng - halfSizeLon],
-    [center.lat + halfSizeLat, center.lng + halfSizeLon]
-  );
-}
-
 export function LocationMapSheet({
   open,
   onOpenChange,
   initialCoordinates,
-  initialGroundSize = 400,
+  initialGroundSize = DEFAULT_GROUND_SIZE,
   onConfirm,
 }: LocationMapSheetProps) {
   // Default to a generic location if no initial coordinates
   const defaultCenter = new LatLng(
-    initialCoordinates?.latitude ?? 37.7749,
-    initialCoordinates?.longitude ?? -122.4194
+    initialCoordinates?.latitude ?? DEFAULT_MAP_CENTER.latitude,
+    initialCoordinates?.longitude ?? DEFAULT_MAP_CENTER.longitude
   );
 
   const [markerPosition, setMarkerPosition] = useState<LatLng>(defaultCenter);
@@ -133,8 +105,8 @@ export function LocationMapSheet({
   useEffect(() => {
     if (open) {
       setMarkerPosition(new LatLng(
-        initialCoordinates?.latitude ?? 37.7749,
-        initialCoordinates?.longitude ?? -122.4194
+        initialCoordinates?.latitude ?? DEFAULT_MAP_CENTER.latitude,
+        initialCoordinates?.longitude ?? DEFAULT_MAP_CENTER.longitude
       ));
       setGroundSize(initialGroundSize);
     }
