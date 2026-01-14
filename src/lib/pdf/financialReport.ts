@@ -34,6 +34,27 @@ export class PDFReportGenerator {
   private doc!: jsPDF;
   private currentY: number = 20;
   private globalMargin: number = 0;
+  private readonly PAGE_HEIGHT = 297; // A4 height in mm
+  private readonly MARGIN_BOTTOM = 20;
+  private readonly MARGIN_TOP = 20;
+
+  /**
+   * Check if we need a new page and add one if necessary
+   */
+  private ensureSpace(neededHeight: number): void {
+    if (this.currentY + neededHeight > this.PAGE_HEIGHT - this.MARGIN_BOTTOM) {
+      this.doc.addPage();
+      this.currentY = this.MARGIN_TOP;
+    }
+  }
+
+  /**
+   * Start a new page
+   */
+  private startNewPage(): void {
+    this.doc.addPage();
+    this.currentY = this.MARGIN_TOP;
+  }
 
   /**
    * Capture chart as image using html2canvas
@@ -61,7 +82,7 @@ export class PDFReportGenerator {
   }
 
   /**
-   * Add chart section to PDF
+   * Add chart section to PDF - always starts on a new page
    * Returns true if chart was added, false if element not found
    */
   private async addChartSection(title: string, elementId: string): Promise<boolean> {
@@ -70,6 +91,8 @@ export class PDFReportGenerator {
       return false;
     }
 
+    // Charts always start on a new page to prevent cutoff
+    this.startNewPage();
     this.addSectionHeader(title);
 
     // Add image to PDF (A4 width = 210mm, margins = 14mm each side)
@@ -92,56 +115,52 @@ export class PDFReportGenerator {
       unit: 'mm',
       format: 'a4'
     });
-    this.currentY = 20;
+    this.currentY = this.MARGIN_TOP;
     this.globalMargin = globalMargin;
 
-    // Add all sections
+    // Page 1: Title + Project Summary + Key Metrics
     this.addTitle();
     this.addProjectSummary(results.project_summary);
+
+    // Check if Key Metrics fits, otherwise new page
+    this.ensureSpace(80);
     this.addKeyMetrics(results.key_metrics);
+
+    // Page 2: Financing Structure + First Year Operations
+    this.startNewPage();
     this.addFinancingStructure(results.financing_structure);
+    this.ensureSpace(60);
     this.addFirstYearOperations(results.first_year_operations);
 
-    // Conditional cost breakdown
+    // Cost breakdown on its own page
     if (options.includeCostBreakdown !== false && results.cost_items_breakdown) {
-      this.doc.addPage();
-      this.currentY = 20;
+      this.startNewPage();
       this.addCostBreakdown(results.cost_items_breakdown);
     }
 
-    // Add charts if requested and elements exist
+    // Charts - each on its own page
     if (options.includeYearlyChart) {
-      const chartAdded = await this.addChartSection(
+      await this.addChartSection(
         'Cumulative Cash Flow to Equity (Yearly)',
         'yearly-fcf-chart'
       );
-      if (chartAdded) {
-        this.doc.addPage();
-        this.currentY = 20;
-      }
     }
 
     if (options.includeMonthlyChart) {
-      const chartAdded = await this.addChartSection(
+      await this.addChartSection(
         'Cumulative Cash Flow to Equity (Monthly)',
         'monthly-fcf-chart'
       );
-      if (chartAdded) {
-        this.doc.addPage();
-        this.currentY = 20;
-      }
     }
 
-    // Add tables if requested (default behavior for yearly)
+    // Yearly projections table on its own page
     if (results.yearly_data && options.includeYearlyTable !== false) {
-      this.doc.addPage();
-      this.currentY = 20;
+      this.startNewPage();
       this.addYearlyProjections(results.yearly_data);
     }
 
-    // Assessment section
-    this.doc.addPage();
-    this.currentY = 20;
+    // Assessment section on its own page
+    this.startNewPage();
     this.addAssessment(results.assessment);
 
     return this.doc.output('blob');

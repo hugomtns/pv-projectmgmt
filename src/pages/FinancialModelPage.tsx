@@ -74,12 +74,6 @@ export function FinancialModelPage() {
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title={model?.name || `${project.name} - Financials`}>
         <div className="flex items-center gap-2">
-          {model?.results && (
-            <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
-              <FileDown className="mr-2 h-4 w-4" />
-              Export PDF
-            </Button>
-          )}
           <Button variant="ghost" size="sm" asChild>
             <Link to="/financials">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -119,19 +113,27 @@ export function FinancialModelPage() {
           ) : (
             // Model exists - show tabs with inputs and results
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="inputs" className="gap-2">
-                  <Settings className="h-4 w-4" />
-                  Inputs
-                </TabsTrigger>
-                <TabsTrigger value="results" className="gap-2" disabled={!model.results}>
-                  <BarChart3 className="h-4 w-4" />
-                  Results
-                  {!model.results && (
-                    <span className="text-xs text-muted-foreground ml-1">(Calculate first)</span>
-                  )}
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between">
+                <TabsList>
+                  <TabsTrigger value="inputs" className="gap-2">
+                    <Settings className="h-4 w-4" />
+                    Inputs
+                  </TabsTrigger>
+                  <TabsTrigger value="results" className="gap-2" disabled={!model.results}>
+                    <BarChart3 className="h-4 w-4" />
+                    Results
+                    {!model.results && (
+                      <span className="text-xs text-muted-foreground ml-1">(Calculate first)</span>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                {model.results && (
+                  <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export PDF
+                  </Button>
+                )}
+              </div>
 
               <TabsContent value="inputs" className="mt-6">
                 <FinancialInputForm
