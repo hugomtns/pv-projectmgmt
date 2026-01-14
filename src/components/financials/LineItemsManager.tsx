@@ -538,7 +538,7 @@ export function LineItemsManager({
                             ) : (
                               <colgroup>
                                 <col className="w-auto" /> {/* Item Name - flexible */}
-                                <col className="w-[90px]" /> {/* Unit - wider for longer unit names */}
+                                <col className="w-[120px]" /> {/* Unit - wider for longer unit names */}
                                 <col className="w-[130px]" /> {/* Amount */}
                                 <col className="w-[50px]" /> {/* Delete */}
                               </colgroup>
