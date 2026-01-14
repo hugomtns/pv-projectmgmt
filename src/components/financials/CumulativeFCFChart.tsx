@@ -52,6 +52,69 @@ export function CumulativeFCFChart({
         cumulative: point.cumulative_fcf_to_equity,
       }));
 
+  // Calculate synchronized Y-axis domains so zeros align at the same visual position
+  const fcfValues = data.map((d) => d.fcf);
+  const cumulativeValues = data.map((d) => d.cumulative);
+
+  const fcfDataMin = Math.min(...fcfValues);
+  const fcfDataMax = Math.max(...fcfValues);
+  const cumDataMin = Math.min(...cumulativeValues);
+  const cumDataMax = Math.max(...cumulativeValues);
+
+  // Include 0 in both ranges to ensure zero line is visible
+  const cumMin = Math.min(0, cumDataMin);
+  const cumMax = Math.max(0, cumDataMax);
+  const fcfMin = Math.min(0, fcfDataMin);
+  const fcfMax = Math.max(0, fcfDataMax);
+
+  // Calculate the zero position as a fraction from bottom for cumulative axis
+  const cumRange = cumMax - cumMin;
+  const zeroPosition = cumRange > 0 ? -cumMin / cumRange : 0.5;
+
+  // Calculate aligned FCF domain so zero is at the same visual position
+  let alignedFcfMin = fcfMin;
+  let alignedFcfMax = fcfMax;
+
+  if (zeroPosition > 0 && zeroPosition < 1) {
+    // Zero is somewhere in the middle - need to align
+    // zeroPosition = (0 - alignedFcfMin) / (alignedFcfMax - alignedFcfMin)
+    // Solve for the domain that puts zero at the same position while containing all data
+
+    if (fcfMax > 0 && fcfMin >= 0) {
+      // FCF is all positive - extend below zero to align
+      // totalRange = fcfMax / (1 - zeroPosition)
+      const totalRange = fcfMax / (1 - zeroPosition);
+      alignedFcfMin = -zeroPosition * totalRange;
+      alignedFcfMax = fcfMax;
+    } else if (fcfMin < 0 && fcfMax <= 0) {
+      // FCF is all negative - extend above zero to align
+      const totalRange = -fcfMin / zeroPosition;
+      alignedFcfMin = fcfMin;
+      alignedFcfMax = (1 - zeroPosition) * totalRange;
+    } else {
+      // FCF spans zero - adjust whichever side needs expansion
+      const currentFcfZeroPos = -fcfMin / (fcfMax - fcfMin);
+      if (currentFcfZeroPos < zeroPosition) {
+        // Need more negative range
+        const totalRange = fcfMax / (1 - zeroPosition);
+        alignedFcfMin = -zeroPosition * totalRange;
+      } else {
+        // Need more positive range
+        const totalRange = -fcfMin / zeroPosition;
+        alignedFcfMax = (1 - zeroPosition) * totalRange;
+      }
+    }
+  }
+
+  // Add proportional padding to maintain alignment
+  const paddingPercent = 0.1;
+  const cumPadding = cumRange * paddingPercent;
+  const fcfAlignedRange = alignedFcfMax - alignedFcfMin;
+  const fcfPadding = fcfAlignedRange * paddingPercent;
+
+  const fcfDomain: [number, number] = [alignedFcfMin - fcfPadding, alignedFcfMax + fcfPadding];
+  const cumDomain: [number, number] = [cumMin - cumPadding, cumMax + cumPadding];
+
   // Find the break-even point for visual indicator
   let breakEvenLabel: string | null = null;
   if (!isMonthly && equityPaybackYears) {
@@ -81,7 +144,7 @@ export function CumulativeFCFChart({
 
   return (
     <div id={chartId} className="h-[350px] w-full bg-background">
-      <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={200}>
+      <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={data}
           margin={{ top: 20, right: 60, left: 0, bottom: 0 }}
@@ -108,6 +171,7 @@ export function CumulativeFCFChart({
             tickLine={false}
             axisLine={false}
             tickFormatter={formatCurrency}
+            domain={fcfDomain}
           />
           {/* Right Y-axis for Cumulative FCF (area) */}
           <YAxis
@@ -117,6 +181,7 @@ export function CumulativeFCFChart({
             tickLine={false}
             axisLine={false}
             tickFormatter={formatCurrency}
+            domain={cumDomain}
           />
           <Tooltip
             formatter={(value, name) => [
@@ -134,8 +199,9 @@ export function CumulativeFCFChart({
               value === 'fcf' ? fcfLabel : 'Cumulative FCF'
             }
           />
-          {/* Zero line for FCF axis */}
+          {/* Zero line - applies to both axes since they're now synchronized */}
           <ReferenceLine yAxisId="fcf" y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+          <ReferenceLine yAxisId="cumulative" y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
           {/* Break-even indicator */}
           {breakEvenLabel && (
             <ReferenceLine
@@ -168,7 +234,6 @@ export function CumulativeFCFChart({
             strokeWidth={2}
             fillOpacity={1}
             fill="url(#colorCumulative)"
-            baseValue={0}
           />
         </ComposedChart>
       </ResponsiveContainer>

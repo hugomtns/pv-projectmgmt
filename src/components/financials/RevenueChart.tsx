@@ -50,7 +50,7 @@ export function RevenueChart({ yearlyData, viewMode = 'yearly', monthlyData }: R
 
   return (
     <div id={chartId} className="h-[350px] w-full bg-background">
-      <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={200}>
+      <ResponsiveContainer width="100%" height="100%">
         <AreaChart
           data={data}
           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
