@@ -29,7 +29,7 @@ export const seedRoles: CustomRole[] = [
     isSystem: true,
     permissions: {
       projects: fullAccess,
-      workflows: fullAccess,
+      workflows: readOnly,
       tasks: fullAccess,
       comments: fullAccess,
       user_management: readOnly,

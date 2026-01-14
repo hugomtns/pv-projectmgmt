@@ -15,6 +15,7 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { usePermission } from '@/hooks/usePermission';
 
 interface StageCardProps {
   stage: Stage;
@@ -25,6 +26,10 @@ interface StageCardProps {
 
 export function StageCard({ stage, index, onEdit, onDelete }: StageCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const canUpdateStage = usePermission('workflows', 'update');
+  const canDeleteStage = usePermission('workflows', 'delete');
+  const hasAnyEditPermission = canUpdateStage || canDeleteStage;
+
   const {
     attributes,
     listeners,
@@ -32,7 +37,7 @@ export function StageCard({ stage, index, onEdit, onDelete }: StageCardProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: stage.id });
+  } = useSortable({ id: stage.id, disabled: !canUpdateStage });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -54,7 +59,7 @@ export function StageCard({ stage, index, onEdit, onDelete }: StageCardProps) {
             <div
               {...attributes}
               {...listeners}
-              className="flex items-center justify-center h-10 w-10 rounded-full bg-muted text-sm font-semibold shrink-0 cursor-grab active:cursor-grabbing"
+              className={`flex items-center justify-center h-10 w-10 rounded-full bg-muted text-sm font-semibold shrink-0 ${canUpdateStage ? 'cursor-grab active:cursor-grabbing' : ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               {index + 1}
@@ -83,22 +88,28 @@ export function StageCard({ stage, index, onEdit, onDelete }: StageCardProps) {
               )}
             </div>
 
-            {/* Actions */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                  •••
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit}>
-                  Edit Stage
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                  Delete Stage
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Actions - only show if user has edit permissions */}
+            {hasAnyEditPermission && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                    •••
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canUpdateStage && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      Edit Stage
+                    </DropdownMenuItem>
+                  )}
+                  {canDeleteStage && (
+                    <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                      Delete Stage
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </CollapsibleTrigger>
 
@@ -107,7 +118,9 @@ export function StageCard({ stage, index, onEdit, onDelete }: StageCardProps) {
           <div className="border-t border-border bg-muted/30 p-4">
             {stage.taskTemplates.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No task templates. Click "Edit Stage" to add tasks.
+                {canUpdateStage
+                  ? 'No task templates. Click "Edit Stage" to add tasks.'
+                  : 'No task templates defined for this stage.'}
               </p>
             ) : (
               <div className="space-y-2">
