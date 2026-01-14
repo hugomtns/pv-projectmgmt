@@ -110,11 +110,13 @@ const Turntable2DControls = forwardRef<Turntable2DControlsRef, Turntable2DContro
         const cos = Math.cos(azimuth.current);
         const sin = Math.sin(azimuth.current);
 
-        const panX = deltaX * 0.3 * zoomScale;
-        const panY = deltaY * 0.3 * zoomScale;
+        // Pan speed: higher = faster panning
+        const panX = deltaX * 1.0 * zoomScale;
+        const panY = deltaY * 1.0 * zoomScale;
 
-        target.current.x -= panX * cos + panY * sin;
-        target.current.z -= -panX * sin + panY * cos;
+        // Use += so viewport follows mouse direction (drag right = see more right)
+        target.current.x += panX * cos + panY * sin;
+        target.current.z += -panX * sin + panY * cos;
 
         updateCamera();
       }
