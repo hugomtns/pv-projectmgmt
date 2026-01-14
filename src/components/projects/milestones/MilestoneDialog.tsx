@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ColorPicker } from './ColorPicker';
+import { ColorPicker } from '@/components/ui/color-picker';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -168,7 +168,11 @@ export function MilestoneDialog({ open, onOpenChange, projectId, milestone }: Mi
           {/* Color */}
           <div className="space-y-2">
             <Label>Color</Label>
-            <ColorPicker value={color} onChange={setColor} />
+            <ColorPicker
+              value={color}
+              onChange={setColor}
+              colors={MILESTONE_COLORS.map(c => ({ value: c.value, name: c.name }))}
+            />
           </div>
 
           {/* Completion Status (only when editing) */}
