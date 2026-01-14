@@ -211,11 +211,8 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
             {/* Toolbar */}
             <div className="border-b px-4 py-3 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onClose}>
-                        <X className="h-4 w-4" />
-                    </Button>
                     <div>
-                        <h2 className="font-semibold text-lg truncate max-w-md">{design.name}</h2>
+                        <h2 className="font-semibold text-lg truncate max-w-md" title={design.name}>{design.name}</h2>
                         <div className="text-xs text-muted-foreground flex gap-2">
                             <span>{design.createdBy}</span>
                             <span>•</span>
@@ -243,33 +240,43 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     {/* Separator */}
                     <div className="w-px h-6 bg-border mx-1" />
 
-                    {/* Sidebar Toggles */}
-                    <Button
-                        variant={activeTab === 'comments' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setActiveTab(activeTab === 'comments' ? null : 'comments')}
-                    >
-                        <MessageSquare className="h-4 w-4" />
-                        Comments
-                    </Button>
-                    <Button
-                        variant={activeTab === 'history' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setActiveTab(activeTab === 'history' ? null : 'history')}
-                    >
-                        <History className="h-4 w-4" />
-                        History
-                    </Button>
-                    <Button
-                        variant={activeTab === 'workflow' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setActiveTab(activeTab === 'workflow' ? null : 'workflow')}
-                    >
-                        <Activity className="h-4 w-4" />
-                        Workflow
+                    {/* Panel Toggles */}
+                    <div className="flex items-center gap-1">
+                        <Button
+                            variant={activeTab === 'comments' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setActiveTab(activeTab === 'comments' ? null : 'comments')}
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                            Comments
+                        </Button>
+                        <Button
+                            variant={activeTab === 'history' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setActiveTab(activeTab === 'history' ? null : 'history')}
+                        >
+                            <History className="h-4 w-4" />
+                            History
+                        </Button>
+                        <Button
+                            variant={activeTab === 'workflow' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setActiveTab(activeTab === 'workflow' ? null : 'workflow')}
+                        >
+                            <Activity className="h-4 w-4" />
+                            Workflow
+                        </Button>
+                    </div>
+
+                    {/* Separator */}
+                    <div className="w-px h-6 bg-border mx-1" />
+
+                    {/* Close */}
+                    <Button variant="ghost" size="icon" onClick={onClose} title="Close">
+                        <X className="h-4 w-4" />
                     </Button>
                 </div>
             </div>

@@ -380,9 +380,9 @@ export function DocumentViewer({
           )}
 
           {/* Annotation & Drawing Mode */}
-          <div className="flex items-center gap-1 border-r pr-2">
+          <div className="flex items-center gap-1">
             <Button
-              variant={annotationMode ? 'default' : 'ghost'}
+              variant={annotationMode ? 'secondary' : 'ghost'}
               size="icon"
               onClick={() => {
                 setAnnotationMode(!annotationMode);
@@ -393,7 +393,7 @@ export function DocumentViewer({
               <MapPin className="h-4 w-4" />
             </Button>
             <Button
-              variant={showPins ? 'ghost' : 'default'}
+              variant={showPins ? 'ghost' : 'secondary'}
               size="icon"
               onClick={() => setShowPins(!showPins)}
               title={showPins ? 'Hide comment pins' : 'Show comment pins'}
@@ -401,7 +401,7 @@ export function DocumentViewer({
               {showPins ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             </Button>
             <Button
-              variant={drawingMode ? 'default' : 'ghost'}
+              variant={drawingMode ? 'secondary' : 'ghost'}
               size="icon"
               onClick={() => {
                 setDrawingMode(!drawingMode);
@@ -414,41 +414,54 @@ export function DocumentViewer({
             >
               <Pencil className="h-4 w-4" />
             </Button>
+          </div>
+
+          {/* Separator */}
+          <div className="w-px h-6 bg-border mx-1" />
+
+          {/* Panel Toggles */}
+          <div className="flex items-center gap-1">
             <Button
-              variant={showComments ? 'default' : 'ghost'}
-              size="icon"
+              variant={showComments ? 'secondary' : 'ghost'}
+              size="sm"
+              className="gap-2"
               onClick={() => setShowComments(!showComments)}
-              title="Toggle comments panel"
             >
               <MessageSquare className="h-4 w-4" />
+              Comments
             </Button>
             <Button
-              variant={showVersionHistory ? 'default' : 'ghost'}
-              size="icon"
+              variant={showVersionHistory ? 'secondary' : 'ghost'}
+              size="sm"
+              className="gap-2"
               onClick={() => setShowVersionHistory(!showVersionHistory)}
-              title="Toggle version history"
             >
               <History className="h-4 w-4" />
+              History
             </Button>
             <Button
-              variant={showWorkflowHistory ? 'default' : 'ghost'}
-              size="icon"
+              variant={showWorkflowHistory ? 'secondary' : 'ghost'}
+              size="sm"
+              className="gap-2"
               onClick={() => setShowWorkflowHistory(!showWorkflowHistory)}
-              title="Toggle workflow history"
             >
               <ListTodo className="h-4 w-4" />
+              Workflow
             </Button>
           </div>
 
+          {/* Separator */}
+          <div className="w-px h-6 bg-border mx-1" />
+
           {/* Zoom Controls */}
-          <div className="flex items-center gap-1 border-r pr-2">
-            <Button variant="ghost" size="icon" onClick={handleZoomOut}>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={handleZoomOut} title="Zoom out">
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleZoomIn}>
+            <Button variant="ghost" size="icon" onClick={handleZoomIn} title="Zoom in">
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleFitWidth}>
+            <Button variant="ghost" size="icon" onClick={handleFitWidth} title="Fit to width">
               <Maximize2 className="h-4 w-4" />
             </Button>
             {typeof zoom === 'number' && (
@@ -460,31 +473,39 @@ export function DocumentViewer({
 
           {/* Page Navigation */}
           {numPages > 1 && (
-            <div className="flex items-center gap-1 border-r pr-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToPrevPage}
-                disabled={currentPage <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm text-muted-foreground min-w-[5rem] text-center">
-                {currentPage} / {numPages}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToNextPage}
-                disabled={currentPage >= numPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            <>
+              <div className="w-px h-6 bg-border mx-1" />
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={goToPrevPage}
+                  disabled={currentPage <= 1}
+                  title="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground min-w-[5rem] text-center">
+                  {currentPage} / {numPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={goToNextPage}
+                  disabled={currentPage >= numPages}
+                  title="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
           )}
 
+          {/* Separator */}
+          <div className="w-px h-6 bg-border mx-1" />
+
           {/* Close */}
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} title="Close">
             <X className="h-4 w-4" />
           </Button>
         </div>
