@@ -81,8 +81,8 @@ export function LineItemsManager({
   const currentItems = isCapexTab ? capexItems : opexItems;
   const setCurrentItems = isCapexTab ? onCapexItemsChange : onOpexItemsChange;
 
-  // Get predefined categories
-  const predefinedCategories = isCapexTab
+  // Get predefined category order for sorting
+  const predefinedCategoryOrder = isCapexTab
     ? CAPEX_FIELDS.map((c) => c.title)
     : OPEX_FIELDS.map((c) => c.title);
   const customCategories = isCapexTab ? customCapexCategories : customOpexCategories;
@@ -99,15 +99,15 @@ export function LineItemsManager({
     return groups;
   }, [currentItems]);
 
-  // All categories: predefined + custom + any that have items
+  // Categories to display: only those with items OR custom (user-created) categories
+  // Does NOT include empty predefined categories
   const allCategories = useMemo(() => {
     const catSet = new Set<string>([
-      ...predefinedCategories,
-      ...customCategories,
-      ...Array.from(groupedItems.keys()),
+      ...customCategories, // User-created categories (shown even if empty)
+      ...Array.from(groupedItems.keys()), // Categories that have items
     ]);
     // Sort with predefined categories first in their original order, then custom, then others
-    const predefinedOrder = new Map(predefinedCategories.map((c, i) => [c, i]));
+    const predefinedOrder = new Map(predefinedCategoryOrder.map((c, i) => [c, i]));
     return Array.from(catSet).sort((a, b) => {
       const aOrder = predefinedOrder.get(a);
       const bOrder = predefinedOrder.get(b);
@@ -116,7 +116,7 @@ export function LineItemsManager({
       if (bOrder !== undefined) return 1;
       return a.localeCompare(b);
     });
-  }, [predefinedCategories, customCategories, groupedItems]);
+  }, [predefinedCategoryOrder, customCategories, groupedItems]);
 
   // Calculate item total with margin (CAPEX only)
   const calculateItemTotal = (item: CostLineItem): number => {
@@ -231,8 +231,8 @@ export function LineItemsManager({
     const trimmedName = newCategoryName.trim();
     if (!trimmedName) return;
 
-    // Check for duplicates (case-insensitive)
-    const allExisting = [...predefinedCategories, ...customCategories];
+    // Check for duplicates (case-insensitive) - check predefined, custom, and existing item categories
+    const allExisting = [...predefinedCategoryOrder, ...customCategories, ...Array.from(groupedItems.keys())];
     if (allExisting.some((c) => c.toLowerCase() === trimmedName.toLowerCase())) {
       return; // Already exists
     }
@@ -459,8 +459,16 @@ export function LineItemsManager({
         {allCategories.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No categories yet.</p>
-            <p className="text-sm">Add a category to start adding items.</p>
+            <p>No items yet.</p>
+            <p className="text-sm">Click "Add Example Data" or add items manually.</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => handleOpenAddDialog('Uncategorized')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add First Item
+            </Button>
           </div>
         ) : (
           allCategories.map((category) => {
@@ -640,6 +648,19 @@ export function LineItemsManager({
               </Collapsible>
             );
           })
+        )}
+
+        {/* General Add Item button when there are categories */}
+        {allCategories.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleOpenAddDialog('Uncategorized')}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
         )}
       </div>
     );
