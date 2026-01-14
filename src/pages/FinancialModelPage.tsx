@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { useFinancialStore } from '@/stores/financialStore';
@@ -5,8 +6,12 @@ import { useProjectStore } from '@/stores/projectStore';
 import { usePermission } from '@/hooks/usePermission';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FinancialInputForm } from '@/components/financials/FinancialInputForm';
-import { ArrowLeft, DollarSign, Plus } from 'lucide-react';
+import { FinancialResults } from '@/components/financials/FinancialResults';
+import { SolarFinanceCalculator } from '@/lib/calculator/calculator';
+import { ArrowLeft, DollarSign, Plus, Settings, BarChart3 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function FinancialModelPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -15,13 +20,38 @@ export function FinancialModelPage() {
 
   const financialModels = useFinancialStore((state) => state.financialModels);
   const addFinancialModel = useFinancialStore((state) => state.addFinancialModel);
+  const updateResults = useFinancialStore((state) => state.updateResults);
   const model = financialModels.find((m) => m.projectId === projectId);
 
   const canCreate = usePermission('financials', 'create');
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [activeTab, setActiveTab] = useState(model?.results ? 'results' : 'inputs');
 
   const handleCreateModel = () => {
     if (!projectId || !project) return;
     addFinancialModel(projectId, `${project.name} - Financial Model`);
+  };
+
+  const handleCalculate = () => {
+    if (!model) return;
+
+    setIsCalculating(true);
+    try {
+      const calculator = new SolarFinanceCalculator(model.inputs);
+      const results = calculator.calculate();
+      updateResults(model.id, results);
+      setActiveTab('results');
+      toast.success('Calculation complete', {
+        description: 'Financial metrics have been calculated successfully.',
+      });
+    } catch (error) {
+      console.error('Calculation error:', error);
+      toast.error('Calculation failed', {
+        description: error instanceof Error ? error.message : 'An error occurred during calculation.',
+      });
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   if (!project) {
@@ -76,8 +106,50 @@ export function FinancialModelPage() {
               </CardContent>
             </Card>
           ) : (
-            // Model exists - show input form
-            <FinancialInputForm modelId={model.id} inputs={model.inputs} />
+            // Model exists - show tabs with inputs and results
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="inputs" className="gap-2">
+                  <Settings className="h-4 w-4" />
+                  Inputs
+                </TabsTrigger>
+                <TabsTrigger value="results" className="gap-2" disabled={!model.results}>
+                  <BarChart3 className="h-4 w-4" />
+                  Results
+                  {!model.results && (
+                    <span className="text-xs text-muted-foreground ml-1">(Calculate first)</span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="inputs" className="mt-6">
+                <FinancialInputForm
+                  modelId={model.id}
+                  inputs={model.inputs}
+                  onCalculate={handleCalculate}
+                  isCalculating={isCalculating}
+                />
+              </TabsContent>
+
+              <TabsContent value="results" className="mt-6">
+                {model.results ? (
+                  <FinancialResults results={model.results} />
+                ) : (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No Results Yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Configure your inputs and click Calculate to see results.
+                      </p>
+                      <Button onClick={() => setActiveTab('inputs')}>
+                        Go to Inputs
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </div>
