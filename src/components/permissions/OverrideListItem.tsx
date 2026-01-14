@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Check, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { GroupPermissionOverride } from '@/lib/types/permission';
 import { getEntityTypeLabel, getEntityNames } from '@/lib/permissions/entityHelpers';
 
@@ -10,12 +12,16 @@ interface OverrideListItemProps {
 }
 
 export function OverrideListItem({ override, onDelete }: OverrideListItemProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const entityTypeLabel = getEntityTypeLabel(override.entityType);
 
   const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete this permission override for ${entityTypeLabel}?`)) {
-      onDelete();
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    onDelete();
+    setShowDeleteConfirm(false);
   };
 
   // Get granted permissions
@@ -86,6 +92,16 @@ export function OverrideListItem({ override, onDelete }: OverrideListItemProps) 
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        onConfirm={confirmDelete}
+        title="Delete Permission Override"
+        description={`Are you sure you want to delete this permission override for ${entityTypeLabel}?`}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }

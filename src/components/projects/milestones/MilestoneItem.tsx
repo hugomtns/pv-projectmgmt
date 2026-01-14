@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -16,14 +17,18 @@ interface MilestoneItemProps {
 
 export function MilestoneItem({ projectId, milestone, onEdit, canUpdate }: MilestoneItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const deleteMilestone = useProjectStore((state) => state.deleteMilestone);
   const toggleMilestoneComplete = useProjectStore((state) => state.toggleMilestoneComplete);
 
   const handleDelete = () => {
-    if (confirm(`Are you sure you want to delete milestone "${milestone.name}"?`)) {
-      setIsDeleting(true);
-      deleteMilestone(projectId, milestone.id);
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    setIsDeleting(true);
+    deleteMilestone(projectId, milestone.id);
+    setShowDeleteConfirm(false);
   };
 
   const handleToggleComplete = () => {
@@ -102,6 +107,16 @@ export function MilestoneItem({ projectId, milestone, onEdit, canUpdate }: Miles
           </Button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        onConfirm={confirmDelete}
+        title="Delete Milestone"
+        description={`Are you sure you want to delete milestone "${milestone.name}"?`}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }

@@ -5,9 +5,11 @@ import { useUserStore } from '@/stores/userStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +42,7 @@ export function ProjectDetail() {
   const project = projects.find((p) => p.id === selectedProjectId);
   const [selectedStageId, setSelectedStageId] = useState(project?.currentStageId || '');
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [moveBackStageId, setMoveBackStageId] = useState<string | null>(null);
 
   // Get document permissions
   const documentPermissions = getDocumentPermissions(
@@ -102,13 +105,20 @@ export function ProjectDetail() {
     if (!nextStage) return;
     const success = moveProjectToStage(project.id, nextStage.id);
     if (!success) {
-      alert('Cannot advance: Please complete all tasks in the current stage first.');
+      toast.error('Cannot advance', {
+        description: 'Please complete all tasks in the current stage first.',
+      });
     }
   };
 
   const handleMoveBack = (stageId: string) => {
-    if (confirm('Are you sure you want to move this project back to a previous stage?')) {
-      updateProject(project.id, { currentStageId: stageId });
+    setMoveBackStageId(stageId);
+  };
+
+  const confirmMoveBack = () => {
+    if (moveBackStageId) {
+      updateProject(project.id, { currentStageId: moveBackStageId });
+      setMoveBackStageId(null);
     }
   };
 
@@ -250,6 +260,15 @@ export function ProjectDetail() {
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         projectId={selectedProjectId || undefined}
+      />
+
+      <ConfirmDialog
+        open={!!moveBackStageId}
+        onOpenChange={(open) => !open && setMoveBackStageId(null)}
+        onConfirm={confirmMoveBack}
+        title="Move Project Back"
+        description="Are you sure you want to move this project back to a previous stage?"
+        confirmText="Move Back"
       />
     </Sheet>
   );

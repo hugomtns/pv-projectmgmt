@@ -8,6 +8,7 @@ import { useUserStore } from '@/stores/userStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { DocumentStatusBadge } from './DocumentStatusBadge';
 import { AnnotationLayer } from './AnnotationLayer';
 import { CommentPanel } from './CommentPanel';
@@ -92,6 +93,7 @@ export function DocumentViewer({
     page: number;
     color: HighlightColor;
   } | null>(null);
+  const [showClearDrawingsConfirm, setShowClearDrawingsConfirm] = useState(false);
 
   const addComment = useDocumentStore((state) => state.addComment);
   const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
@@ -280,9 +282,11 @@ export function DocumentViewer({
     }
   };
 
-  const handleClearAllDrawings = async () => {
-    if (!confirm('Clear all drawings on this document? This cannot be undone.')) return;
+  const handleClearAllDrawings = () => {
+    setShowClearDrawingsConfirm(true);
+  };
 
+  const confirmClearAllDrawings = async () => {
     const pageDrawings = await db.drawings
       .where('documentId')
       .equals(documentId)
@@ -291,6 +295,7 @@ export function DocumentViewer({
     for (const drawing of pageDrawings) {
       await deleteDrawing(drawing.id);
     }
+    setShowClearDrawingsConfirm(false);
   };
 
   // Lock management
@@ -659,6 +664,16 @@ export function DocumentViewer({
         pageNumber={(pendingHighlight?.page || pendingCommentLocation?.page) ?? 1}
         isHighlight={!!pendingHighlight}
         highlightColor={pendingHighlight?.color}
+      />
+
+      <ConfirmDialog
+        open={showClearDrawingsConfirm}
+        onOpenChange={setShowClearDrawingsConfirm}
+        onConfirm={confirmClearAllDrawings}
+        title="Clear All Drawings"
+        description="Clear all drawings on this document? This cannot be undone."
+        confirmText="Clear All"
+        variant="destructive"
       />
     </div>
   );

@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { UserSelectField } from '@/components/users/UserSelectField';
 import {
   DropdownMenu,
@@ -40,6 +41,7 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
   const documents = useDocumentStore((state) => state.documents);
 
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const project = projects.find((p) => p.id === projectId);
   const task = project?.stages[stageId]?.tasks.find((t) => t.id === taskId);
@@ -78,10 +80,13 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
   };
 
   const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this task?')) {
-      deleteTask(projectId, stageId, taskId);
-      onClose();
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    deleteTask(projectId, stageId, taskId);
+    setShowDeleteConfirm(false);
+    onClose();
   };
 
   const handleAddComment = (author: string, text: string) => {
@@ -241,6 +246,16 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         taskId={taskId || undefined}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        onConfirm={confirmDelete}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        confirmText="Delete"
+        variant="destructive"
       />
     </Sheet>
   );

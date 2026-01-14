@@ -3,6 +3,7 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface StageEditorProps {
   stageId: string | null;
@@ -30,6 +31,7 @@ export function StageEditor({ stageId, onClose }: StageEditorProps) {
   const [isAddingTemplate, setIsAddingTemplate] = useState(false);
   const [newTemplateTitle, setNewTemplateTitle] = useState('');
   const [newTemplateDescription, setNewTemplateDescription] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
 
   if (!stage || !stageId) return null;
 
@@ -55,8 +57,13 @@ export function StageEditor({ stageId, onClose }: StageEditorProps) {
   };
 
   const handleDeleteTemplate = (templateId: string, templateTitle: string) => {
-    if (confirm(`Delete task template "${templateTitle}"?`)) {
-      removeTaskTemplate(stageId, templateId);
+    setDeleteConfirm({ id: templateId, title: templateTitle });
+  };
+
+  const confirmDeleteTemplate = () => {
+    if (deleteConfirm) {
+      removeTaskTemplate(stageId, deleteConfirm.id);
+      setDeleteConfirm(null);
     }
   };
 
@@ -177,6 +184,16 @@ export function StageEditor({ stageId, onClose }: StageEditorProps) {
           </div>
         </div>
       </SheetContent>
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        onConfirm={confirmDeleteTemplate}
+        title="Delete Task Template"
+        description={`Are you sure you want to delete "${deleteConfirm?.title}"? This cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </Sheet>
   );
 }

@@ -6,6 +6,7 @@ import { StageCard } from '@/components/workflow/StageCard';
 import { StageEditor } from '@/components/workflow/StageEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { defaultWorkflow } from '@/data/seedData';
 import {
   DndContext,
@@ -34,6 +35,8 @@ export function WorkflowSettings() {
   const [isAdding, setIsAdding] = useState(false);
   const [newStageName, setNewStageName] = useState('');
   const [newStageColor, setNewStageColor] = useState(DEFAULT_COLORS[0]);
+  const [deleteStage, setDeleteStage] = useState<{ id: string; name: string } | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const canCreateStage = usePermission('workflows', 'create');
   const canUpdateWorkflow = usePermission('workflows', 'update');
@@ -50,8 +53,13 @@ export function WorkflowSettings() {
   };
 
   const handleDelete = (stageId: string, stageName: string) => {
-    if (confirm(`Are you sure you want to delete the "${stageName}" stage? This will affect the workflow for new projects.`)) {
-      removeStage(stageId);
+    setDeleteStage({ id: stageId, name: stageName });
+  };
+
+  const confirmDeleteStage = () => {
+    if (deleteStage) {
+      removeStage(deleteStage.id);
+      setDeleteStage(null);
     }
   };
 
@@ -83,14 +91,13 @@ export function WorkflowSettings() {
   };
 
   const handleResetToDefault = () => {
-    if (
-      confirm(
-        'Reset workflow to default?\n\nThis will restore the default 8-stage workflow. This change only affects new projects - existing projects will keep their current stage assignments.\n\nAre you sure you want to continue?'
-      )
-    ) {
-      resetToDefault();
-      useWorkflowStore.setState({ workflow: defaultWorkflow });
-    }
+    setShowResetConfirm(true);
+  };
+
+  const confirmResetToDefault = () => {
+    resetToDefault();
+    useWorkflowStore.setState({ workflow: defaultWorkflow });
+    setShowResetConfirm(false);
   };
 
   return (
@@ -227,6 +234,25 @@ export function WorkflowSettings() {
       <StageEditor
         stageId={editingStageId}
         onClose={() => setEditingStageId(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteStage}
+        onOpenChange={(open) => !open && setDeleteStage(null)}
+        onConfirm={confirmDeleteStage}
+        title="Delete Stage"
+        description={`Are you sure you want to delete the "${deleteStage?.name}" stage? This will affect the workflow for new projects.`}
+        confirmText="Delete"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        onConfirm={confirmResetToDefault}
+        title="Reset Workflow"
+        description="This will restore the default 8-stage workflow. This change only affects new projects - existing projects will keep their current stage assignments. Are you sure you want to continue?"
+        confirmText="Reset to Default"
       />
     </div>
   );

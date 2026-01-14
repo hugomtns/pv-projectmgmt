@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pencil, Trash2, ArrowUp, ArrowDown, ChevronsUpDown, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useUserStore } from '@/stores/userStore';
 import { useUserFilterStore } from '@/stores/userFilterStore';
 import { usePermission } from '@/hooks/usePermission';
@@ -34,6 +35,7 @@ export function UserList({ onEditUser }: UserListProps) {
   const canDeleteUser = usePermission('user_management', 'delete');
 
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<User | null>(null);
 
   const handleSort = (key: SortKey) => {
     setSortConfig(current => {
@@ -133,11 +135,16 @@ export function UserList({ onEditUser }: UserListProps) {
   });
 
   const handleDelete = (user: User) => {
-    if (window.confirm(`Are you sure you want to delete ${user.firstName} ${user.lastName}?`)) {
-      deleteUser(user.id);
+    setDeleteConfirm(user);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteUser(deleteConfirm.id);
       toast.success('User deleted', {
-        description: `${user.firstName} ${user.lastName} has been removed from the system.`,
+        description: `${deleteConfirm.firstName} ${deleteConfirm.lastName} has been removed from the system.`,
       });
+      setDeleteConfirm(null);
     }
   };
 
@@ -299,6 +306,16 @@ export function UserList({ onEditUser }: UserListProps) {
           </div>
         ))
       )}
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        onConfirm={confirmDelete}
+        title="Delete User"
+        description={`Are you sure you want to delete ${deleteConfirm?.firstName} ${deleteConfirm?.lastName}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Users, Pencil, Trash2, UserCog, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useUserStore } from '@/stores/userStore';
 import { usePermission } from '@/hooks/usePermission';
 import { toast } from 'sonner';
@@ -16,16 +18,22 @@ interface GroupListProps {
 export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }: GroupListProps) {
   const groups = useUserStore(state => state.groups);
   const deleteGroup = useUserStore(state => state.deleteGroup);
+  const [deleteConfirm, setDeleteConfirm] = useState<UserGroup | null>(null);
 
   const canUpdateGroup = usePermission('user_management', 'update');
   const canDeleteGroup = usePermission('user_management', 'delete');
 
   const handleDelete = (group: UserGroup) => {
-    if (window.confirm(`Are you sure you want to delete the group "${group.name}"? This will remove all members from the group.`)) {
-      deleteGroup(group.id);
+    setDeleteConfirm(group);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteGroup(deleteConfirm.id);
       toast.success('Group deleted', {
-        description: `${group.name} has been removed from the system.`,
+        description: `${deleteConfirm.name} has been removed from the system.`,
       });
+      setDeleteConfirm(null);
     }
   };
 
@@ -114,6 +122,16 @@ export function GroupList({ onEditGroup, onManageMembers, onManagePermissions }:
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        onConfirm={confirmDelete}
+        title="Delete Group"
+        description={`Are you sure you want to delete "${deleteConfirm?.name}"? This will remove all members from the group.`}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }
