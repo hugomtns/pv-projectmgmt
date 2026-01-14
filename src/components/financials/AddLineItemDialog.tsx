@@ -26,8 +26,8 @@ import {
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CostLineItem } from '@/lib/types/financial';
-import { ALL_CAPEX_FIELDS, getCapexItemCategory } from '@/data/capexFields';
-import { ALL_OPEX_FIELDS, getOpexItemCategory } from '@/data/opexFields';
+import { CAPEX_FIELDS, getCapexItemCategory } from '@/data/capexFields';
+import { OPEX_FIELDS, getOpexItemCategory } from '@/data/opexFields';
 import { DEFAULT_CAPEX_UNITS, DEFAULT_OPEX_UNITS } from '@/data/defaultUnits';
 
 interface AddLineItemDialogProps {
@@ -52,8 +52,21 @@ export function AddLineItemDialog({
   const [amount, setAmount] = useState('');
   const [comboboxOpen, setComboboxOpen] = useState(false);
 
-  const fields = isCapex ? ALL_CAPEX_FIELDS : ALL_OPEX_FIELDS;
+  const categorizedFields = isCapex ? CAPEX_FIELDS : OPEX_FIELDS;
   const defaultUnits = isCapex ? DEFAULT_CAPEX_UNITS : DEFAULT_OPEX_UNITS;
+
+  // Filter categories and fields based on search term
+  const filteredCategories = useMemo(() => {
+    const searchTerm = itemName.toLowerCase();
+    return categorizedFields
+      .map((cat) => ({
+        title: cat.title,
+        fields: cat.fields.filter((field) =>
+          field.toLowerCase().includes(searchTerm)
+        ),
+      }))
+      .filter((cat) => cat.fields.length > 0);
+  }, [categorizedFields, itemName]);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -182,7 +195,7 @@ export function AddLineItemDialog({
                     value={itemName}
                     onValueChange={handleItemNameChange}
                   />
-                  <CommandList>
+                  <CommandList className="max-h-[300px]">
                     <CommandEmpty>
                       <Button
                         variant="ghost"
@@ -194,13 +207,9 @@ export function AddLineItemDialog({
                         Use "{itemName}" as custom item
                       </Button>
                     </CommandEmpty>
-                    <CommandGroup>
-                      {fields
-                        .filter((field) =>
-                          field.toLowerCase().includes(itemName.toLowerCase())
-                        )
-                        .slice(0, 10)
-                        .map((field) => (
+                    {filteredCategories.map((category) => (
+                      <CommandGroup key={category.title} heading={category.title}>
+                        {category.fields.map((field) => (
                           <CommandItem
                             key={field}
                             value={field}
@@ -218,7 +227,8 @@ export function AddLineItemDialog({
                             {field}
                           </CommandItem>
                         ))}
-                    </CommandGroup>
+                      </CommandGroup>
+                    ))}
                   </CommandList>
                 </Command>
               </PopoverContent>

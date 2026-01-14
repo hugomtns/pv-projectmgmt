@@ -28,11 +28,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Package } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Package, FolderPlus, X } from 'lucide-react';
 import type { CostLineItem } from '@/lib/types/financial';
 import { AddLineItemDialog } from './AddLineItemDialog';
 import { generateCapexItems, generateOpexItems } from '@/lib/calculator/designGenerator';
+import { CAPEX_FIELDS } from '@/data/capexFields';
+import { OPEX_FIELDS } from '@/data/opexFields';
 
 interface LineItemsManagerProps {
   enabled: boolean;
@@ -62,10 +72,20 @@ export function LineItemsManager({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogCategory, setDialogCategory] = useState('');
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [customCapexCategories, setCustomCapexCategories] = useState<string[]>([]);
+  const [customOpexCategories, setCustomOpexCategories] = useState<string[]>([]);
 
   const isCapexTab = activeTab === 'capex';
   const currentItems = isCapexTab ? capexItems : opexItems;
   const setCurrentItems = isCapexTab ? onCapexItemsChange : onOpexItemsChange;
+
+  // Get predefined categories
+  const predefinedCategories = isCapexTab
+    ? CAPEX_FIELDS.map((c) => c.title)
+    : OPEX_FIELDS.map((c) => c.title);
+  const customCategories = isCapexTab ? customCapexCategories : customOpexCategories;
 
   // Group items by category
   const groupedItems = useMemo(() => {
@@ -79,7 +99,24 @@ export function LineItemsManager({
     return groups;
   }, [currentItems]);
 
-  const categories = Array.from(groupedItems.keys()).sort();
+  // All categories: predefined + custom + any that have items
+  const allCategories = useMemo(() => {
+    const catSet = new Set<string>([
+      ...predefinedCategories,
+      ...customCategories,
+      ...Array.from(groupedItems.keys()),
+    ]);
+    // Sort with predefined categories first in their original order, then custom, then others
+    const predefinedOrder = new Map(predefinedCategories.map((c, i) => [c, i]));
+    return Array.from(catSet).sort((a, b) => {
+      const aOrder = predefinedOrder.get(a);
+      const bOrder = predefinedOrder.get(b);
+      if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
+      if (aOrder !== undefined) return -1;
+      if (bOrder !== undefined) return 1;
+      return a.localeCompare(b);
+    });
+  }, [predefinedCategories, customCategories, groupedItems]);
 
   // Calculate item total with margin (CAPEX only)
   const calculateItemTotal = (item: CostLineItem): number => {
@@ -188,6 +225,42 @@ export function LineItemsManager({
       return items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
     }
     return items.reduce((sum, item) => sum + item.amount, 0);
+  };
+
+  const handleAddCategory = () => {
+    const trimmedName = newCategoryName.trim();
+    if (!trimmedName) return;
+
+    // Check for duplicates (case-insensitive)
+    const allExisting = [...predefinedCategories, ...customCategories];
+    if (allExisting.some((c) => c.toLowerCase() === trimmedName.toLowerCase())) {
+      return; // Already exists
+    }
+
+    if (isCapexTab) {
+      setCustomCapexCategories([...customCapexCategories, trimmedName]);
+    } else {
+      setCustomOpexCategories([...customOpexCategories, trimmedName]);
+    }
+
+    setNewCategoryName('');
+    setAddCategoryDialogOpen(false);
+  };
+
+  const handleDeleteCategory = (category: string) => {
+    // Only allow deleting custom categories that are empty
+    const items = groupedItems.get(category) || [];
+    if (items.length > 0) return; // Can't delete non-empty category
+
+    if (isCapexTab) {
+      setCustomCapexCategories(customCapexCategories.filter((c) => c !== category));
+    } else {
+      setCustomOpexCategories(customOpexCategories.filter((c) => c !== category));
+    }
+  };
+
+  const isCustomCategory = (category: string): boolean => {
+    return customCategories.includes(category);
   };
 
   return (
@@ -328,193 +401,246 @@ export function LineItemsManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Category Dialog */}
+      <Dialog open={addCategoryDialogOpen} onOpenChange={setAddCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Add Custom Category</DialogTitle>
+            <DialogDescription>
+              Create a new category for organizing {isCapexTab ? 'CAPEX' : 'OPEX'} items.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="category-name">Category Name</Label>
+              <Input
+                id="category-name"
+                placeholder="e.g., Contingencies"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddCategory();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddCategoryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddCategory} disabled={!newCategoryName.trim()}>
+              Add Category
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 
   function renderCategoryList() {
-    if (categories.length === 0) {
-      return (
-        <div className="text-center py-8 text-muted-foreground">
-          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p>No items yet.</p>
-          <p className="text-sm">Click "Add Example Data" or add items manually.</p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => handleOpenAddDialog('Uncategorized')}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add First Item
-          </Button>
-        </div>
-      );
-    }
-
     return (
       <div className="space-y-2">
-        {categories.map((category) => {
-          const items = groupedItems.get(category) || [];
-          const isCollapsed = collapsedCategories.has(category);
-          const categoryTotal = getCategoryTotal(items);
+        {/* Add Category Button */}
+        <div className="flex justify-end mb-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAddCategoryDialogOpen(true)}
+            className="gap-2"
+          >
+            <FolderPlus className="h-4 w-4" />
+            Add Category
+          </Button>
+        </div>
 
-          return (
-            <Collapsible
-              key={category}
-              open={!isCollapsed}
-              onOpenChange={() => toggleCategory(category)}
-            >
-              <div className="border rounded-lg">
-                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50">
-                  <div className="flex items-center gap-2">
-                    {isCollapsed ? (
-                      <ChevronRight className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                    <span className="font-medium">{category}</span>
-                    <span className="text-sm text-muted-foreground">
-                      ({items.length} {items.length === 1 ? 'item' : 'items'})
-                    </span>
-                  </div>
-                  <span className="font-semibold text-sm">
-                    {formatCurrency(categoryTotal)}
-                  </span>
-                </CollapsibleTrigger>
+        {allCategories.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No categories yet.</p>
+            <p className="text-sm">Add a category to start adding items.</p>
+          </div>
+        ) : (
+          allCategories.map((category) => {
+            const items = groupedItems.get(category) || [];
+            const isCollapsed = collapsedCategories.has(category);
+            const categoryTotal = getCategoryTotal(items);
+            const canDelete = isCustomCategory(category) && items.length === 0;
 
-                <CollapsibleContent>
-                  <div className="border-t">
-                    <ScrollArea className="w-full">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/30">
-                            <TableHead className="min-w-[200px]">Item Name</TableHead>
-                            {isCapexTab ? (
-                              <>
-                                <TableHead className="text-right min-w-[100px]">Price/Item</TableHead>
-                                <TableHead className="text-right min-w-[80px]">Qty</TableHead>
-                                <TableHead className="min-w-[80px]">Unit</TableHead>
-                                <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
-                                <TableHead className="text-right min-w-[80px]">Margin %</TableHead>
-                                <TableHead className="text-right min-w-[100px]">Total</TableHead>
-                              </>
-                            ) : (
-                              <>
-                                <TableHead className="min-w-[80px]">Unit</TableHead>
-                                <TableHead className="text-right min-w-[120px]">Amount (€/year)</TableHead>
-                              </>
-                            )}
-                            <TableHead className="w-[60px]"></TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {items.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell className="font-medium">{item.name}</TableCell>
-                              {isCapexTab ? (
-                                <>
-                                  <TableCell className="text-right font-mono text-sm">
-                                    {formatCurrency(item.unit_price || 0)}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="1"
-                                      value={item.quantity || 0}
-                                      onChange={(e) =>
-                                        handleUpdateItemQuantity(
-                                          item.id,
-                                          parseFloat(e.target.value) || 0
-                                        )
-                                      }
-                                      className="w-20 h-8 text-right"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-muted-foreground text-sm">
-                                    {item.unit || '-'}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono text-sm">
-                                    {formatCurrency(item.amount)}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      step="0.1"
-                                      value={item.margin_percent ?? globalMargin}
-                                      onChange={(e) => {
-                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
-                                        handleUpdateItemMargin(item.id, value);
-                                      }}
-                                      className="w-16 h-8 text-right"
-                                      title={
-                                        item.margin_percent !== undefined
-                                          ? 'Custom margin (overrides global)'
-                                          : 'Using global margin'
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono text-sm font-semibold">
-                                    {formatCurrency(calculateItemTotal(item))}
-                                  </TableCell>
-                                </>
-                              ) : (
-                                <>
-                                  <TableCell className="text-muted-foreground text-sm">
-                                    {item.unit || '-'}
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono text-sm">
-                                    {formatCurrency(item.amount)}
-                                  </TableCell>
-                                </>
-                              )}
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteItem(item.id)}
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                      <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
-
-                    {/* Add Item to Category Button */}
-                    <div className="p-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenAddDialog(category)}
-                        className="w-full justify-start text-muted-foreground hover:text-foreground"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Item to {category}
-                      </Button>
+            return (
+              <Collapsible
+                key={category}
+                open={!isCollapsed}
+                onOpenChange={() => toggleCategory(category)}
+              >
+                <div className="border rounded-lg">
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      {isCollapsed ? (
+                        <ChevronRight className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                      <span className="font-medium">{category}</span>
+                      <span className="text-sm text-muted-foreground">
+                        ({items.length} {items.length === 1 ? 'item' : 'items'})
+                      </span>
+                      {isCustomCategory(category) && (
+                        <span className="text-xs bg-muted px-1.5 py-0.5 rounded">Custom</span>
+                      )}
                     </div>
-                  </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-          );
-        })}
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm">
+                        {formatCurrency(categoryTotal)}
+                      </span>
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCategory(category);
+                          }}
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </CollapsibleTrigger>
 
-        {/* Add to Uncategorized */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleOpenAddDialog('Uncategorized')}
-          className="w-full"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </Button>
+                  <CollapsibleContent>
+                    <div className="border-t">
+                      {items.length > 0 ? (
+                        <ScrollArea className="w-full">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/30">
+                                <TableHead className="min-w-[200px]">Item Name</TableHead>
+                                {isCapexTab ? (
+                                  <>
+                                    <TableHead className="text-right min-w-[100px]">Price/Item</TableHead>
+                                    <TableHead className="text-right min-w-[80px]">Qty</TableHead>
+                                    <TableHead className="min-w-[80px]">Unit</TableHead>
+                                    <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
+                                    <TableHead className="text-right min-w-[80px]">Margin %</TableHead>
+                                    <TableHead className="text-right min-w-[100px]">Total</TableHead>
+                                  </>
+                                ) : (
+                                  <>
+                                    <TableHead className="min-w-[80px]">Unit</TableHead>
+                                    <TableHead className="text-right min-w-[120px]">Amount (€/year)</TableHead>
+                                  </>
+                                )}
+                                <TableHead className="w-[60px]"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {items.map((item) => (
+                                <TableRow key={item.id}>
+                                  <TableCell className="font-medium">{item.name}</TableCell>
+                                  {isCapexTab ? (
+                                    <>
+                                      <TableCell className="text-right font-mono text-sm">
+                                        {formatCurrency(item.unit_price || 0)}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          step="1"
+                                          value={item.quantity || 0}
+                                          onChange={(e) =>
+                                            handleUpdateItemQuantity(
+                                              item.id,
+                                              parseFloat(e.target.value) || 0
+                                            )
+                                          }
+                                          className="w-20 h-8 text-right"
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground text-sm">
+                                        {item.unit || '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono text-sm">
+                                        {formatCurrency(item.amount)}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          step="0.1"
+                                          value={item.margin_percent ?? globalMargin}
+                                          onChange={(e) => {
+                                            const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                            handleUpdateItemMargin(item.id, value);
+                                          }}
+                                          className="w-16 h-8 text-right"
+                                          title={
+                                            item.margin_percent !== undefined
+                                              ? 'Custom margin (overrides global)'
+                                              : 'Using global margin'
+                                          }
+                                        />
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono text-sm font-semibold">
+                                        {formatCurrency(calculateItemTotal(item))}
+                                      </TableCell>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <TableCell className="text-muted-foreground text-sm">
+                                        {item.unit || '-'}
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono text-sm">
+                                        {formatCurrency(item.amount)}
+                                      </TableCell>
+                                    </>
+                                  )}
+                                  <TableCell>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDeleteItem(item.id)}
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                          <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No items in this category yet.
+                        </div>
+                      )}
+
+                      {/* Add Item to Category Button */}
+                      <div className="p-2 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenAddDialog(category)}
+                          className="w-full justify-start text-muted-foreground hover:text-foreground"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item to {category}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })
+        )}
       </div>
     );
   }
