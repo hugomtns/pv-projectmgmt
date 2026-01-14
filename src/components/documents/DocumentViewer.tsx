@@ -33,7 +33,7 @@ import {
   EyeOff,
   Pencil,
   History,
-  ListTodo,
+  Activity,
   Lock,
   Unlock,
 } from 'lucide-react';
@@ -445,7 +445,7 @@ export function DocumentViewer({
               className="gap-2"
               onClick={() => setShowWorkflowHistory(!showWorkflowHistory)}
             >
-              <ListTodo className="h-4 w-4" />
+              <Activity className="h-4 w-4" />
               Workflow
             </Button>
           </div>
