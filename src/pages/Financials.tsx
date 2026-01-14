@@ -25,25 +25,49 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { DollarSign, Calculator, MoreHorizontal, Pencil, Trash2, Eye, ExternalLink } from 'lucide-react';
+import { DollarSign, Calculator, MoreHorizontal, Pencil, Trash2, Eye, ExternalLink, Plus } from 'lucide-react';
 
 export function Financials() {
   const navigate = useNavigate();
   const financialModels = useFinancialStore((state) => state.financialModels);
+  const addFinancialModel = useFinancialStore((state) => state.addFinancialModel);
   const deleteFinancialModel = useFinancialStore((state) => state.deleteFinancialModel);
   const projects = useProjectStore((state) => state.projects);
   const currentUser = useUserStore((state) => state.currentUser);
 
+  const canCreate = usePermission('financials', 'create');
   const canUpdate = usePermission('financials', 'update');
   const canDelete = usePermission('financials', 'delete');
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+
+  // Projects that don't have a financial model yet
+  const projectsWithoutModels = projects.filter(
+    (project) => !financialModels.some((model) => model.projectId === project.id)
+  );
 
   // Get project name for each model
   const modelsWithProjects = financialModels.map((model) => {
@@ -72,6 +96,19 @@ export function Financials() {
     setDeleteDialogOpen(false);
   };
 
+  const handleCreateModel = () => {
+    if (!selectedProjectId) return;
+    const project = projects.find((p) => p.id === selectedProjectId);
+    if (!project) return;
+
+    const modelId = addFinancialModel(selectedProjectId, `${project.name} - Financial Model`);
+    if (modelId) {
+      setCreateDialogOpen(false);
+      setSelectedProjectId('');
+      navigate(`/financials/${selectedProjectId}`);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -83,9 +120,17 @@ export function Financials() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Financial Models">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Calculator className="h-4 w-4" />
-          <span>Manage financial analysis for your projects</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <Calculator className="h-4 w-4" />
+            <span>Manage financial analysis for your projects</span>
+          </div>
+          {canCreate && projectsWithoutModels.length > 0 && (
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Financial Model
+            </Button>
+          )}
         </div>
       </Header>
 
@@ -224,6 +269,39 @@ export function Financials() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Financial Model</DialogTitle>
+            <DialogDescription>
+              Select a project to create a financial model for.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projectsWithoutModels.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateModel} disabled={!selectedProjectId}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
