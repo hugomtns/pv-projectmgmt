@@ -5,6 +5,7 @@ import type {
   ComponentType,
   ModuleSpecs,
   InverterSpecs,
+  DesignUsage,
 } from '@/lib/types/component';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
@@ -16,6 +17,7 @@ interface AddComponentData {
   specs: ModuleSpecs | InverterSpecs;
   unitPrice: number;
   currency?: string;
+  linkedDesigns?: DesignUsage[];
 }
 
 interface ComponentState {
@@ -26,6 +28,8 @@ interface ComponentState {
   addComponent: (type: ComponentType, data: AddComponentData) => string | undefined;
   updateComponent: (id: string, updates: Partial<Omit<Component, 'id' | 'type' | 'createdAt' | 'creatorId' | 'createdBy'>>) => void;
   deleteComponent: (id: string) => void;
+  linkToDesign: (componentId: string, designId: string, quantity: number) => void;
+  unlinkFromDesign: (componentId: string, designId: string) => void;
 
   // Helpers
   getComponentsByType: (type: ComponentType) => Component[];
@@ -72,6 +76,7 @@ export const useComponentStore = create<ComponentState>()(
           specs: data.specs,
           unitPrice: data.unitPrice,
           currency: data.currency || 'USD',
+          linkedDesigns: data.linkedDesigns || [],
           createdBy: userFullName,
           creatorId: currentUser.id,
           createdAt: now,
@@ -178,6 +183,50 @@ export const useComponentStore = create<ComponentState>()(
         }));
 
         toast.success('Component deleted');
+      },
+
+      linkToDesign: (componentId, designId, quantity) => {
+        const component = get().components.find((c) => c.id === componentId);
+        if (!component) return;
+
+        const linkedDesigns = component.linkedDesigns || [];
+        const existingIndex = linkedDesigns.findIndex((d) => d.designId === designId);
+
+        let updatedLinkedDesigns: DesignUsage[];
+        if (existingIndex >= 0) {
+          // Update existing link
+          updatedLinkedDesigns = linkedDesigns.map((d, i) =>
+            i === existingIndex ? { ...d, quantity } : d
+          );
+        } else {
+          // Add new link
+          updatedLinkedDesigns = [...linkedDesigns, { designId, quantity }];
+        }
+
+        set((state) => ({
+          components: state.components.map((c) =>
+            c.id === componentId
+              ? { ...c, linkedDesigns: updatedLinkedDesigns, updatedAt: new Date().toISOString() } as Component
+              : c
+          ),
+        }));
+      },
+
+      unlinkFromDesign: (componentId, designId) => {
+        const component = get().components.find((c) => c.id === componentId);
+        if (!component) return;
+
+        const linkedDesigns = (component.linkedDesigns || []).filter(
+          (d) => d.designId !== designId
+        );
+
+        set((state) => ({
+          components: state.components.map((c) =>
+            c.id === componentId
+              ? { ...c, linkedDesigns, updatedAt: new Date().toISOString() } as Component
+              : c
+          ),
+        }));
       },
 
       getComponentsByType: (type) => {

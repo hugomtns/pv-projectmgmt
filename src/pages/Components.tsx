@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { useComponentStore } from '@/stores/componentStore';
 import { useUserStore } from '@/stores/userStore';
+import { useDesignStore } from '@/stores/designStore';
+import { useProjectStore } from '@/stores/projectStore';
 import { usePermission } from '@/hooks/usePermission';
 import type { Component, ComponentType } from '@/lib/types/component';
 import { Button } from '@/components/ui/button';
@@ -92,7 +95,10 @@ export function Components() {
     setEditComponent(component);
   };
 
-  const handleImportFromDesign = (data: { type: 'module' | 'inverter'; manufacturer: string; model: string }) => {
+  const designs = useDesignStore((state) => state.designs);
+  const projects = useProjectStore((state) => state.projects);
+
+  const handleImportFromDesign = (data: { type: 'module' | 'inverter'; manufacturer: string; model: string; designId: string; quantity: number }) => {
     // Create component with pre-filled data and default specs
     const specs = data.type === 'module' ? DEFAULT_MODULE_SPECS : DEFAULT_INVERTER_SPECS;
     addComponent(data.type, {
@@ -101,6 +107,7 @@ export function Components() {
       unitPrice: 0,
       currency: 'USD',
       specs,
+      linkedDesigns: [{ designId: data.designId, quantity: data.quantity }],
     });
     // Don't close the dialog - allow multiple imports
   };
@@ -134,6 +141,23 @@ export function Components() {
       return <Box className="h-4 w-4 text-blue-500" />;
     }
     return <Zap className="h-4 w-4 text-amber-500" />;
+  };
+
+  // Get linked design info with project names
+  const getLinkedDesignInfo = (component: Component) => {
+    if (!component.linkedDesigns || component.linkedDesigns.length === 0) {
+      return [];
+    }
+    return component.linkedDesigns.map((link) => {
+      const design = designs.find((d) => d.id === link.designId);
+      const project = design ? projects.find((p) => p.id === design.projectId) : null;
+      return {
+        designId: link.designId,
+        designName: design?.name || 'Unknown Design',
+        projectName: project?.name || 'Unknown Project',
+        quantity: link.quantity,
+      };
+    });
   };
 
   return (
@@ -219,6 +243,7 @@ export function Components() {
                     <TableHead className="w-[220px]">Model</TableHead>
                     <TableHead>Key Spec</TableHead>
                     <TableHead>Dimensions</TableHead>
+                    <TableHead>Used In</TableHead>
                     <TableHead>Unit Price</TableHead>
                     <TableHead className="text-muted-foreground">Created</TableHead>
                     <TableHead className="w-[70px] text-right">Actions</TableHead>
@@ -232,6 +257,7 @@ export function Components() {
                       : component.specs.length && component.specs.width && component.specs.height
                       ? `${component.specs.length} x ${component.specs.width} x ${component.specs.height} mm`
                       : '-';
+                    const linkedDesignInfo = getLinkedDesignInfo(component);
 
                     return (
                       <TableRow key={component.id}>
@@ -252,6 +278,26 @@ export function Components() {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {dimensions}
+                        </TableCell>
+                        <TableCell>
+                          {linkedDesignInfo.length === 0 ? (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              {linkedDesignInfo.map((info) => (
+                                <Link
+                                  key={info.designId}
+                                  to={`/designs/${info.designId}`}
+                                  className="text-sm hover:underline"
+                                >
+                                  <span className="font-medium">{info.designName}</span>
+                                  <span className="text-muted-foreground ml-1">
+                                    ({info.quantity.toLocaleString()})
+                                  </span>
+                                </Link>
+                              ))}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           {formatCurrency(component.unitPrice, component.currency)}

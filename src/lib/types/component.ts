@@ -52,6 +52,12 @@ export interface InverterSpecs {
   inverterType?: string;    // 'string', 'central', 'micro'
 }
 
+// Design usage tracking
+export interface DesignUsage {
+  designId: string;
+  quantity: number;
+}
+
 // Base component interface
 interface BaseComponent {
   id: string;
@@ -61,6 +67,8 @@ interface BaseComponent {
   // Pricing
   unitPrice: number;        // $ per unit
   currency: string;         // 'USD' default
+  // Design usage - tracks which designs use this component
+  linkedDesigns?: DesignUsage[];
   // Metadata
   createdBy: string;
   creatorId: string;

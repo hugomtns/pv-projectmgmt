@@ -23,7 +23,7 @@ import { FileBox, Box, Zap, AlertCircle, Check, PlusCircle } from 'lucide-react'
 interface ImportFromDesignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (data: { type: 'module' | 'inverter'; manufacturer: string; model: string }) => void;
+  onImport: (data: { type: 'module' | 'inverter'; manufacturer: string; model: string; designId: string; quantity: number }) => void;
 }
 
 export function ImportFromDesignDialog({
@@ -61,23 +61,30 @@ export function ImportFromDesignDialog({
     if (!selectedDesign) return [];
 
     // These are example references that would typically be found in PVcase DXF exports
+    // Quantities are based on typical utility-scale project ratios
     return [
-      { type: 'module' as const, manufacturer: 'Trina Solar', model: 'TSM-DE21-580', source: 'PVcase layer: PV Modules' },
-      { type: 'inverter' as const, manufacturer: 'Huawei', model: 'SUN2000-330KTL', source: 'PVcase layer: Inverters' },
+      { type: 'module' as const, manufacturer: 'Trina Solar', model: 'TSM-DE21-580', source: 'PVcase layer: PV Modules', quantity: 45000 },
+      { type: 'inverter' as const, manufacturer: 'Huawei', model: 'SUN2000-330KTL', source: 'PVcase layer: Inverters', quantity: 12 },
     ];
   };
 
   const detectedComponents = getDetectedComponents();
 
-  const handleImport = (index: number, component: { type: 'module' | 'inverter'; manufacturer: string; model: string }) => {
-    onImport(component);
+  const handleImport = (index: number, component: { type: 'module' | 'inverter'; manufacturer: string; model: string; quantity: number }) => {
+    onImport({
+      ...component,
+      designId: selectedDesignId,
+    });
     setAddedComponents((prev) => new Set(prev).add(index));
   };
 
   const handleAddAll = () => {
     detectedComponents.forEach((comp, index) => {
       if (!addedComponents.has(index)) {
-        onImport(comp);
+        onImport({
+          ...comp,
+          designId: selectedDesignId,
+        });
       }
     });
     setAddedComponents(new Set(detectedComponents.map((_, i) => i)));
@@ -160,7 +167,7 @@ export function ImportFromDesignDialog({
                               {comp.manufacturer} {comp.model}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {comp.source}
+                              {comp.source} &middot; {comp.quantity.toLocaleString()} units
                             </div>
                           </div>
                         </div>
