@@ -168,6 +168,7 @@ export function CumulativeFCFChart({
             strokeWidth={2}
             fillOpacity={1}
             fill="url(#colorCumulative)"
+            baseValue={0}
           />
         </ComposedChart>
       </ResponsiveContainer>
