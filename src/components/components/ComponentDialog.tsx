@@ -5,6 +5,7 @@ import type {
   ComponentType,
   ModuleSpecs,
   InverterSpecs,
+  DesignUsage,
 } from '@/lib/types/component';
 import {
   Dialog,
@@ -25,25 +26,38 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { CELL_TYPES, INVERTER_TYPES, CURRENCIES } from '@/lib/types/component';
-import { Box, Zap } from 'lucide-react';
+import { Box, Zap, FileBox } from 'lucide-react';
+
+// Pre-filled data from design import
+export interface PrefilledComponentData {
+  type: 'module' | 'inverter';
+  linkedDesigns?: DesignUsage[];
+  // Module specs from DXF (mm)
+  widthMm?: number | null;
+  heightMm?: number | null;
+}
 
 interface ComponentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   component?: Component | null;
+  prefilledData?: PrefilledComponentData | null;
 }
 
-export function ComponentDialog({ open, onOpenChange, component }: ComponentDialogProps) {
+export function ComponentDialog({ open, onOpenChange, component, prefilledData }: ComponentDialogProps) {
   const addComponent = useComponentStore((state) => state.addComponent);
   const updateComponent = useComponentStore((state) => state.updateComponent);
 
   const isEditing = !!component;
+  const isFromDesign = !!prefilledData;
   const [componentType, setComponentType] = useState<ComponentType>('module');
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
   const [unitPrice, setUnitPrice] = useState(0);
   const [currency, setCurrency] = useState('USD');
+  const [linkedDesigns, setLinkedDesigns] = useState<DesignUsage[]>([]);
 
   // Module specs
   const [moduleSpecs, setModuleSpecs] = useState<ModuleSpecs>({
@@ -98,10 +112,63 @@ export function ComponentDialog({ open, onOpenChange, component }: ComponentDial
         setModel(component.model);
         setUnitPrice(component.unitPrice);
         setCurrency(component.currency);
+        setLinkedDesigns(component.linkedDesigns || []);
         if (component.type === 'module') {
           setModuleSpecs(component.specs as ModuleSpecs);
         } else {
           setInverterSpecs(component.specs as InverterSpecs);
+        }
+      } else if (prefilledData) {
+        // Importing from design - use prefilled data
+        setComponentType(prefilledData.type);
+        setManufacturer('');
+        setModel('');
+        setUnitPrice(0);
+        setCurrency('USD');
+        setLinkedDesigns(prefilledData.linkedDesigns || []);
+
+        if (prefilledData.type === 'module') {
+          // Use extracted dimensions if available, otherwise defaults
+          setModuleSpecs({
+            length: prefilledData.heightMm || 2278,
+            width: prefilledData.widthMm || 1134,
+            thickness: 30,
+            weight: 28,
+            powerRating: 580,
+            voc: 51.5,
+            isc: 14.35,
+            vmp: 43.2,
+            imp: 13.43,
+            efficiency: 22.5,
+            cellType: 'mono-Si',
+            cellCount: 144,
+            bifacial: true,
+            bifacialityFactor: 0.7,
+            tempCoeffPmax: -0.34,
+            tempCoeffVoc: -0.25,
+            tempCoeffIsc: 0.04,
+          });
+        } else {
+          setInverterSpecs({
+            length: 1055,
+            width: 660,
+            height: 2094,
+            weight: 1850,
+            maxDcPower: 5500,
+            maxDcVoltage: 1500,
+            mpptVoltageMin: 860,
+            mpptVoltageMax: 1300,
+            maxDcCurrent: 6500,
+            mpptCount: 18,
+            stringsPerMppt: 24,
+            acPowerRating: 5000,
+            acVoltage: 690,
+            acFrequency: 50,
+            maxAcCurrent: 4184,
+            maxEfficiency: 98.9,
+            euroEfficiency: 98.7,
+            inverterType: 'central',
+          });
         }
       } else {
         // Creating new component - reset to defaults
@@ -110,6 +177,7 @@ export function ComponentDialog({ open, onOpenChange, component }: ComponentDial
         setModel('');
         setUnitPrice(0);
         setCurrency('USD');
+        setLinkedDesigns([]);
         setModuleSpecs({
           length: 2278,
           width: 1134,
@@ -151,7 +219,7 @@ export function ComponentDialog({ open, onOpenChange, component }: ComponentDial
         });
       }
     }
-  }, [open, component]);
+  }, [open, component, prefilledData]);
 
   const handleSubmit = () => {
     if (!manufacturer.trim() || !model.trim()) return;
@@ -173,6 +241,7 @@ export function ComponentDialog({ open, onOpenChange, component }: ComponentDial
         unitPrice,
         currency,
         specs,
+        linkedDesigns,
       });
     }
 
@@ -192,18 +261,30 @@ export function ComponentDialog({ open, onOpenChange, component }: ComponentDial
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Edit Component' : 'Add New Component'}
+            {isEditing ? 'Edit Component' : isFromDesign ? 'Add Component from Design' : 'Add New Component'}
           </DialogTitle>
           <DialogDescription>
             {isEditing
               ? 'Update the component specifications and pricing.'
+              : isFromDesign
+              ? 'Complete the component details. Physical dimensions have been extracted from the design file.'
               : 'Add a PV module or inverter to your component library.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Component Type Selection - only for new components */}
-          {!isEditing && (
+          {/* Import from design info */}
+          {isFromDesign && (
+            <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <FileBox className="h-4 w-4 text-blue-500" />
+              <span className="text-sm">
+                Importing from design with {linkedDesigns[0]?.quantity.toLocaleString()} {componentType === 'module' ? 'modules' : 'inverters'}
+              </span>
+            </div>
+          )}
+
+          {/* Component Type Selection - only for new components without prefill */}
+          {!isEditing && !isFromDesign && (
             <div className="space-y-2">
               <Label>Component Type</Label>
               <div className="flex gap-4">
@@ -225,6 +306,28 @@ export function ComponentDialog({ open, onOpenChange, component }: ComponentDial
                   <Zap className="h-4 w-4" />
                   Inverter
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Show locked type when from design */}
+          {!isEditing && isFromDesign && (
+            <div className="space-y-2">
+              <Label>Component Type</Label>
+              <div className="flex gap-4">
+                <Badge variant="secondary" className="gap-2 px-4 py-2">
+                  {componentType === 'module' ? (
+                    <>
+                      <Box className="h-4 w-4" />
+                      PV Module
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4" />
+                      Inverter
+                    </>
+                  )}
+                </Badge>
               </div>
             </div>
           )}

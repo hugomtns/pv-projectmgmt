@@ -35,10 +35,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Box, Cpu, MoreHorizontal, Pencil, Trash2, Plus, Zap, Upload, FileBox } from 'lucide-react';
-import { ComponentDialog } from '@/components/components/ComponentDialog';
-import { ImportFromDesignDialog } from '@/components/components/ImportFromDesignDialog';
+import { ComponentDialog, type PrefilledComponentData } from '@/components/components/ComponentDialog';
+import { ImportFromDesignDialog, type ImportedComponentData } from '@/components/components/ImportFromDesignDialog';
 import { FileImportDialog } from '@/components/components/FileImportDialog';
-import { DEFAULT_MODULE_SPECS, DEFAULT_INVERTER_SPECS } from '@/lib/types/component';
 
 type FilterType = 'all' | ComponentType;
 
@@ -58,8 +57,7 @@ export function Components() {
   const [editComponent, setEditComponent] = useState<Component | null>(null);
   const [importFromDesignOpen, setImportFromDesignOpen] = useState(false);
   const [fileImportOpen, setFileImportOpen] = useState(false);
-
-  const addComponent = useComponentStore((state) => state.addComponent);
+  const [prefilledData, setPrefilledData] = useState<PrefilledComponentData | null>(null);
 
   // Filter components based on selected tab
   const filteredComponents = filter === 'all'
@@ -98,18 +96,16 @@ export function Components() {
   const designs = useDesignStore((state) => state.designs);
   const projects = useProjectStore((state) => state.projects);
 
-  const handleImportFromDesign = (data: { type: 'module' | 'inverter'; manufacturer: string; model: string; designId: string; quantity: number }) => {
-    // Create component with pre-filled data and default specs
-    const specs = data.type === 'module' ? DEFAULT_MODULE_SPECS : DEFAULT_INVERTER_SPECS;
-    addComponent(data.type, {
-      manufacturer: data.manufacturer,
-      model: data.model,
-      unitPrice: 0,
-      currency: 'USD',
-      specs,
+  const handleImportFromDesign = (data: ImportedComponentData) => {
+    // Set prefilled data and open component dialog
+    setPrefilledData({
+      type: data.type,
       linkedDesigns: [{ designId: data.designId, quantity: data.quantity }],
+      widthMm: data.widthMm,
+      heightMm: data.heightMm,
     });
-    // Don't close the dialog - allow multiple imports
+    setImportFromDesignOpen(false);
+    setCreateDialogOpen(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -375,9 +371,11 @@ export function Components() {
           if (!open) {
             setCreateDialogOpen(false);
             setEditComponent(null);
+            setPrefilledData(null);
           }
         }}
         component={editComponent}
+        prefilledData={prefilledData}
       />
 
       {/* Import from Design Dialog */}

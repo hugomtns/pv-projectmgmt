@@ -18,12 +18,26 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileBox, Box, Zap, AlertCircle, Check, PlusCircle } from 'lucide-react';
+import { FileBox, Box, Zap, AlertCircle, Loader2, Info } from 'lucide-react';
+import {
+  extractComponentsFromDesign,
+  type ExtractedComponentData,
+} from '@/lib/dxf/componentExtractor';
+
+export interface ImportedComponentData {
+  type: 'module' | 'inverter';
+  designId: string;
+  quantity: number;
+  // Pre-filled specs from DXF (modules only)
+  widthMm?: number | null;
+  heightMm?: number | null;
+  tiltAngle?: number | null;
+}
 
 interface ImportFromDesignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (data: { type: 'module' | 'inverter'; manufacturer: string; model: string; designId: string; quantity: number }) => void;
+  onImport: (data: ImportedComponentData) => void;
 }
 
 export function ImportFromDesignDialog({
@@ -34,17 +48,51 @@ export function ImportFromDesignDialog({
   const designs = useDesignStore((state) => state.designs);
   const projects = useProjectStore((state) => state.projects);
   const [selectedDesignId, setSelectedDesignId] = useState<string>('');
-  const [addedComponents, setAddedComponents] = useState<Set<number>>(new Set());
+  const [extractedData, setExtractedData] = useState<ExtractedComponentData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [addedModules, setAddedModules] = useState(false);
+  const [addedInverters, setAddedInverters] = useState(false);
 
-  // Reset added components when dialog closes or design changes
+  // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      setAddedComponents(new Set());
+      setSelectedDesignId('');
+      setExtractedData(null);
+      setLoading(false);
+      setAddedModules(false);
+      setAddedInverters(false);
     }
   }, [open]);
 
+  // Extract components when design is selected
   useEffect(() => {
-    setAddedComponents(new Set());
+    if (!selectedDesignId) {
+      setExtractedData(null);
+      setAddedModules(false);
+      setAddedInverters(false);
+      return;
+    }
+
+    const extractData = async () => {
+      setLoading(true);
+      setAddedModules(false);
+      setAddedInverters(false);
+      try {
+        const data = await extractComponentsFromDesign(selectedDesignId);
+        setExtractedData(data);
+      } catch (error) {
+        console.error('Failed to extract components:', error);
+        setExtractedData({
+          modules: null,
+          inverters: null,
+          error: 'Failed to parse design file'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    extractData();
   }, [selectedDesignId]);
 
   // Get project name for each design
@@ -53,44 +101,30 @@ export function ImportFromDesignDialog({
     return { design, projectName: project?.name || 'Unknown Project' };
   });
 
-  const selectedDesign = designs.find((d) => d.id === selectedDesignId);
+  const handleImportModule = () => {
+    if (!extractedData?.modules || !selectedDesignId) return;
 
-  // Example component references that might be found in a DXF
-  // In a real implementation, this would parse the DXF file
-  const getDetectedComponents = () => {
-    if (!selectedDesign) return [];
-
-    // These are example references that would typically be found in PVcase DXF exports
-    // Quantities are based on typical utility-scale project ratios
-    return [
-      { type: 'module' as const, manufacturer: 'Trina Solar', model: 'TSM-DE21-580', source: 'PVcase layer: PV Modules', quantity: 45000 },
-      { type: 'inverter' as const, manufacturer: 'Huawei', model: 'SUN2000-330KTL', source: 'PVcase layer: Inverters', quantity: 12 },
-    ];
-  };
-
-  const detectedComponents = getDetectedComponents();
-
-  const handleImport = (index: number, component: { type: 'module' | 'inverter'; manufacturer: string; model: string; quantity: number }) => {
     onImport({
-      ...component,
+      type: 'module',
       designId: selectedDesignId,
+      quantity: extractedData.modules.count,
+      widthMm: extractedData.modules.widthMm,
+      heightMm: extractedData.modules.heightMm,
+      tiltAngle: extractedData.modules.tiltAngle,
     });
-    setAddedComponents((prev) => new Set(prev).add(index));
+    setAddedModules(true);
   };
 
-  const handleAddAll = () => {
-    detectedComponents.forEach((comp, index) => {
-      if (!addedComponents.has(index)) {
-        onImport({
-          ...comp,
-          designId: selectedDesignId,
-        });
-      }
-    });
-    setAddedComponents(new Set(detectedComponents.map((_, i) => i)));
-  };
+  const handleImportInverter = () => {
+    if (!extractedData?.inverters || !selectedDesignId) return;
 
-  const allAdded = detectedComponents.length > 0 && addedComponents.size === detectedComponents.length;
+    onImport({
+      type: 'inverter',
+      designId: selectedDesignId,
+      quantity: extractedData.inverters.count,
+    });
+    setAddedInverters(true);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,7 +135,7 @@ export function ImportFromDesignDialog({
             Import from Design
           </DialogTitle>
           <DialogDescription>
-            Select a design to detect component references. Components can be created from detected module and inverter information.
+            Select a design to extract component data from the DXF file. Only quantities and physical dimensions can be detected - you will need to enter manufacturer, model, and electrical specifications.
           </DialogDescription>
         </DialogHeader>
 
@@ -131,82 +165,141 @@ export function ImportFromDesignDialog({
             </Select>
           </div>
 
-          {selectedDesign && (
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Parsing DXF file...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {extractedData?.error && (
+            <div className="flex items-center gap-2 p-3 border border-destructive/50 bg-destructive/10 rounded-lg text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {extractedData.error}
+            </div>
+          )}
+
+          {/* Results */}
+          {!loading && extractedData && !extractedData.error && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <AlertCircle className="h-4 w-4 text-amber-500" />
+                <Info className="h-4 w-4 text-blue-500" />
                 Detected Components
               </div>
 
-              {detectedComponents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No component references detected in this design.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {detectedComponents.map((comp, index) => {
-                    const isAdded = addedComponents.has(index);
-                    return (
-                      <div
-                        key={index}
-                        className={`flex items-center justify-between p-3 border rounded-lg ${
-                          isAdded ? 'bg-green-500/10 border-green-500/30' : 'bg-muted/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className="gap-1">
-                            {comp.type === 'module' ? (
-                              <Box className="h-3 w-3 text-blue-500" />
-                            ) : (
-                              <Zap className="h-3 w-3 text-amber-500" />
-                            )}
-                            {comp.type === 'module' ? 'Module' : 'Inverter'}
-                          </Badge>
-                          <div>
-                            <div className="font-medium text-sm">
-                              {comp.manufacturer} {comp.model}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {comp.source} &middot; {comp.quantity.toLocaleString()} units
-                            </div>
-                          </div>
+              {/* Modules Section */}
+              {extractedData.modules ? (
+                <div
+                  className={`p-4 border rounded-lg ${
+                    addedModules ? 'bg-green-500/10 border-green-500/30' : 'bg-muted/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <Badge variant="outline" className="gap-1">
+                        <Box className="h-3 w-3 text-blue-500" />
+                        Module
+                      </Badge>
+                      <div className="space-y-1 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Count: </span>
+                          <span className="font-medium">{extractedData.modules.count.toLocaleString()} modules</span>
                         </div>
-                        {isAdded ? (
-                          <Badge variant="outline" className="gap-1 text-green-600 border-green-600">
-                            <Check className="h-3 w-3" />
-                            Added
-                          </Badge>
+                        {extractedData.modules.widthMm && extractedData.modules.heightMm ? (
+                          <div>
+                            <span className="text-muted-foreground">Dimensions: </span>
+                            <span className="font-medium">
+                              {extractedData.modules.heightMm.toLocaleString()} x {extractedData.modules.widthMm.toLocaleString()} mm
+                            </span>
+                          </div>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleImport(index, comp)}
-                          >
-                            Add
-                          </Button>
+                          <div className="text-muted-foreground italic">Dimensions not available</div>
+                        )}
+                        {extractedData.modules.tiltAngle !== null && (
+                          <div>
+                            <span className="text-muted-foreground">Tilt: </span>
+                            <span className="font-medium">{extractedData.modules.tiltAngle}°</span>
+                          </div>
                         )}
                       </div>
-                    );
-                  })}
-
-                  {/* Add All button */}
-                  {!allAdded && (
-                    <Button
-                      className="w-full mt-2"
-                      variant="secondary"
-                      onClick={handleAddAll}
-                    >
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      Add All ({detectedComponents.length - addedComponents.size} remaining)
-                    </Button>
-                  )}
+                      <p className="text-xs text-amber-600 mt-2">
+                        You will need to enter: manufacturer, model, electrical specs, and pricing
+                      </p>
+                    </div>
+                    {addedModules ? (
+                      <Badge variant="outline" className="text-green-600 border-green-600">
+                        Added
+                      </Badge>
+                    ) : (
+                      <Button size="sm" onClick={handleImportModule}>
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 border rounded-lg bg-muted/30 text-sm text-muted-foreground">
+                  No PV modules detected in this design.
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground">
-                Click "Add" to create a component with pre-filled manufacturer and model.
-                You can then edit specifications and pricing.
-              </p>
+              {/* Inverters Section */}
+              {extractedData.inverters ? (
+                <div
+                  className={`p-4 border rounded-lg ${
+                    addedInverters ? 'bg-green-500/10 border-green-500/30' : 'bg-muted/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <Badge variant="outline" className="gap-1">
+                        <Zap className="h-3 w-3 text-amber-500" />
+                        Inverter
+                      </Badge>
+                      <div className="space-y-1 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Count: </span>
+                          <span className="font-medium">{extractedData.inverters.count.toLocaleString()} inverters</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-amber-600 mt-2">
+                        All specifications must be entered manually
+                      </p>
+                    </div>
+                    {addedInverters ? (
+                      <Badge variant="outline" className="text-green-600 border-green-600">
+                        Added
+                      </Badge>
+                    ) : (
+                      <Button size="sm" onClick={handleImportInverter}>
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 border rounded-lg bg-muted/30 text-sm text-muted-foreground">
+                  No inverters detected in this design.
+                </div>
+              )}
+
+              {/* Add All button */}
+              {(extractedData.modules || extractedData.inverters) &&
+               (!addedModules || !addedInverters) &&
+               (extractedData.modules && !addedModules) !== (extractedData.inverters && !addedInverters) === false && (
+                <Button
+                  className="w-full"
+                  variant="secondary"
+                  onClick={() => {
+                    if (extractedData.modules && !addedModules) handleImportModule();
+                    if (extractedData.inverters && !addedInverters) handleImportInverter();
+                  }}
+                >
+                  Add All
+                </Button>
+              )}
             </div>
           )}
         </div>
