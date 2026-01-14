@@ -35,8 +35,10 @@ export function CumulativeFCFChart({
   viewMode = 'yearly',
   monthlyData,
 }: CumulativeFCFChartProps) {
+  const isMonthly = viewMode === 'monthly';
+
   // Prepare data based on view mode
-  const data = viewMode === 'yearly'
+  const data = !isMonthly
     ? yearlyData.years.map((year, index) => ({
         label: `Y${year}`,
         yearNum: year,
@@ -50,20 +52,36 @@ export function CumulativeFCFChart({
         cumulative: point.cumulative_fcf_to_equity,
       }));
 
-  // Find the break-even point for visual indicator (only for yearly view)
-  const breakEvenLabel = viewMode === 'yearly' && equityPaybackYears
-    ? `Y${Math.ceil(equityPaybackYears)}`
-    : null;
+  // Find the break-even point for visual indicator
+  let breakEvenLabel: string | null = null;
+  if (!isMonthly && equityPaybackYears) {
+    // Yearly view: use year
+    breakEvenLabel = `Y${Math.ceil(equityPaybackYears)}`;
+  } else if (isMonthly && monthlyData && monthlyData.length > 0) {
+    // Monthly view: find the first month where cumulative FCF turns positive
+    const paybackMonth = monthlyData.find(
+      (point, index) =>
+        point.cumulative_fcf_to_equity >= 0 &&
+        (index === 0 || monthlyData[index - 1].cumulative_fcf_to_equity < 0)
+    );
+    if (paybackMonth) {
+      breakEvenLabel = `${paybackMonth.year}-${String(paybackMonth.month).padStart(2, '0')}`;
+    }
+  }
 
   // For monthly view, only show every 12th label to avoid crowding
-  const interval = viewMode === 'yearly' ? 4 : 11;
+  const interval = !isMonthly ? 4 : 11;
+
+  // Dynamic labels based on view mode
+  const fcfLabel = isMonthly ? 'Monthly FCF to Equity' : 'Annual FCF to Equity';
+  const fcfTooltipLabel = isMonthly ? 'Monthly FCF' : 'Annual FCF';
 
   return (
     <div className="h-[350px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={data}
-          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+          margin={{ top: 20, right: 60, left: 0, bottom: 0 }}
         >
           <defs>
             <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
@@ -79,7 +97,19 @@ export function CumulativeFCFChart({
             axisLine={false}
             interval={interval}
           />
+          {/* Left Y-axis for FCF (bars) */}
           <YAxis
+            yAxisId="fcf"
+            orientation="left"
+            tick={{ fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={formatCurrency}
+          />
+          {/* Right Y-axis for Cumulative FCF (area) */}
+          <YAxis
+            yAxisId="cumulative"
+            orientation="right"
             tick={{ fontSize: 12 }}
             tickLine={false}
             axisLine={false}
@@ -88,7 +118,7 @@ export function CumulativeFCFChart({
           <Tooltip
             formatter={(value, name) => [
               formatCurrency(Number(value) || 0),
-              name === 'fcf' ? 'Annual FCF' : 'Cumulative FCF',
+              name === 'fcf' ? fcfTooltipLabel : 'Cumulative FCF',
             ]}
             contentStyle={{
               backgroundColor: 'hsl(var(--background))',
@@ -98,14 +128,15 @@ export function CumulativeFCFChart({
           />
           <Legend
             formatter={(value: string) =>
-              value === 'fcf' ? 'Annual FCF to Equity' : 'Cumulative FCF'
+              value === 'fcf' ? fcfLabel : 'Cumulative FCF'
             }
           />
-          {/* Zero line */}
-          <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+          {/* Zero line for FCF axis */}
+          <ReferenceLine yAxisId="fcf" y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
           {/* Break-even indicator */}
           {breakEvenLabel && (
             <ReferenceLine
+              yAxisId="cumulative"
               x={breakEvenLabel}
               stroke="#22c55e"
               strokeWidth={2}
@@ -120,12 +151,14 @@ export function CumulativeFCFChart({
             />
           )}
           <Bar
+            yAxisId="fcf"
             dataKey="fcf"
             fill="#3b82f6"
             opacity={0.7}
             radius={[2, 2, 0, 0]}
           />
           <Area
+            yAxisId="cumulative"
             type="monotone"
             dataKey="cumulative"
             stroke="#8b5cf6"
