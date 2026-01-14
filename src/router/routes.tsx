@@ -6,6 +6,7 @@ import DesignDetailPage from '@/pages/DesignDetailPage';
 import DocumentViewerPage from '@/pages/DocumentViewerPage';
 import { Financials } from '@/pages/Financials';
 import { FinancialModelPage } from '@/pages/FinancialModelPage';
+import { Components } from '@/pages/Components';
 import { WorkflowSettings } from '@/pages/WorkflowSettings';
 import { Users } from '@/pages/Users';
 import { Groups } from '@/pages/Groups';
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: 'documents/:documentId', element: <DocumentViewerPage /> },
       { path: 'financials', element: <Financials /> },
       { path: 'financials/:projectId', element: <FinancialModelPage /> },
+      { path: 'components', element: <Components /> },
       { path: 'workflow', element: <WorkflowSettings /> },
       { path: 'users', element: <Users /> },
       { path: 'groups', element: <Groups /> },

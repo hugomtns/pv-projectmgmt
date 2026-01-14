@@ -71,7 +71,14 @@ The application uses several Zustand stores with localStorage persistence:
    - Permission checks: only creator or admin can update/delete
    - Storage key: `design-storage`
 
-6. **displayStore** & **filterStore** & **userFilterStore**
+6. **financialStore** (`src/stores/financialStore.ts`)
+   - Manages financial models linked to projects (one model per project)
+   - Stores inputs (capacity, PPA price, CapEx/OpEx items, financing parameters) and cached calculation results
+   - Supports detailed cost line items for CapEx and OpEx with margin calculations
+   - Permission checks: admins can update/delete any, users only their own models
+   - Storage key: `financial-storage`
+
+7. **displayStore** & **filterStore** & **userFilterStore**
    - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search, user filters)
 
 ### Key Architecture Patterns
@@ -135,6 +142,7 @@ components/
 
 - **src/lib/types.ts** - Core types: `Project`, `Task`, `Stage`, `Workflow`, `Priority` (0-4), `TaskStatus`, `Document`, `Design`
 - **src/lib/types/document.ts** - Document types: `DocumentVersion`, `DocumentComment`, `Drawing`, `WorkflowEvent`, `LocationAnchor`, `DocumentStatus`
+- **src/lib/types/financial.ts** - Financial types: `FinancialModel`, `FinancialInputs`, `ProjectResults`, `CostLineItem`
 - **src/lib/constants.ts** - Priority labels/colors, task status labels
 - Priority scale: 0=On Hold, 1=Urgent, 2=High, 3=Medium, 4=Low
 - Document statuses: `draft`, `review`, `approved`, `rejected`
@@ -180,4 +188,6 @@ App shows a loading screen for 300ms on mount to ensure Zustand persistence has 
 - `src/pages/Projects.tsx` - Main project page with keyboard shortcuts
 - `src/pages/DocumentViewerPage.tsx` - Document viewer with annotations
 - `src/pages/DesignDetailPage.tsx` - Design viewer with comments
+- `src/stores/financialStore.ts` - Financial model state and calculations
+- `src/lib/types/financial.ts` - Financial types and defaults
 - `vite.config.ts` - Vite and Vitest configuration with path aliases

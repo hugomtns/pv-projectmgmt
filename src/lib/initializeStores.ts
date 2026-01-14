@@ -221,6 +221,45 @@ function migrateDisplayStoreForTimeline() {
 }
 
 /**
+ * Add 'components' permissions to existing roles
+ */
+function migrateRolesForComponents() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'components' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.components);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.components) return role;
+
+      // Determine permissions based on role type
+      let componentPermissions;
+      if (role.id === 'role-admin') {
+        componentPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        componentPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        componentPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          components: componentPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include components permissions');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -298,6 +337,7 @@ export function initializeStores() {
       migrateDocumentsForLocking();
       migrateProjectsForMilestones();
       migrateDisplayStoreForTimeline();
+      migrateRolesForComponents();
     }
 
     // Initialize user store if empty
