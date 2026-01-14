@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useFinancialStore } from '@/stores/financialStore';
-import type { FinancialInputs } from '@/lib/types/financial';
+import type { FinancialInputs, CostLineItem } from '@/lib/types/financial';
 import { DEFAULT_FINANCIAL_INPUTS } from '@/lib/types/financial';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { HelpCircle, RotateCcw } from 'lucide-react';
+import { LineItemsManager } from './LineItemsManager';
 
 interface FinancialInputFormProps {
   modelId: string;
@@ -70,12 +72,42 @@ function FormField({ label, hint, tooltip, value, onChange, step = '1', min, max
 export function FinancialInputForm({ modelId, inputs, onCalculate, isCalculating }: FinancialInputFormProps) {
   const updateInputs = useFinancialStore((state) => state.updateInputs);
 
+  // Determine if line items mode is enabled based on whether there are items
+  const [lineItemsEnabled, setLineItemsEnabled] = useState(
+    inputs.capex_items.length > 0 || inputs.opex_items.length > 0
+  );
+
   const handleChange = (field: keyof FinancialInputs, value: number) => {
     updateInputs(modelId, { [field]: value });
   };
 
   const handleReset = () => {
     updateInputs(modelId, DEFAULT_FINANCIAL_INPUTS);
+    setLineItemsEnabled(false);
+  };
+
+  const handleLineItemsEnabledChange = (enabled: boolean) => {
+    setLineItemsEnabled(enabled);
+    // If disabling, clear the line items
+    if (!enabled) {
+      updateInputs(modelId, {
+        capex_items: [],
+        opex_items: [],
+        global_margin: 0,
+      });
+    }
+  };
+
+  const handleCapexItemsChange = (items: CostLineItem[]) => {
+    updateInputs(modelId, { capex_items: items });
+  };
+
+  const handleOpexItemsChange = (items: CostLineItem[]) => {
+    updateInputs(modelId, { opex_items: items });
+  };
+
+  const handleGlobalMarginChange = (margin: number) => {
+    updateInputs(modelId, { global_margin: margin });
   };
 
   return (
@@ -114,26 +146,44 @@ export function FinancialInputForm({ modelId, inputs, onCalculate, isCalculating
             step="1"
             min={0}
           />
-          <FormField
-            label="CapEx per MW"
-            hint=""
-            tooltip="Capital expenditure per MW - total upfront cost to develop and construct the project."
-            value={inputs.capex_per_mw || 0}
-            onChange={(v) => handleChange('capex_per_mw', v)}
-            step="1000"
-            min={0}
-          />
-          <FormField
-            label="O&M Cost per MW"
-            hint="/year"
-            tooltip="Operating and maintenance costs per MW per year including cleaning, repairs, and monitoring."
-            value={inputs.om_cost_per_mw_year || 0}
-            onChange={(v) => handleChange('om_cost_per_mw_year', v)}
-            step="100"
-            min={0}
-          />
+          {/* Only show per-MW cost fields when line items are disabled */}
+          {!lineItemsEnabled && (
+            <>
+              <FormField
+                label="CapEx per MW"
+                hint=""
+                tooltip="Capital expenditure per MW - total upfront cost to develop and construct the project."
+                value={inputs.capex_per_mw || 0}
+                onChange={(v) => handleChange('capex_per_mw', v)}
+                step="1000"
+                min={0}
+              />
+              <FormField
+                label="O&M Cost per MW"
+                hint="/year"
+                tooltip="Operating and maintenance costs per MW per year including cleaning, repairs, and monitoring."
+                value={inputs.om_cost_per_mw_year || 0}
+                onChange={(v) => handleChange('om_cost_per_mw_year', v)}
+                step="100"
+                min={0}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
+
+      {/* Cost Line Items */}
+      <LineItemsManager
+        enabled={lineItemsEnabled}
+        onEnabledChange={handleLineItemsEnabledChange}
+        capexItems={inputs.capex_items}
+        opexItems={inputs.opex_items}
+        onCapexItemsChange={handleCapexItemsChange}
+        onOpexItemsChange={handleOpexItemsChange}
+        globalMargin={inputs.global_margin}
+        onGlobalMarginChange={handleGlobalMarginChange}
+        capacity={inputs.capacity}
+      />
 
       {/* Technical Parameters */}
       <Card>

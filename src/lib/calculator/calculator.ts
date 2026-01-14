@@ -30,9 +30,19 @@ export class SolarFinanceCalculator {
    * Preprocess inputs: handle cost_items mode
    */
   private preprocessInputs(inputs: FinancialInputs): FinancialInputs {
-    // If using cost items, calculate totals
+    // If using cost items, calculate totals with margin
     if (inputs.capex_items && inputs.capex_items.length > 0) {
-      const totalCapex = inputs.capex_items.reduce((sum, item) => sum + item.amount, 0);
+      const globalMargin = inputs.global_margin || 0;
+
+      // Calculate total CAPEX with margin applied to each item
+      const totalCapex = inputs.capex_items.reduce((sum, item) => {
+        // Use item-specific margin if set, otherwise use global margin
+        const marginPercent = item.margin_percent ?? globalMargin;
+        const itemTotal = item.amount * (1 + marginPercent / 100);
+        return sum + itemTotal;
+      }, 0);
+
+      // OPEX items don't have margin
       const totalOpex = inputs.opex_items?.reduce((sum, item) => sum + item.amount, 0) || 0;
 
       return {

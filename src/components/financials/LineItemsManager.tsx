@@ -1,0 +1,521 @@
+import { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ChevronDown, ChevronRight, Plus, Trash2, Sparkles, Package } from 'lucide-react';
+import type { CostLineItem } from '@/lib/types/financial';
+import { AddLineItemDialog } from './AddLineItemDialog';
+import { generateCapexItems, generateOpexItems } from '@/lib/calculator/designGenerator';
+
+interface LineItemsManagerProps {
+  enabled: boolean;
+  onEnabledChange: (enabled: boolean) => void;
+  capexItems: CostLineItem[];
+  opexItems: CostLineItem[];
+  onCapexItemsChange: (items: CostLineItem[]) => void;
+  onOpexItemsChange: (items: CostLineItem[]) => void;
+  globalMargin: number;
+  onGlobalMarginChange: (margin: number) => void;
+  capacity: number;
+}
+
+export function LineItemsManager({
+  enabled,
+  onEnabledChange,
+  capexItems,
+  opexItems,
+  onCapexItemsChange,
+  onOpexItemsChange,
+  globalMargin,
+  onGlobalMarginChange,
+  capacity,
+}: LineItemsManagerProps) {
+  const [activeTab, setActiveTab] = useState<'capex' | 'opex'>('capex');
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogCategory, setDialogCategory] = useState('');
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+  const isCapexTab = activeTab === 'capex';
+  const currentItems = isCapexTab ? capexItems : opexItems;
+  const setCurrentItems = isCapexTab ? onCapexItemsChange : onOpexItemsChange;
+
+  // Group items by category
+  const groupedItems = useMemo(() => {
+    const groups = new Map<string, CostLineItem[]>();
+    for (const item of currentItems) {
+      const category = item.category || 'Uncategorized';
+      const existing = groups.get(category) || [];
+      existing.push(item);
+      groups.set(category, existing);
+    }
+    return groups;
+  }, [currentItems]);
+
+  const categories = Array.from(groupedItems.keys()).sort();
+
+  // Calculate item total with margin (CAPEX only)
+  const calculateItemTotal = (item: CostLineItem): number => {
+    const subtotal = item.amount;
+    if (!item.is_capex) return subtotal;
+    const marginPercent = item.margin_percent ?? globalMargin;
+    return subtotal * (1 + marginPercent / 100);
+  };
+
+  // Calculate totals
+  const capexTotals = useMemo(() => {
+    const beforeMargin = capexItems.reduce((sum, item) => sum + item.amount, 0);
+    const withMargin = capexItems.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const effectiveMargin = beforeMargin > 0 ? ((withMargin - beforeMargin) / beforeMargin) * 100 : 0;
+    return { beforeMargin, withMargin, effectiveMargin };
+  }, [capexItems, globalMargin]);
+
+  const totalOpex = useMemo(() => {
+    return opexItems.reduce((sum, item) => sum + item.amount, 0);
+  }, [opexItems]);
+
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
+  const handleOpenAddDialog = (category: string) => {
+    setDialogCategory(category);
+    setDialogOpen(true);
+  };
+
+  const handleAddItem = (item: CostLineItem) => {
+    setCurrentItems([...currentItems, item]);
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    setCurrentItems(currentItems.filter((item) => item.id !== itemId));
+  };
+
+  const handleUpdateItemQuantity = (itemId: string, newQuantity: number) => {
+    setCurrentItems(
+      currentItems.map((item) => {
+        if (item.id === itemId && item.is_capex) {
+          const newAmount = (item.unit_price || 0) * newQuantity;
+          return { ...item, quantity: newQuantity, amount: newAmount };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleUpdateItemMargin = (itemId: string, newMargin: number | undefined) => {
+    setCurrentItems(
+      currentItems.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, margin_percent: newMargin };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleFillExampleData = () => {
+    if (capacity <= 0) return;
+
+    // Check if there are existing items
+    const hasItems = isCapexTab ? capexItems.length > 0 : opexItems.length > 0;
+
+    if (hasItems) {
+      setConfirmDialogOpen(true);
+    } else {
+      doFillExampleData();
+    }
+  };
+
+  const doFillExampleData = () => {
+    if (isCapexTab) {
+      const generatedItems = generateCapexItems(capacity);
+      onCapexItemsChange(generatedItems);
+    } else {
+      const generatedItems = generateOpexItems(capacity);
+      onOpexItemsChange(generatedItems);
+    }
+    setCollapsedCategories(new Set());
+    setConfirmDialogOpen(false);
+  };
+
+  const getCategoryTotal = (items: CostLineItem[]): number => {
+    if (isCapexTab) {
+      return items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    }
+    return items.reduce((sum, item) => sum + item.amount, 0);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Package className="h-5 w-5 text-primary" />
+            Cost Line Items
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="line-items-toggle" className="text-sm">
+              Use Detailed Line Items
+            </Label>
+            <Switch
+              id="line-items-toggle"
+              checked={enabled}
+              onCheckedChange={onEnabledChange}
+            />
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground mt-1">
+          {enabled
+            ? 'Break down CapEx and OpEx into individual line items for detailed cost analysis.'
+            : 'Enable to specify individual cost line items instead of using per-MW values.'}
+        </p>
+      </CardHeader>
+
+      {enabled && (
+        <CardContent className="space-y-4">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'capex' | 'opex')}>
+            <TabsList>
+              <TabsTrigger value="capex">
+                CapEx Items ({capexItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="opex">
+                OpEx Items ({opexItems.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="capex" className="space-y-4">
+              {/* Global Margin Control */}
+              <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+                <Label htmlFor="global-margin" className="text-sm font-medium whitespace-nowrap">
+                  Global Margin (%):
+                </Label>
+                <Input
+                  id="global-margin"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={globalMargin}
+                  onChange={(e) => onGlobalMarginChange(parseFloat(e.target.value) || 0)}
+                  className="w-24"
+                />
+                <span className="text-xs text-muted-foreground">
+                  Applied to all CAPEX items. Can be overridden per item.
+                </span>
+              </div>
+
+              {/* Categories and Items */}
+              {renderCategoryList()}
+
+              {/* Totals */}
+              <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Total CAPEX (before margin):</span>
+                  <span className="font-medium">{formatCurrency(capexTotals.beforeMargin)}</span>
+                </div>
+                <div className="flex justify-between text-base">
+                  <span className="font-semibold text-green-600">Total CAPEX (with margin):</span>
+                  <span className="font-bold text-green-600">{formatCurrency(capexTotals.withMargin)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Effective Margin:</span>
+                  <span>{capexTotals.effectiveMargin.toFixed(2)}%</span>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="opex" className="space-y-4">
+              {/* Categories and Items */}
+              {renderCategoryList()}
+
+              {/* Totals */}
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="flex justify-between text-base">
+                  <span className="font-semibold">Total OpEx (Year 1):</span>
+                  <span className="font-bold">{formatCurrency(totalOpex)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  OpEx escalation rate is set in Economic Parameters and applied to all OpEx items.
+                </p>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {/* Add Example Data Button */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={handleFillExampleData}
+              disabled={capacity <= 0}
+              className="gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              Add Example Data
+            </Button>
+          </div>
+        </CardContent>
+      )}
+
+      {/* Add Item Dialog */}
+      <AddLineItemDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onAdd={handleAddItem}
+        category={dialogCategory}
+        isCapex={isCapexTab}
+      />
+
+      {/* Confirm Replace Dialog */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace existing items?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will replace all current {isCapexTab ? 'CAPEX' : 'OPEX'} items with example data
+              based on {capacity} MW capacity. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={doFillExampleData}>
+              Replace Items
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+
+  function renderCategoryList() {
+    if (categories.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p>No items yet.</p>
+          <p className="text-sm">Click "Add Example Data" or add items manually.</p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => handleOpenAddDialog('Uncategorized')}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add First Item
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {categories.map((category) => {
+          const items = groupedItems.get(category) || [];
+          const isCollapsed = collapsedCategories.has(category);
+          const categoryTotal = getCategoryTotal(items);
+
+          return (
+            <Collapsible
+              key={category}
+              open={!isCollapsed}
+              onOpenChange={() => toggleCategory(category)}
+            >
+              <div className="border rounded-lg">
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    {isCollapsed ? (
+                      <ChevronRight className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                    <span className="font-medium">{category}</span>
+                    <span className="text-sm text-muted-foreground">
+                      ({items.length} {items.length === 1 ? 'item' : 'items'})
+                    </span>
+                  </div>
+                  <span className="font-semibold text-sm">
+                    {formatCurrency(categoryTotal)}
+                  </span>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent>
+                  <div className="border-t">
+                    <ScrollArea className="w-full">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/30">
+                            <TableHead className="min-w-[200px]">Item Name</TableHead>
+                            {isCapexTab ? (
+                              <>
+                                <TableHead className="text-right min-w-[100px]">Price/Item</TableHead>
+                                <TableHead className="text-right min-w-[80px]">Qty</TableHead>
+                                <TableHead className="min-w-[80px]">Unit</TableHead>
+                                <TableHead className="text-right min-w-[100px]">Subtotal</TableHead>
+                                <TableHead className="text-right min-w-[80px]">Margin %</TableHead>
+                                <TableHead className="text-right min-w-[100px]">Total</TableHead>
+                              </>
+                            ) : (
+                              <>
+                                <TableHead className="min-w-[80px]">Unit</TableHead>
+                                <TableHead className="text-right min-w-[120px]">Amount (€/year)</TableHead>
+                              </>
+                            )}
+                            <TableHead className="w-[60px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {items.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium">{item.name}</TableCell>
+                              {isCapexTab ? (
+                                <>
+                                  <TableCell className="text-right font-mono text-sm">
+                                    {formatCurrency(item.unit_price || 0)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={item.quantity || 0}
+                                      onChange={(e) =>
+                                        handleUpdateItemQuantity(
+                                          item.id,
+                                          parseFloat(e.target.value) || 0
+                                        )
+                                      }
+                                      className="w-20 h-8 text-right"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground text-sm">
+                                    {item.unit || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono text-sm">
+                                    {formatCurrency(item.amount)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.1"
+                                      value={item.margin_percent ?? globalMargin}
+                                      onChange={(e) => {
+                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                        handleUpdateItemMargin(item.id, value);
+                                      }}
+                                      className="w-16 h-8 text-right"
+                                      title={
+                                        item.margin_percent !== undefined
+                                          ? 'Custom margin (overrides global)'
+                                          : 'Using global margin'
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono text-sm font-semibold">
+                                    {formatCurrency(calculateItemTotal(item))}
+                                  </TableCell>
+                                </>
+                              ) : (
+                                <>
+                                  <TableCell className="text-muted-foreground text-sm">
+                                    {item.unit || '-'}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono text-sm">
+                                    {formatCurrency(item.amount)}
+                                  </TableCell>
+                                </>
+                              )}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteItem(item.id)}
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+
+                    {/* Add Item to Category Button */}
+                    <div className="p-2 border-t">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenAddDialog(category)}
+                        className="w-full justify-start text-muted-foreground hover:text-foreground"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Item to {category}
+                      </Button>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          );
+        })}
+
+        {/* Add to Uncategorized */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleOpenAddDialog('Uncategorized')}
+          className="w-full"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Item
+        </Button>
+      </div>
+    );
+  }
+}
