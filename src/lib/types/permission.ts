@@ -7,7 +7,8 @@ export type EntityType =
   | 'documents'
   | 'designs'
   | 'financials'
-  | 'components';
+  | 'components'
+  | 'boqs';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 

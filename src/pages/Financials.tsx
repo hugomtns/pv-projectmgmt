@@ -7,14 +7,6 @@ import { useUserStore } from '@/stores/userStore';
 import { usePermission } from '@/hooks/usePermission';
 import { Button } from '@/components/ui/button';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -45,7 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { DollarSign, Calculator, MoreHorizontal, Pencil, Trash2, Eye, ExternalLink } from 'lucide-react';
+import { DollarSign, Calculator, MoreHorizontal, Pencil, Trash2, ExternalLink } from 'lucide-react';
 
 export function Financials() {
   const navigate = useNavigate();
@@ -156,94 +148,93 @@ export function Financials() {
               )}
             </div>
           ) : (
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[250px]">Model Name</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Capacity</TableHead>
-                    <TableHead>PPA Price</TableHead>
-                    <TableHead>Created By</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="w-[70px] text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {modelsWithProjects.map(({ model, project }) => {
-                    const showModifyActions = canModifyModel(model.creatorId);
+            <div className="border rounded-lg bg-card overflow-hidden">
+              {/* Header Row */}
+              <div
+                className="grid border-b border-border bg-muted/50"
+                style={{ gridTemplateColumns: 'minmax(250px, 2fr) minmax(200px, 1.5fr) 100px 100px minmax(120px, 1fr) 120px 70px' }}
+              >
+                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Model Name</div>
+                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Project</div>
+                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Capacity</div>
+                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">PPA Price</div>
+                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Created By</div>
+                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Created</div>
+                <div className="px-4 py-3 text-sm font-medium text-muted-foreground text-right">Actions</div>
+              </div>
 
-                    return (
-                      <TableRow key={model.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/10">
-                              <DollarSign className="h-4 w-4 text-primary" />
-                            </div>
-                            <span>{model.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {project ? (
-                            <Link
-                              to={`/projects/${project.id}`}
-                              className="text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1"
-                            >
-                              {project.name}
-                              <ExternalLink className="h-3 w-3" />
-                            </Link>
-                          ) : (
-                            <span className="text-muted-foreground">Unknown Project</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{model.inputs.capacity} MW</TableCell>
-                        <TableCell>${model.inputs.ppa_price}/MWh</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {model.createdBy}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(model.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+              {/* Data Rows */}
+              {modelsWithProjects.map(({ model, project }) => {
+                const showModifyActions = canModifyModel(model.creatorId);
+
+                return (
+                  <div
+                    key={model.id}
+                    className="grid border-b border-border last:border-b-0 hover:bg-muted/50 cursor-pointer"
+                    style={{ gridTemplateColumns: 'minmax(250px, 2fr) minmax(200px, 1.5fr) 100px 100px minmax(120px, 1fr) 120px 70px' }}
+                    onClick={() => navigate(`/financials/${model.projectId}`)}
+                  >
+                    <div className="px-4 py-3 flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/10 shrink-0">
+                        <DollarSign className="h-4 w-4 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium truncate">{model.name}</span>
+                    </div>
+                    <div className="px-4 py-3 flex items-center" onClick={(e) => e.stopPropagation()}>
+                      {project ? (
+                        <Link
+                          to={`/projects/${project.id}`}
+                          className="text-sm text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1 truncate"
+                        >
+                          {project.name}
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </Link>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Unknown Project</span>
+                      )}
+                    </div>
+                    <div className="px-4 py-3 flex items-center text-sm">{model.inputs.capacity} MW</div>
+                    <div className="px-4 py-3 flex items-center text-sm">${model.inputs.ppa_price}/MWh</div>
+                    <div className="px-4 py-3 flex items-center text-sm text-muted-foreground truncate">
+                      {model.createdBy}
+                    </div>
+                    <div className="px-4 py-3 flex items-center text-sm text-muted-foreground">
+                      {formatDate(model.createdAt)}
+                    </div>
+                    <div className="px-4 py-3 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                      {showModifyActions && (canUpdate || canDelete) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canUpdate && (
                               <DropdownMenuItem
                                 onClick={() => navigate(`/financials/${model.projectId}`)}
                               >
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
                               </DropdownMenuItem>
-                              {canUpdate && showModifyActions && (
-                                <DropdownMenuItem
-                                  onClick={() => navigate(`/financials/${model.projectId}`)}
-                                >
-                                  <Pencil className="mr-2 h-4 w-4" />
-                                  Edit
-                                </DropdownMenuItem>
-                              )}
-                              {canDelete && showModifyActions && (
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => handleDeleteClick(model.id)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                            )}
+                            {canDelete && (
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => handleDeleteClick(model.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

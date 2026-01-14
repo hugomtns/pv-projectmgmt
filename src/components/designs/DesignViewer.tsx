@@ -11,6 +11,7 @@ import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
 import type { PV3DCanvasRef } from './viewer3d/PV3DCanvas';
 import { ImageGenerationModal } from './ImageGenerationModal';
+import { BOQModal } from '@/components/boq';
 import { toast } from 'sonner';
 import type { DesignContext } from '@/lib/gemini';
 import type { DXFGeoData } from '@/lib/dxf/types';
@@ -22,6 +23,7 @@ import {
     Activity,
     Upload,
     Sparkles,
+    ClipboardList,
 } from 'lucide-react';
 
 interface DesignViewerProps {
@@ -39,6 +41,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
 
     // Sidebars
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | null>('comments');
+    const [boqModalOpen, setBOQModalOpen] = useState(false);
 
     // State
     const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
@@ -269,6 +272,15 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                             <Activity className="h-4 w-4" />
                             Workflow
                         </Button>
+                        <Button
+                            variant={boqModalOpen ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setBOQModalOpen(true)}
+                        >
+                            <ClipboardList className="h-4 w-4" />
+                            BOQ
+                        </Button>
                     </div>
 
                     {/* Separator */}
@@ -358,6 +370,13 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     <DesignWorkflowHistory designId={designId} />
                 )}
             </div>
+
+            {/* BOQ Modal */}
+            <BOQModal
+                open={boqModalOpen}
+                onOpenChange={setBOQModalOpen}
+                designId={designId}
+            />
 
             {/* AI Image Generation Modal */}
             <ImageGenerationModal

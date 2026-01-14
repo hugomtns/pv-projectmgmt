@@ -78,7 +78,14 @@ The application uses several Zustand stores with localStorage persistence:
    - Permission checks: admins can update/delete any, users only their own models
    - Storage key: `financial-storage`
 
-7. **displayStore** & **filterStore** & **userFilterStore**
+7. **componentStore** (`src/stores/componentStore.ts`)
+   - Manages PV module and inverter specifications library
+   - Tracks component specs (electrical, physical, temperature coefficients)
+   - Links components to designs with quantities
+   - Permission checks: admins can update/delete any, users only their own
+   - Storage key: `component-storage`
+
+8. **displayStore** & **filterStore** & **userFilterStore**
    - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search, user filters)
 
 ### Key Architecture Patterns
@@ -112,6 +119,18 @@ The application uses several Zustand stores with localStorage persistence:
 - Versioning: Each upload creates a new version with metadata (versionNumber, uploadedBy, uploadedAt, fileSize)
 - Comments can be anchored to specific locations (x, y coordinates) or document-level
 
+**DXF Parsing & Component Extraction:**
+- DXF files (AutoCAD designs) are parsed via `src/lib/dxf/parser.ts`
+- PV-specific layer detection in `src/lib/dxf/pvLayerDetection.ts` identifies panels, inverters, electrical equipment
+- Component extraction (`src/lib/dxf/componentExtractor.ts`) extracts module counts, dimensions, and inverter counts from parsed DXF data
+- Designs can be linked to components in the component library with quantities
+
+**PVsyst File Import (PAN/OND):**
+- PAN files (module parameters) parsed via `src/lib/pan/parser.ts`
+- OND files (inverter parameters) parsed via `src/lib/ond/parser.ts`
+- Extracts manufacturer, model, and full specifications from PVsyst parameter files
+- Import flow: FileImportDialog → parse file → preview extracted data → ComponentDialog with prefilled specs
+
 **Keyboard Shortcuts:**
 - Custom hook `useKeyboardShortcuts` supports both single keys and sequences
 - Global shortcuts: `g+p` (projects page), `g+w` (workflow page)
@@ -135,6 +154,8 @@ components/
 ├── workflow/        # Workflow editor (StageCard, StageEditor)
 ├── documents/       # Document viewer, upload, comments, version control
 ├── designs/         # Design viewer, upload, comments, version control
+├── components/      # PV component library (ComponentDialog, FileImportDialog)
+├── financials/      # Financial model editor, charts, reports
 └── ui/              # shadcn/ui components
 ```
 
@@ -143,6 +164,7 @@ components/
 - **src/lib/types.ts** - Core types: `Project`, `Task`, `Stage`, `Workflow`, `Priority` (0-4), `TaskStatus`, `Document`, `Design`
 - **src/lib/types/document.ts** - Document types: `DocumentVersion`, `DocumentComment`, `Drawing`, `WorkflowEvent`, `LocationAnchor`, `DocumentStatus`
 - **src/lib/types/financial.ts** - Financial types: `FinancialModel`, `FinancialInputs`, `ProjectResults`, `CostLineItem`
+- **src/lib/types/component.ts** - Component types: `Component`, `ModuleSpecs`, `InverterSpecs`, `DesignUsage`
 - **src/lib/constants.ts** - Priority labels/colors, task status labels
 - Priority scale: 0=On Hold, 1=Urgent, 2=High, 3=Medium, 4=Low
 - Document statuses: `draft`, `review`, `approved`, `rejected`
@@ -189,5 +211,10 @@ App shows a loading screen for 300ms on mount to ensure Zustand persistence has 
 - `src/pages/DocumentViewerPage.tsx` - Document viewer with annotations
 - `src/pages/DesignDetailPage.tsx` - Design viewer with comments
 - `src/stores/financialStore.ts` - Financial model state and calculations
+- `src/stores/componentStore.ts` - PV module and inverter library
 - `src/lib/types/financial.ts` - Financial types and defaults
+- `src/lib/types/component.ts` - Module and inverter spec types
+- `src/lib/dxf/componentExtractor.ts` - Extract component data from DXF designs
+- `src/lib/pan/parser.ts` - PVsyst PAN file parser (modules)
+- `src/lib/ond/parser.ts` - PVsyst OND file parser (inverters)
 - `vite.config.ts` - Vite and Vitest configuration with path aliases

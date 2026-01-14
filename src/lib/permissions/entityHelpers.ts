@@ -16,6 +16,7 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     designs: 'Designs',
     financials: 'Financials',
     components: 'Components',
+    boqs: 'Bill of Quantities',
   };
   return labels[entityType];
 }
@@ -93,6 +94,11 @@ export function getEntityName(entityType: EntityType, entityId: string): string 
 
     case 'components': {
       // Components would need to be looked up from componentStore
+      return null;
+    }
+
+    case 'boqs': {
+      // BOQs would need to be looked up from boqStore
       return null;
     }
 

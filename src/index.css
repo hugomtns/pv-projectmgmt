@@ -69,4 +69,12 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
+
+  /* Number input with spaced spinners */
+  .number-input-spaced::-webkit-inner-spin-button,
+  .number-input-spaced::-webkit-outer-spin-button {
+    opacity: 1;
+    margin-left: 8px;
+    margin-right: 4px;
+  }
 }

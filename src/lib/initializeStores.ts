@@ -260,6 +260,45 @@ function migrateRolesForComponents() {
 }
 
 /**
+ * Add 'boqs' permissions to existing roles
+ */
+function migrateRolesForBOQs() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'boqs' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.boqs);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.boqs) return role;
+
+      // Determine permissions based on role type
+      let boqPermissions;
+      if (role.id === 'role-admin') {
+        boqPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        boqPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        boqPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          boqs: boqPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include boqs permissions');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -338,6 +377,7 @@ export function initializeStores() {
       migrateProjectsForMilestones();
       migrateDisplayStoreForTimeline();
       migrateRolesForComponents();
+      migrateRolesForBOQs();
     }
 
     // Initialize user store if empty

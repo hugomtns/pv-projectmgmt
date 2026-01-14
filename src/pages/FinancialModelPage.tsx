@@ -21,8 +21,9 @@ import {
 import { FinancialInputForm } from '@/components/financials/FinancialInputForm';
 import { FinancialResults } from '@/components/financials/FinancialResults';
 import { ExportPDFDialog } from '@/components/financials/ExportPDFDialog';
+import { ProjectBOQsSection } from '@/components/boq';
 import { SolarFinanceCalculator } from '@/lib/calculator/calculator';
-import { ArrowLeft, DollarSign, Plus, Settings, BarChart3, FileDown, Trash2 } from 'lucide-react';
+import { ArrowLeft, DollarSign, Plus, Settings, BarChart3, FileDown, Trash2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function FinancialModelPage() {
@@ -42,7 +43,7 @@ export function FinancialModelPage() {
   const canDelete = usePermission('financials', 'delete');
 
   const [isCalculating, setIsCalculating] = useState(false);
-  const [activeTab, setActiveTab] = useState(model?.results ? 'results' : 'inputs');
+  const [activeTab, setActiveTab] = useState<'inputs' | 'results' | 'boqs'>(model?.results ? 'results' : 'inputs');
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -154,7 +155,7 @@ export function FinancialModelPage() {
             </Card>
           ) : (
             // Model exists - show tabs with inputs and results
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'inputs' | 'results' | 'boqs')} className="space-y-6">
               <div className="flex items-center justify-between">
                 <TabsList>
                   <TabsTrigger value="inputs" className="gap-2">
@@ -167,6 +168,10 @@ export function FinancialModelPage() {
                     {!model.results && (
                       <span className="text-xs text-muted-foreground ml-1">(Calculate first)</span>
                     )}
+                  </TabsTrigger>
+                  <TabsTrigger value="boqs" className="gap-2">
+                    <ClipboardList className="h-4 w-4" />
+                    Design BOQs
                   </TabsTrigger>
                 </TabsList>
                 {model.results && (
@@ -203,6 +208,10 @@ export function FinancialModelPage() {
                     </CardContent>
                   </Card>
                 )}
+              </TabsContent>
+
+              <TabsContent value="boqs" className="mt-6">
+                <ProjectBOQsSection projectId={projectId!} />
               </TabsContent>
             </Tabs>
           )}
