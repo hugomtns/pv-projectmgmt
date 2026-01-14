@@ -9,21 +9,29 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Box, Zap, Clock, Check, Loader2 } from 'lucide-react';
+import { Upload, FileText, Box, Zap, Check, Loader2 } from 'lucide-react';
 import { parsePANFile, isPANFile, type ParsedPANData } from '@/lib/pan/parser';
-import { CELL_TYPES } from '@/lib/types/component';
+import { parseONDFile, isONDFile, type ParsedONDData } from '@/lib/ond/parser';
+import { CELL_TYPES, INVERTER_TYPES } from '@/lib/types/component';
+
+// Union type for parsed data
+export type ParsedFileData =
+  | { type: 'pan'; data: ParsedPANData }
+  | { type: 'ond'; data: ParsedONDData };
 
 interface FileImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport?: (data: ParsedPANData) => void;
+  onImportPAN?: (data: ParsedPANData) => void;
+  onImportOND?: (data: ParsedONDData) => void;
 }
 
-export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDialogProps) {
+export function FileImportDialog({ open, onOpenChange, onImportPAN, onImportOND }: FileImportDialogProps) {
   const [selectedTab, setSelectedTab] = useState<'pan' | 'ond'>('pan');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
-  const [parsedData, setParsedData] = useState<ParsedPANData | null>(null);
+  const [parsedPAN, setParsedPAN] = useState<ParsedPANData | null>(null);
+  const [parsedOND, setParsedOND] = useState<ParsedONDData | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,7 +39,8 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
   useEffect(() => {
     if (!open) {
       setSelectedFile(null);
-      setParsedData(null);
+      setParsedPAN(null);
+      setParsedOND(null);
       setParseError(null);
       setParsing(false);
       if (fileInputRef.current) {
@@ -42,8 +51,9 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
 
   // Parse file when selected
   useEffect(() => {
-    if (!selectedFile || selectedTab !== 'pan') {
-      setParsedData(null);
+    if (!selectedFile) {
+      setParsedPAN(null);
+      setParsedOND(null);
       setParseError(null);
       return;
     }
@@ -51,19 +61,30 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
     const parseFile = async () => {
       setParsing(true);
       setParseError(null);
+      setParsedPAN(null);
+      setParsedOND(null);
+
       try {
         const content = await selectedFile.text();
-        if (!isPANFile(content)) {
-          setParseError('Invalid PAN file format');
-          setParsedData(null);
+
+        if (selectedTab === 'pan') {
+          if (!isPANFile(content)) {
+            setParseError('Invalid PAN file format');
+          } else {
+            const data = parsePANFile(content);
+            setParsedPAN(data);
+          }
         } else {
-          const data = parsePANFile(content);
-          setParsedData(data);
+          if (!isONDFile(content)) {
+            setParseError('Invalid OND file format');
+          } else {
+            const data = parseONDFile(content);
+            setParsedOND(data);
+          }
         }
       } catch (error) {
-        console.error('Failed to parse PAN file:', error);
+        console.error('Failed to parse file:', error);
         setParseError('Failed to read file');
-        setParsedData(null);
       } finally {
         setParsing(false);
       }
@@ -100,7 +121,8 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
 
   const clearFile = () => {
     setSelectedFile(null);
-    setParsedData(null);
+    setParsedPAN(null);
+    setParsedOND(null);
     setParseError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -108,8 +130,11 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
   };
 
   const handleImport = () => {
-    if (parsedData && onImport) {
-      onImport(parsedData);
+    if (selectedTab === 'pan' && parsedPAN && onImportPAN) {
+      onImportPAN(parsedPAN);
+      onOpenChange(false);
+    } else if (selectedTab === 'ond' && parsedOND && onImportOND) {
+      onImportOND(parsedOND);
       onOpenChange(false);
     }
   };
@@ -120,6 +145,15 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
     const cellType = CELL_TYPES.find((t) => t.value === value);
     return cellType?.label || value;
   };
+
+  // Get inverter type label
+  const getInverterTypeLabel = (value: string | undefined): string => {
+    if (!value) return 'Unknown';
+    const invType = INVERTER_TYPES.find((t) => t.value === value);
+    return invType?.label || value;
+  };
+
+  const hasParsedData = (selectedTab === 'pan' && parsedPAN) || (selectedTab === 'ond' && parsedOND);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -147,7 +181,7 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
           </TabsList>
 
           <TabsContent value="pan" className="space-y-4 pt-4">
-            {!parsedData && !parsing && (
+            {!parsedPAN && !parsing && (
               <div className="text-sm text-muted-foreground">
                 <p className="mb-2">PAN files contain PV module parameters from PVsyst:</p>
                 <ul className="list-disc list-inside space-y-1 text-xs">
@@ -162,21 +196,23 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
           </TabsContent>
 
           <TabsContent value="ond" className="space-y-4 pt-4">
-            <div className="text-sm text-muted-foreground">
-              <p className="mb-2">OND files contain inverter parameters from PVsyst:</p>
-              <ul className="list-disc list-inside space-y-1 text-xs">
-                <li>Manufacturer and model information</li>
-                <li>DC input specifications (voltage range, MPPT)</li>
-                <li>AC output specifications (power, voltage)</li>
-                <li>Efficiency curves</li>
-                <li>Physical dimensions</li>
-              </ul>
-            </div>
+            {!parsedOND && !parsing && (
+              <div className="text-sm text-muted-foreground">
+                <p className="mb-2">OND files contain inverter parameters from PVsyst:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>Manufacturer and model information</li>
+                  <li>DC input specifications (voltage range, MPPT)</li>
+                  <li>AC output specifications (power, voltage)</li>
+                  <li>Efficiency values</li>
+                  <li>Physical dimensions</li>
+                </ul>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
         {/* Upload Area - only show if no parsed data yet */}
-        {!parsedData && (
+        {!hasParsedData && (
           <div
             className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
             onClick={handleBrowse}
@@ -230,81 +266,81 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
           </div>
         )}
 
-        {/* Parsed Data Preview */}
-        {parsedData && selectedTab === 'pan' && (
+        {/* PAN Parsed Data Preview */}
+        {parsedPAN && selectedTab === 'pan' && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
               <Check className="h-4 w-4" />
-              Parsed: {parsedData.manufacturer} - {parsedData.model}
+              Parsed: {parsedPAN.manufacturer} - {parsedPAN.model}
             </div>
 
             <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
               <div className="text-sm font-medium">Extracted specifications:</div>
 
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                {parsedData.specs.powerRating !== undefined && (
+                {parsedPAN.specs.powerRating !== undefined && (
                   <>
                     <span className="text-muted-foreground">Power:</span>
-                    <span className="font-medium">{parsedData.specs.powerRating} Wp</span>
+                    <span className="font-medium">{parsedPAN.specs.powerRating} Wp</span>
                   </>
                 )}
 
-                {parsedData.specs.length !== undefined && parsedData.specs.width !== undefined && (
+                {parsedPAN.specs.length !== undefined && parsedPAN.specs.width !== undefined && (
                   <>
                     <span className="text-muted-foreground">Dimensions:</span>
                     <span className="font-medium">
-                      {parsedData.specs.length} x {parsedData.specs.width}
-                      {parsedData.specs.thickness ? ` x ${parsedData.specs.thickness}` : ''} mm
+                      {parsedPAN.specs.length} x {parsedPAN.specs.width}
+                      {parsedPAN.specs.thickness ? ` x ${parsedPAN.specs.thickness}` : ''} mm
                     </span>
                   </>
                 )}
 
-                {parsedData.specs.weight !== undefined && (
+                {parsedPAN.specs.weight !== undefined && (
                   <>
                     <span className="text-muted-foreground">Weight:</span>
-                    <span className="font-medium">{parsedData.specs.weight} kg</span>
+                    <span className="font-medium">{parsedPAN.specs.weight} kg</span>
                   </>
                 )}
 
-                {parsedData.specs.voc !== undefined && parsedData.specs.isc !== undefined && (
+                {parsedPAN.specs.voc !== undefined && parsedPAN.specs.isc !== undefined && (
                   <>
                     <span className="text-muted-foreground">Voc / Isc:</span>
                     <span className="font-medium">
-                      {parsedData.specs.voc} V / {parsedData.specs.isc} A
+                      {parsedPAN.specs.voc} V / {parsedPAN.specs.isc} A
                     </span>
                   </>
                 )}
 
-                {parsedData.specs.vmp !== undefined && parsedData.specs.imp !== undefined && (
+                {parsedPAN.specs.vmp !== undefined && parsedPAN.specs.imp !== undefined && (
                   <>
                     <span className="text-muted-foreground">Vmp / Imp:</span>
                     <span className="font-medium">
-                      {parsedData.specs.vmp} V / {parsedData.specs.imp} A
+                      {parsedPAN.specs.vmp} V / {parsedPAN.specs.imp} A
                     </span>
                   </>
                 )}
 
-                {parsedData.specs.efficiency !== undefined && (
+                {parsedPAN.specs.efficiency !== undefined && (
                   <>
                     <span className="text-muted-foreground">Efficiency:</span>
-                    <span className="font-medium">{parsedData.specs.efficiency}%</span>
+                    <span className="font-medium">{parsedPAN.specs.efficiency}%</span>
                   </>
                 )}
 
-                {parsedData.specs.cellType !== undefined && (
+                {parsedPAN.specs.cellType !== undefined && (
                   <>
                     <span className="text-muted-foreground">Cell type:</span>
                     <span className="font-medium">
-                      {getCellTypeLabel(parsedData.specs.cellType)}
-                      {parsedData.specs.cellCount ? ` (${parsedData.specs.cellCount} cells)` : ''}
+                      {getCellTypeLabel(parsedPAN.specs.cellType)}
+                      {parsedPAN.specs.cellCount ? ` (${parsedPAN.specs.cellCount} cells)` : ''}
                     </span>
                   </>
                 )}
 
-                {parsedData.specs.tempCoeffPmax !== undefined && (
+                {parsedPAN.specs.tempCoeffPmax !== undefined && (
                   <>
                     <span className="text-muted-foreground">Temp coeff Pmax:</span>
-                    <span className="font-medium">{parsedData.specs.tempCoeffPmax}%/°C</span>
+                    <span className="font-medium">{parsedPAN.specs.tempCoeffPmax}%/°C</span>
                   </>
                 )}
               </div>
@@ -318,18 +354,106 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
           </div>
         )}
 
-        {/* Coming Soon Notice for OND */}
-        {selectedTab === 'ond' && (
-          <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-            <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                Coming Soon
-              </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                Automatic parsing of OND files is under development.
-                For now, please enter inverter specifications manually.
-              </p>
+        {/* OND Parsed Data Preview */}
+        {parsedOND && selectedTab === 'ond' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
+              <Check className="h-4 w-4" />
+              Parsed: {parsedOND.manufacturer} - {parsedOND.model}
+            </div>
+
+            <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+              <div className="text-sm font-medium">Extracted specifications:</div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                {parsedOND.specs.acPowerRating !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">AC Power:</span>
+                    <span className="font-medium">{parsedOND.specs.acPowerRating} kW</span>
+                  </>
+                )}
+
+                {parsedOND.specs.maxDcPower !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">Max DC Power:</span>
+                    <span className="font-medium">{parsedOND.specs.maxDcPower} kW</span>
+                  </>
+                )}
+
+                {parsedOND.specs.length !== undefined && parsedOND.specs.width !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">Dimensions:</span>
+                    <span className="font-medium">
+                      {parsedOND.specs.length} x {parsedOND.specs.width}
+                      {parsedOND.specs.height ? ` x ${parsedOND.specs.height}` : ''} mm
+                    </span>
+                  </>
+                )}
+
+                {parsedOND.specs.weight !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">Weight:</span>
+                    <span className="font-medium">{parsedOND.specs.weight} kg</span>
+                  </>
+                )}
+
+                {parsedOND.specs.mpptVoltageMin !== undefined && parsedOND.specs.mpptVoltageMax !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">MPPT Range:</span>
+                    <span className="font-medium">
+                      {parsedOND.specs.mpptVoltageMin} - {parsedOND.specs.mpptVoltageMax} V
+                    </span>
+                  </>
+                )}
+
+                {parsedOND.specs.maxDcVoltage !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">Max DC Voltage:</span>
+                    <span className="font-medium">{parsedOND.specs.maxDcVoltage} V</span>
+                  </>
+                )}
+
+                {parsedOND.specs.acVoltage !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">AC Voltage:</span>
+                    <span className="font-medium">{parsedOND.specs.acVoltage} V</span>
+                  </>
+                )}
+
+                {parsedOND.specs.mpptCount !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">MPPT Count:</span>
+                    <span className="font-medium">{parsedOND.specs.mpptCount}</span>
+                  </>
+                )}
+
+                {parsedOND.specs.maxEfficiency !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">Max Efficiency:</span>
+                    <span className="font-medium">{parsedOND.specs.maxEfficiency}%</span>
+                  </>
+                )}
+
+                {parsedOND.specs.euroEfficiency !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">Euro Efficiency:</span>
+                    <span className="font-medium">{parsedOND.specs.euroEfficiency}%</span>
+                  </>
+                )}
+
+                {parsedOND.specs.inverterType !== undefined && (
+                  <>
+                    <span className="text-muted-foreground">Type:</span>
+                    <span className="font-medium">{getInverterTypeLabel(parsedOND.specs.inverterType)}</span>
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={clearFile}>
+                  Choose Different File
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -341,16 +465,20 @@ export function FileImportDialog({ open, onOpenChange, onImport }: FileImportDia
           {selectedTab === 'pan' ? (
             <Button
               onClick={handleImport}
-              disabled={!parsedData}
+              disabled={!parsedPAN}
               className="gap-2"
             >
               <Box className="h-4 w-4" />
               Create Module
             </Button>
           ) : (
-            <Button disabled className="gap-2">
-              <Clock className="h-4 w-4" />
-              Coming Soon
+            <Button
+              onClick={handleImport}
+              disabled={!parsedOND}
+              className="gap-2"
+            >
+              <Zap className="h-4 w-4" />
+              Create Inverter
             </Button>
           )}
         </DialogFooter>

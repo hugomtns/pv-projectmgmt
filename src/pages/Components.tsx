@@ -39,6 +39,7 @@ import { ComponentDialog, type PrefilledComponentData } from '@/components/compo
 import { ImportFromDesignDialog, type ImportedComponentData } from '@/components/components/ImportFromDesignDialog';
 import { FileImportDialog } from '@/components/components/FileImportDialog';
 import type { ParsedPANData } from '@/lib/pan/parser';
+import type { ParsedONDData } from '@/lib/ond/parser';
 
 type FilterType = 'all' | ComponentType;
 
@@ -115,8 +116,21 @@ export function Components() {
       type: 'module',
       manufacturer: data.manufacturer,
       model: data.model,
-      specs: data.specs,
-      fromPAN: true,
+      moduleSpecs: data.specs,
+      fromPVsyst: true,
+    });
+    setFileImportOpen(false);
+    setCreateDialogOpen(true);
+  };
+
+  const handleImportFromOND = (data: ParsedONDData) => {
+    // Set prefilled data from OND file and open component dialog
+    setPrefilledData({
+      type: 'inverter',
+      manufacturer: data.manufacturer,
+      model: data.model,
+      inverterSpecs: data.specs,
+      fromPVsyst: true,
     });
     setFileImportOpen(false);
     setCreateDialogOpen(true);
@@ -403,7 +417,8 @@ export function Components() {
       <FileImportDialog
         open={fileImportOpen}
         onOpenChange={setFileImportOpen}
-        onImport={handleImportFromPAN}
+        onImportPAN={handleImportFromPAN}
+        onImportOND={handleImportFromOND}
       />
     </div>
   );

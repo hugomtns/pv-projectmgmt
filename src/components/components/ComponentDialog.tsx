@@ -30,18 +30,19 @@ import { Badge } from '@/components/ui/badge';
 import { CELL_TYPES, INVERTER_TYPES, CURRENCIES } from '@/lib/types/component';
 import { Box, Zap, FileBox, Upload } from 'lucide-react';
 
-// Pre-filled data from design import or PAN file
+// Pre-filled data from design import or PAN/OND file
 export interface PrefilledComponentData {
   type: 'module' | 'inverter';
   linkedDesigns?: DesignUsage[];
   // From DXF import
   widthMm?: number | null;
   heightMm?: number | null;
-  // From PAN file import
+  // From PAN/OND file import
   manufacturer?: string;
   model?: string;
-  specs?: Partial<ModuleSpecs>;
-  fromPAN?: boolean;
+  moduleSpecs?: Partial<ModuleSpecs>;
+  inverterSpecs?: Partial<InverterSpecs>;
+  fromPVsyst?: boolean; // true for both PAN and OND imports
 }
 
 interface ComponentDialogProps {
@@ -56,8 +57,8 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
   const updateComponent = useComponentStore((state) => state.updateComponent);
 
   const isEditing = !!component;
-  const isFromDesign = !!prefilledData && !prefilledData.fromPAN;
-  const isFromPAN = !!prefilledData?.fromPAN;
+  const isFromDesign = !!prefilledData && !prefilledData.fromPVsyst;
+  const isFromPVsyst = !!prefilledData?.fromPVsyst;
   const [componentType, setComponentType] = useState<ComponentType>('module');
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
@@ -125,7 +126,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           setInverterSpecs(component.specs as InverterSpecs);
         }
       } else if (prefilledData) {
-        // Importing from design or PAN file - use prefilled data
+        // Importing from design or PAN/OND file - use prefilled data
         setComponentType(prefilledData.type);
         setManufacturer(prefilledData.manufacturer || '');
         setModel(prefilledData.model || '');
@@ -135,8 +136,8 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
 
         if (prefilledData.type === 'module') {
           // If from PAN file, use all extracted specs
-          if (prefilledData.fromPAN && prefilledData.specs) {
-            const panSpecs = prefilledData.specs;
+          if (prefilledData.fromPVsyst && prefilledData.moduleSpecs) {
+            const panSpecs = prefilledData.moduleSpecs;
             setModuleSpecs({
               length: panSpecs.length ?? 2278,
               width: panSpecs.width ?? 1134,
@@ -179,26 +180,51 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
             });
           }
         } else {
-          setInverterSpecs({
-            length: 1055,
-            width: 660,
-            height: 2094,
-            weight: 1850,
-            maxDcPower: 5500,
-            maxDcVoltage: 1500,
-            mpptVoltageMin: 860,
-            mpptVoltageMax: 1300,
-            maxDcCurrent: 6500,
-            mpptCount: 18,
-            stringsPerMppt: 24,
-            acPowerRating: 5000,
-            acVoltage: 690,
-            acFrequency: 50,
-            maxAcCurrent: 4184,
-            maxEfficiency: 98.9,
-            euroEfficiency: 98.7,
-            inverterType: 'central',
-          });
+          // Inverter type
+          if (prefilledData.fromPVsyst && prefilledData.inverterSpecs) {
+            const ondSpecs = prefilledData.inverterSpecs;
+            setInverterSpecs({
+              length: ondSpecs.length ?? 1055,
+              width: ondSpecs.width ?? 660,
+              height: ondSpecs.height ?? 2094,
+              weight: ondSpecs.weight ?? 1850,
+              maxDcPower: ondSpecs.maxDcPower ?? 5500,
+              maxDcVoltage: ondSpecs.maxDcVoltage ?? 1500,
+              mpptVoltageMin: ondSpecs.mpptVoltageMin ?? 860,
+              mpptVoltageMax: ondSpecs.mpptVoltageMax ?? 1300,
+              maxDcCurrent: ondSpecs.maxDcCurrent ?? 6500,
+              mpptCount: ondSpecs.mpptCount ?? 18,
+              stringsPerMppt: ondSpecs.stringsPerMppt ?? 24,
+              acPowerRating: ondSpecs.acPowerRating ?? 5000,
+              acVoltage: ondSpecs.acVoltage ?? 690,
+              acFrequency: ondSpecs.acFrequency ?? 50,
+              maxAcCurrent: ondSpecs.maxAcCurrent ?? 4184,
+              maxEfficiency: ondSpecs.maxEfficiency ?? 98.9,
+              euroEfficiency: ondSpecs.euroEfficiency ?? 98.7,
+              inverterType: ondSpecs.inverterType ?? 'central',
+            });
+          } else {
+            setInverterSpecs({
+              length: 1055,
+              width: 660,
+              height: 2094,
+              weight: 1850,
+              maxDcPower: 5500,
+              maxDcVoltage: 1500,
+              mpptVoltageMin: 860,
+              mpptVoltageMax: 1300,
+              maxDcCurrent: 6500,
+              mpptCount: 18,
+              stringsPerMppt: 24,
+              acPowerRating: 5000,
+              acVoltage: 690,
+              acFrequency: 50,
+              maxAcCurrent: 4184,
+              maxEfficiency: 98.9,
+              euroEfficiency: 98.7,
+              inverterType: 'central',
+            });
+          }
         }
       } else {
         // Creating new component - reset to defaults
@@ -293,8 +319,10 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           <DialogTitle>
             {isEditing
               ? 'Edit Component'
-              : isFromPAN
-              ? 'Add Module from PAN File'
+              : isFromPVsyst
+              ? prefilledData?.type === 'module'
+                ? 'Add Module from PAN File'
+                : 'Add Inverter from OND File'
               : isFromDesign
               ? 'Add Component from Design'
               : 'Add New Component'}
@@ -302,7 +330,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           <DialogDescription>
             {isEditing
               ? 'Update the component specifications and pricing.'
-              : isFromPAN
+              : isFromPVsyst
               ? 'Review the extracted specifications and adjust if needed.'
               : isFromDesign
               ? 'Enter manufacturer and model. Specifications can be added later.'
@@ -312,7 +340,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
 
         <div className="space-y-6 py-4">
           {/* Import from PAN file info */}
-          {isFromPAN && (
+          {isFromPVsyst && (
             <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
               <Upload className="h-4 w-4 text-green-600" />
               <span className="text-sm">
@@ -332,7 +360,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           )}
 
           {/* Component Type Selection - only for new components without prefill */}
-          {!isEditing && !isFromDesign && !isFromPAN && (
+          {!isEditing && !isFromDesign && !isFromPVsyst && (
             <div className="space-y-2">
               <Label>Component Type</Label>
               <div className="flex gap-4">
@@ -359,7 +387,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           )}
 
           {/* Show locked type when from design or PAN */}
-          {!isEditing && (isFromDesign || isFromPAN) && (
+          {!isEditing && (isFromDesign || isFromPVsyst) && (
             <div className="space-y-2">
               <Label>Component Type</Label>
               <div className="flex gap-4">
