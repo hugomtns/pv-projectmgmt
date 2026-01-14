@@ -125,6 +125,7 @@ export interface MonthlyDataPoint {
   ebitda: number;
   cfads: number;
   debt_service: number;
+  dscr: number | null;  // DSCR for this month (null if no debt service)
   fcf_to_equity: number;
   cumulative_fcf_to_equity: number;
 }

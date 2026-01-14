@@ -421,6 +421,11 @@ export class SolarFinanceCalculator {
         const fcf = this.calcFCFtoEquityMonthT(year, month);
         cumulativeFCF += fcf;
 
+        const cfads = this.calcCFADSMonthT(year, month);
+        const debtService = this.calcDebtServiceMonthT(year);
+        // DSCR = CFADS / Debt Service (null if no debt service)
+        const dscr = debtService > 0 ? cfads / debtService : null;
+
         monthlyData.push({
           year,
           month,
@@ -429,8 +434,9 @@ export class SolarFinanceCalculator {
           revenue: this.calcRevenueMonthT(year, month),
           om_costs: this.calcOMMonthT(year),
           ebitda: this.calcEBITDAMonthT(year, month),
-          cfads: this.calcCFADSMonthT(year, month),
-          debt_service: this.calcDebtServiceMonthT(year),
+          cfads,
+          debt_service: debtService,
+          dscr,
           fcf_to_equity: fcf,
           cumulative_fcf_to_equity: cumulativeFCF,
         });

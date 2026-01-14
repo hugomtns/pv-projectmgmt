@@ -42,13 +42,19 @@ function groupByYear(monthlyData: MonthlyDataPoint[]): Map<number, MonthlyDataPo
 
 // Calculate yearly totals from monthly data
 function calculateYearlyTotal(months: MonthlyDataPoint[]) {
+  const totalCfads = months.reduce((sum, m) => sum + m.cfads, 0);
+  const totalDebtService = months.reduce((sum, m) => sum + m.debt_service, 0);
+  // Average DSCR for the year (null if no debt service)
+  const avgDscr = totalDebtService > 0 ? totalCfads / totalDebtService : null;
+
   return {
     energy: months.reduce((sum, m) => sum + m.energy_production_mwh, 0),
     revenue: months.reduce((sum, m) => sum + m.revenue, 0),
     omCosts: months.reduce((sum, m) => sum + m.om_costs, 0),
     ebitda: months.reduce((sum, m) => sum + m.ebitda, 0),
-    cfads: months.reduce((sum, m) => sum + m.cfads, 0),
-    debtService: months.reduce((sum, m) => sum + m.debt_service, 0),
+    cfads: totalCfads,
+    debtService: totalDebtService,
+    avgDscr,
     fcf: months.reduce((sum, m) => sum + m.fcf_to_equity, 0),
   };
 }
@@ -87,6 +93,7 @@ export function MonthlyDataTable({ monthlyData }: MonthlyDataTableProps) {
               <TableHead className="text-right min-w-[100px]">EBITDA</TableHead>
               <TableHead className="text-right min-w-[100px]">CFADS</TableHead>
               <TableHead className="text-right min-w-[100px]">Debt Service</TableHead>
+              <TableHead className="text-right min-w-[80px]">DSCR</TableHead>
               <TableHead className="text-right min-w-[100px]">FCF to Equity</TableHead>
               <TableHead className="text-right min-w-[110px]">Cumulative FCF</TableHead>
             </TableRow>
@@ -136,6 +143,9 @@ export function MonthlyDataTable({ monthlyData }: MonthlyDataTableProps) {
                       {totals.debtService > 0 ? formatCurrency(totals.debtService) : '—'}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold">
+                      {totals.avgDscr !== null ? `${totals.avgDscr.toFixed(2)}x` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold">
                       {formatCurrency(totals.fcf)}
                     </TableCell>
                     <TableCell
@@ -174,6 +184,9 @@ export function MonthlyDataTable({ monthlyData }: MonthlyDataTableProps) {
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {month.debt_service > 0 ? formatCurrency(month.debt_service) : '—'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {month.dscr !== null ? `${month.dscr.toFixed(2)}x` : '—'}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {formatCurrency(month.fcf_to_equity)}
