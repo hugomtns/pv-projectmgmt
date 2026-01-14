@@ -529,7 +529,7 @@ export function LineItemsManager({
                                 <col className="w-auto" /> {/* Item Name - flexible */}
                                 <col className="w-[110px]" /> {/* Price/Item */}
                                 <col className="w-[130px]" /> {/* Qty - wider for large numbers */}
-                                <col className="w-[70px]" /> {/* Unit */}
+                                <col className="w-[90px]" /> {/* Unit - wider for "panels", "meters" etc */}
                                 <col className="w-[110px]" /> {/* Subtotal */}
                                 <col className="w-[80px]" /> {/* Margin */}
                                 <col className="w-[110px]" /> {/* Total */}
@@ -538,7 +538,7 @@ export function LineItemsManager({
                             ) : (
                               <colgroup>
                                 <col className="w-auto" /> {/* Item Name - flexible */}
-                                <col className="w-[80px]" /> {/* Unit */}
+                                <col className="w-[90px]" /> {/* Unit - wider for longer unit names */}
                                 <col className="w-[130px]" /> {/* Amount */}
                                 <col className="w-[50px]" /> {/* Delete */}
                               </colgroup>
