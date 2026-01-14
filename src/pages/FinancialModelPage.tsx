@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { useFinancialStore } from '@/stores/financialStore';
@@ -26,6 +26,7 @@ export function FinancialModelPage() {
   const canCreate = usePermission('financials', 'create');
   const [isCalculating, setIsCalculating] = useState(false);
   const [activeTab, setActiveTab] = useState(model?.results ? 'results' : 'inputs');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleCreateModel = () => {
     if (!projectId || !project) return;
@@ -41,6 +42,8 @@ export function FinancialModelPage() {
       const results = calculator.calculate();
       updateResults(model.id, results);
       setActiveTab('results');
+      // Scroll to top of results
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       toast.success('Calculation complete', {
         description: 'Financial metrics have been calculated successfully.',
       });
@@ -78,7 +81,7 @@ export function FinancialModelPage() {
         </div>
       </Header>
 
-      <div className="flex-1 overflow-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto">
         <div className="container mx-auto p-6">
           {!model ? (
             // No model exists - show create prompt
