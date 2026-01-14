@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDesignStore } from '@/stores/designStore';
 import { useProjectStore } from '@/stores/projectStore';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileBox, Box, Zap, AlertCircle } from 'lucide-react';
+import { FileBox, Box, Zap, AlertCircle, Check, PlusCircle } from 'lucide-react';
 
 interface ImportFromDesignDialogProps {
   open: boolean;
@@ -34,6 +34,18 @@ export function ImportFromDesignDialog({
   const designs = useDesignStore((state) => state.designs);
   const projects = useProjectStore((state) => state.projects);
   const [selectedDesignId, setSelectedDesignId] = useState<string>('');
+  const [addedComponents, setAddedComponents] = useState<Set<number>>(new Set());
+
+  // Reset added components when dialog closes or design changes
+  useEffect(() => {
+    if (!open) {
+      setAddedComponents(new Set());
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setAddedComponents(new Set());
+  }, [selectedDesignId]);
 
   // Get project name for each design
   const designsWithProjects = designs.map((design) => {
@@ -57,9 +69,21 @@ export function ImportFromDesignDialog({
 
   const detectedComponents = getDetectedComponents();
 
-  const handleImport = (component: { type: 'module' | 'inverter'; manufacturer: string; model: string }) => {
+  const handleImport = (index: number, component: { type: 'module' | 'inverter'; manufacturer: string; model: string }) => {
     onImport(component);
+    setAddedComponents((prev) => new Set(prev).add(index));
   };
+
+  const handleAddAll = () => {
+    detectedComponents.forEach((comp, index) => {
+      if (!addedComponents.has(index)) {
+        onImport(comp);
+      }
+    });
+    setAddedComponents(new Set(detectedComponents.map((_, i) => i)));
+  };
+
+  const allAdded = detectedComponents.length > 0 && addedComponents.size === detectedComponents.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,38 +137,62 @@ export function ImportFromDesignDialog({
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {detectedComponents.map((comp, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 border rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="gap-1">
-                          {comp.type === 'module' ? (
-                            <Box className="h-3 w-3 text-blue-500" />
-                          ) : (
-                            <Zap className="h-3 w-3 text-amber-500" />
-                          )}
-                          {comp.type === 'module' ? 'Module' : 'Inverter'}
-                        </Badge>
-                        <div>
-                          <div className="font-medium text-sm">
-                            {comp.manufacturer} {comp.model}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {comp.source}
+                  {detectedComponents.map((comp, index) => {
+                    const isAdded = addedComponents.has(index);
+                    return (
+                      <div
+                        key={index}
+                        className={`flex items-center justify-between p-3 border rounded-lg ${
+                          isAdded ? 'bg-green-500/10 border-green-500/30' : 'bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="gap-1">
+                            {comp.type === 'module' ? (
+                              <Box className="h-3 w-3 text-blue-500" />
+                            ) : (
+                              <Zap className="h-3 w-3 text-amber-500" />
+                            )}
+                            {comp.type === 'module' ? 'Module' : 'Inverter'}
+                          </Badge>
+                          <div>
+                            <div className="font-medium text-sm">
+                              {comp.manufacturer} {comp.model}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {comp.source}
+                            </div>
                           </div>
                         </div>
+                        {isAdded ? (
+                          <Badge variant="outline" className="gap-1 text-green-600 border-green-600">
+                            <Check className="h-3 w-3" />
+                            Added
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleImport(index, comp)}
+                          >
+                            Add
+                          </Button>
+                        )}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleImport(comp)}
-                      >
-                        Add
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
+
+                  {/* Add All button */}
+                  {!allAdded && (
+                    <Button
+                      className="w-full mt-2"
+                      variant="secondary"
+                      onClick={handleAddAll}
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Add All ({detectedComponents.length - addedComponents.size} remaining)
+                    </Button>
+                  )}
                 </div>
               )}
 

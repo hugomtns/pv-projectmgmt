@@ -102,7 +102,7 @@ export function Components() {
       currency: 'USD',
       specs,
     });
-    setImportFromDesignOpen(false);
+    // Don't close the dialog - allow multiple imports
   };
 
   const formatDate = (dateString: string) => {
