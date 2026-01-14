@@ -5,6 +5,7 @@ import { useProjectStore } from '@/stores/projectStore';
 import { usePermission } from '@/hooks/usePermission';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FinancialInputForm } from '@/components/financials/FinancialInputForm';
 import { ArrowLeft, DollarSign, Plus } from 'lucide-react';
 
 export function FinancialModelPage() {
@@ -75,45 +76,8 @@ export function FinancialModelPage() {
               </CardContent>
             </Card>
           ) : (
-            // Model exists - show placeholder for future stories
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Project Summary</CardTitle>
-                  <CardDescription>
-                    Financial model for {project.name}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <div className="text-muted-foreground">Capacity</div>
-                      <div className="font-medium">{model.inputs.capacity} MW</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">P50 Yield</div>
-                      <div className="font-medium">
-                        {model.inputs.p50_year_0_yield.toLocaleString()} MWh
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">PPA Price</div>
-                      <div className="font-medium">{model.inputs.ppa_price} /MWh</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Project Lifetime</div>
-                      <div className="font-medium">{model.inputs.project_lifetime} years</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-dashed">
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  <p>Input form, calculations, and charts will be added in upcoming stories.</p>
-                </CardContent>
-              </Card>
-            </div>
+            // Model exists - show input form
+            <FinancialInputForm modelId={model.id} inputs={model.inputs} />
           )}
         </div>
       </div>
