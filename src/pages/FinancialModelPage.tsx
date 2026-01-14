@@ -9,8 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FinancialInputForm } from '@/components/financials/FinancialInputForm';
 import { FinancialResults } from '@/components/financials/FinancialResults';
+import { ExportPDFDialog } from '@/components/financials/ExportPDFDialog';
 import { SolarFinanceCalculator } from '@/lib/calculator/calculator';
-import { ArrowLeft, DollarSign, Plus, Settings, BarChart3 } from 'lucide-react';
+import { ArrowLeft, DollarSign, Plus, Settings, BarChart3, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function FinancialModelPage() {
@@ -26,6 +27,7 @@ export function FinancialModelPage() {
   const canCreate = usePermission('financials', 'create');
   const [isCalculating, setIsCalculating] = useState(false);
   const [activeTab, setActiveTab] = useState(model?.results ? 'results' : 'inputs');
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleCreateModel = () => {
@@ -72,6 +74,12 @@ export function FinancialModelPage() {
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title={model?.name || `${project.name} - Financials`}>
         <div className="flex items-center gap-2">
+          {model?.results && (
+            <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Export PDF
+            </Button>
+          )}
           <Button variant="ghost" size="sm" asChild>
             <Link to="/financials">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -156,6 +164,17 @@ export function FinancialModelPage() {
           )}
         </div>
       </div>
+
+      {/* Export PDF Dialog */}
+      {model?.results && (
+        <ExportPDFDialog
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+          results={model.results}
+          globalMargin={model.inputs.global_margin}
+          projectName={project?.name}
+        />
+      )}
     </div>
   );
 }

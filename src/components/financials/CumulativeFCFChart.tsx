@@ -76,8 +76,11 @@ export function CumulativeFCFChart({
   const fcfLabel = isMonthly ? 'Monthly FCF to Equity' : 'Annual FCF to Equity';
   const fcfTooltipLabel = isMonthly ? 'Monthly FCF' : 'Annual FCF';
 
+  // ID for PDF export capture - changes based on view mode
+  const chartId = isMonthly ? 'monthly-fcf-chart' : 'yearly-fcf-chart';
+
   return (
-    <div className="h-[350px] w-full">
+    <div id={chartId} className="h-[350px] w-full bg-background">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={data}
