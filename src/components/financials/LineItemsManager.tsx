@@ -527,38 +527,38 @@ export function LineItemsManager({
                             {isCapexTab ? (
                               <colgroup>
                                 <col className="w-auto" /> {/* Item Name - flexible */}
-                                <col className="w-[120px]" /> {/* Price/Item */}
-                                <col className="w-[110px]" /> {/* Qty */}
-                                <col className="w-[80px]" /> {/* Unit */}
-                                <col className="w-[120px]" /> {/* Subtotal */}
-                                <col className="w-[90px]" /> {/* Margin % */}
-                                <col className="w-[120px]" /> {/* Total */}
+                                <col className="w-[110px]" /> {/* Price/Item */}
+                                <col className="w-[130px]" /> {/* Qty - wider for large numbers */}
+                                <col className="w-[70px]" /> {/* Unit */}
+                                <col className="w-[110px]" /> {/* Subtotal */}
+                                <col className="w-[80px]" /> {/* Margin */}
+                                <col className="w-[110px]" /> {/* Total */}
                                 <col className="w-[50px]" /> {/* Delete */}
                               </colgroup>
                             ) : (
                               <colgroup>
                                 <col className="w-auto" /> {/* Item Name - flexible */}
-                                <col className="w-[100px]" /> {/* Unit */}
-                                <col className="w-[140px]" /> {/* Amount */}
+                                <col className="w-[80px]" /> {/* Unit */}
+                                <col className="w-[130px]" /> {/* Amount */}
                                 <col className="w-[50px]" /> {/* Delete */}
                               </colgroup>
                             )}
                             <TableHeader>
                               <TableRow className="bg-muted/30">
-                                <TableHead>Item Name</TableHead>
+                                <TableHead className="text-left">Item Name</TableHead>
                                 {isCapexTab ? (
                                   <>
-                                    <TableHead className="text-right">Price/Item</TableHead>
-                                    <TableHead className="text-right">Qty</TableHead>
-                                    <TableHead>Unit</TableHead>
-                                    <TableHead className="text-right">Subtotal</TableHead>
-                                    <TableHead className="text-right">Margin %</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
+                                    <TableHead className="text-right pr-3">Price</TableHead>
+                                    <TableHead className="text-right pr-3">Qty</TableHead>
+                                    <TableHead className="text-left">Unit</TableHead>
+                                    <TableHead className="text-right pr-3">Subtotal</TableHead>
+                                    <TableHead className="text-right pr-3">Margin</TableHead>
+                                    <TableHead className="text-right pr-3">Total</TableHead>
                                   </>
                                 ) : (
                                   <>
-                                    <TableHead>Unit</TableHead>
-                                    <TableHead className="text-right">Amount (€/yr)</TableHead>
+                                    <TableHead className="text-left">Unit</TableHead>
+                                    <TableHead className="text-right pr-3">Amount/yr</TableHead>
                                   </>
                                 )}
                                 <TableHead></TableHead>
@@ -567,15 +567,15 @@ export function LineItemsManager({
                             <TableBody>
                               {items.map((item) => (
                                 <TableRow key={item.id}>
-                                  <TableCell className="font-medium truncate" title={item.name}>
+                                  <TableCell className="text-left font-medium truncate" title={item.name}>
                                     {item.name}
                                   </TableCell>
                                   {isCapexTab ? (
                                     <>
-                                      <TableCell className="text-right font-mono text-sm">
+                                      <TableCell className="text-right font-mono text-sm pr-3">
                                         {formatCurrency(item.unit_price || 0)}
                                       </TableCell>
-                                      <TableCell className="text-right">
+                                      <TableCell className="text-right pr-1">
                                         <Input
                                           type="number"
                                           min="0"
@@ -587,16 +587,16 @@ export function LineItemsManager({
                                               parseFloat(e.target.value) || 0
                                             )
                                           }
-                                          className="w-full h-8 text-right px-2"
+                                          className="w-full h-8 text-right px-3"
                                         />
                                       </TableCell>
-                                      <TableCell className="text-muted-foreground text-sm truncate" title={item.unit || '-'}>
+                                      <TableCell className="text-left text-muted-foreground text-sm truncate" title={item.unit || '-'}>
                                         {item.unit || '-'}
                                       </TableCell>
-                                      <TableCell className="text-right font-mono text-sm">
+                                      <TableCell className="text-right font-mono text-sm pr-3">
                                         {formatCurrency(item.amount)}
                                       </TableCell>
-                                      <TableCell className="text-right">
+                                      <TableCell className="text-right pr-1">
                                         <Input
                                           type="number"
                                           min="0"
@@ -607,7 +607,7 @@ export function LineItemsManager({
                                             const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
                                             handleUpdateItemMargin(item.id, value);
                                           }}
-                                          className="w-full h-8 text-right px-2"
+                                          className="w-full h-8 text-right px-3"
                                           title={
                                             item.margin_percent !== undefined
                                               ? 'Custom margin (overrides global)'
@@ -615,16 +615,16 @@ export function LineItemsManager({
                                           }
                                         />
                                       </TableCell>
-                                      <TableCell className="text-right font-mono text-sm font-semibold">
+                                      <TableCell className="text-right font-mono text-sm font-semibold pr-3">
                                         {formatCurrency(calculateItemTotal(item))}
                                       </TableCell>
                                     </>
                                   ) : (
                                     <>
-                                      <TableCell className="text-muted-foreground text-sm truncate" title={item.unit || '-'}>
+                                      <TableCell className="text-left text-muted-foreground text-sm truncate" title={item.unit || '-'}>
                                         {item.unit || '-'}
                                       </TableCell>
-                                      <TableCell className="text-right font-mono text-sm">
+                                      <TableCell className="text-right font-mono text-sm pr-3">
                                         {formatCurrency(item.amount)}
                                       </TableCell>
                                     </>
