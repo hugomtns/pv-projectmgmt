@@ -11,7 +11,9 @@ import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
 import type { PV3DCanvasRef } from './viewer3d/PV3DCanvas';
 import { ImageGenerationModal } from './ImageGenerationModal';
+import { toast } from 'sonner';
 import type { DesignContext } from '@/lib/gemini';
+import type { DXFGeoData } from '@/lib/dxf/types';
 
 import {
     X,
@@ -30,6 +32,7 @@ interface DesignViewerProps {
 export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const designs = useDesignStore((state) => state.designs);
     const addVersion = useDesignStore((state) => state.addVersion);
+    const updateDesign = useDesignStore((state) => state.updateDesign);
 
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
@@ -65,6 +68,23 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
         setHighlightedElementKey(`${elementType}:${elementId}`);
         pv3DCanvasRef.current?.focusOnElement(elementType, elementId);
     }, []);
+
+    // Handle geo data extracted from DXF - auto-update design with GPS coordinates
+    const handleGeoDataExtracted = useCallback((geoData: DXFGeoData) => {
+        if (geoData.latitude && geoData.longitude) {
+            updateDesign(designId, {
+                gpsCoordinates: {
+                    latitude: geoData.latitude,
+                    longitude: geoData.longitude,
+                    elevation: geoData.elevation,
+                },
+                groundSizeMeters: 400, // Default ground size for auto-extracted GPS
+            });
+            toast.success('GPS coordinates extracted from DXF', {
+                description: `Location: ${geoData.latitude.toFixed(6)}, ${geoData.longitude.toFixed(6)}. Satellite imagery will load automatically.`,
+            });
+        }
+    }, [designId, updateDesign]);
 
     // Build design context for AI image generation
     const designContext = useMemo((): DesignContext => {
@@ -303,6 +323,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                                 groundSizeMeters={design.groundSizeMeters}
                                 highlightedElementKey={highlightedElementKey}
                                 onBadgeClick={handleBadgeClick}
+                                onGeoDataExtracted={handleGeoDataExtracted}
                             />
                         </div>
                     )}

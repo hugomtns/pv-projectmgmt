@@ -109,7 +109,7 @@ export function LocationMapSheet({
   open,
   onOpenChange,
   initialCoordinates,
-  initialGroundSize = 200,
+  initialGroundSize = 400,
   onConfirm,
 }: LocationMapSheetProps) {
   // Default to a generic location if no initial coordinates

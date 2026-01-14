@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useDesignStore } from '@/stores/designStore';
 import { LocationPicker } from './LocationPicker';
+import { extractGeoDataFromDXF } from '@/lib/dxf/parser';
+import { toast } from 'sonner';
 import type { GPSCoordinates } from '@/lib/types';
 
 const createDesignSchema = z.object({
@@ -30,7 +32,8 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [gpsCoordinates, setGpsCoordinates] = useState<GPSCoordinates | undefined>(undefined);
-    const [groundSizeMeters, setGroundSizeMeters] = useState(200);
+    const [groundSizeMeters, setGroundSizeMeters] = useState(400);
+    const [gpsExtractedFromFile, setGpsExtractedFromFile] = useState(false);
 
     const {
         register,
@@ -44,6 +47,37 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
             description: '',
         },
     });
+
+    // Handle DXF file selection - extract GPS coordinates if available
+    const handleFileChange = async (file: File | null) => {
+        setSelectedFile(file);
+        setGpsExtractedFromFile(false);
+
+        if (file && file.name.toLowerCase().endsWith('.dxf')) {
+            try {
+                const geoData = await extractGeoDataFromDXF(file);
+                if (geoData?.latitude && geoData?.longitude) {
+                    setGpsCoordinates({
+                        latitude: geoData.latitude,
+                        longitude: geoData.longitude,
+                        elevation: geoData.elevation,
+                    });
+                    setGpsExtractedFromFile(true);
+                    toast.success('GPS coordinates extracted from DXF');
+                }
+            } catch (error) {
+                console.error('Failed to extract GPS from DXF:', error);
+            }
+        }
+    };
+
+    // Handle manual GPS coordinate changes
+    const handleGpsChange = (coords: GPSCoordinates | undefined) => {
+        setGpsCoordinates(coords);
+        if (!coords) {
+            setGpsExtractedFromFile(false);
+        }
+    };
 
     const onSubmit = async (data: CreateDesignFormValues) => {
         setIsSubmitting(true);
@@ -65,7 +99,8 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
             reset();
             setSelectedFile(null);
             setGpsCoordinates(undefined);
-            setGroundSizeMeters(200);
+            setGroundSizeMeters(400);
+            setGpsExtractedFromFile(false);
             onOpenChange(false);
         } catch (error) {
             console.error(error);
@@ -76,7 +111,7 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Create New Design</DialogTitle>
                 </DialogHeader>
@@ -100,7 +135,7 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                             id="file"
                             type="file"
                             accept=".dxf"
-                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                            onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                         />
                         {selectedFile && (
                             <p className="text-sm text-muted-foreground">
@@ -115,9 +150,10 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                         </p>
                         <LocationPicker
                             value={gpsCoordinates}
-                            onChange={setGpsCoordinates}
+                            onChange={handleGpsChange}
                             groundSize={groundSizeMeters}
                             onGroundSizeChange={setGroundSizeMeters}
+                            extractedFromFile={gpsExtractedFromFile}
                         />
                     </div>
                     <DialogFooter>

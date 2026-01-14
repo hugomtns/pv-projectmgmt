@@ -2,6 +2,13 @@
  * DXF parsing types for PV layout visualization
  */
 
+export interface DXFGeoData {
+  latitude?: number;
+  longitude?: number;
+  northDirection?: number;  // Radians
+  elevation?: number;
+}
+
 export interface DXFParsedData {
   panels: PanelGeometry[];
   mounting: MountingGeometry[];
@@ -11,6 +18,7 @@ export interface DXFParsedData {
   bounds: BoundingBox;
   layers: LayerInfo[];
   units: DXFUnits;
+  geoData?: DXFGeoData;
 }
 
 export interface PanelGeometry {

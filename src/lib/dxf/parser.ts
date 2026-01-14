@@ -8,6 +8,7 @@
 import DxfParser from 'dxf-parser';
 import type {
   DXFParsedData,
+  DXFGeoData,
   PanelGeometry,
   MountingGeometry,
   ElectricalComponent,
@@ -235,6 +236,7 @@ export async function parseDXFFile(content: string | ArrayBuffer): Promise<DXFPa
     bounds,
     layers,
     units,
+    geoData: getGeoDataFromHeader(dxf),
   };
 }
 
@@ -259,6 +261,33 @@ function getUnitsFromHeader(dxf: ReturnType<DxfParser['parseSync']>): DXFUnits {
     return UNIT_MAP[insunits] || 'meters';
   }
   return 'meters'; // Default to meters for PV layouts
+}
+
+/**
+ * Get geo data (GPS coordinates) from DXF header
+ * DXF files can store latitude/longitude in header variables:
+ * - $LATITUDE: Decimal degrees
+ * - $LONGITUDE: Decimal degrees
+ * - $NORTHDIRECTION: Angle from Y axis to north (radians)
+ * - $ELEVATION: Site elevation
+ */
+function getGeoDataFromHeader(dxf: ReturnType<DxfParser['parseSync']>): DXFGeoData | undefined {
+  const dxfData = dxf as unknown as DXFStructure;
+  const header = dxfData?.header;
+  if (!header) return undefined;
+
+  const latitude = typeof header['$LATITUDE'] === 'number' ? header['$LATITUDE'] : undefined;
+  const longitude = typeof header['$LONGITUDE'] === 'number' ? header['$LONGITUDE'] : undefined;
+
+  // Only return if we have valid coordinates
+  if (latitude === undefined || longitude === undefined) return undefined;
+
+  return {
+    latitude,
+    longitude,
+    northDirection: typeof header['$NORTHDIRECTION'] === 'number' ? header['$NORTHDIRECTION'] : undefined,
+    elevation: typeof header['$ELEVATION'] === 'number' ? header['$ELEVATION'] : undefined,
+  };
 }
 
 /**
@@ -761,4 +790,16 @@ export async function parseDXFFromURL(url: string): Promise<DXFParsedData> {
   }
   const text = await response.text();
   return parseDXFFile(text);
+}
+
+/**
+ * Extract just the geo data (GPS coordinates) from a DXF file
+ * Useful for extracting location before full parsing (e.g., during file upload)
+ */
+export async function extractGeoDataFromDXF(file: File): Promise<DXFGeoData | undefined> {
+  const text = await file.text();
+  const parser = new DxfParser();
+  const dxf = parser.parseSync(text);
+  if (!dxf) return undefined;
+  return getGeoDataFromHeader(dxf);
 }

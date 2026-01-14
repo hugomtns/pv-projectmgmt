@@ -9,7 +9,7 @@ import { PVLayoutRenderer } from './PVLayoutRenderer';
 import { ElementCommentDialog } from './ElementCommentDialog';
 import { parseDXFFromURL } from '@/lib/dxf/parser';
 import { getElementPosition } from './cameraUtils';
-import type { DXFParsedData, PanelGeometry } from '@/lib/dxf/types';
+import type { DXFParsedData, DXFGeoData, PanelGeometry } from '@/lib/dxf/types';
 import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
@@ -52,6 +52,7 @@ interface PV3DCanvasProps {
   groundSizeMeters?: number;
   highlightedElementKey?: string | null;
   onBadgeClick?: (elementType: string, elementId: string) => void;
+  onGeoDataExtracted?: (geoData: DXFGeoData) => void;
 }
 
 type CameraMode = '3d' | '2d';
@@ -68,6 +69,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   groundSizeMeters,
   highlightedElementKey,
   onBadgeClick,
+  onGeoDataExtracted,
 }, ref) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
@@ -132,6 +134,13 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
       cancelled = true;
     };
   }, [fileUrl]);
+
+  // Notify parent when geo data is extracted from DXF (for auto-loading satellite imagery)
+  useEffect(() => {
+    if (parsedData?.geoData && !gpsCoordinates && onGeoDataExtracted) {
+      onGeoDataExtracted(parsedData.geoData);
+    }
+  }, [parsedData?.geoData, gpsCoordinates, onGeoDataExtracted]);
 
   // Handle panel selection (for non-comment mode)
   const handlePanelClick = (index: number, panel: PanelGeometry) => {
