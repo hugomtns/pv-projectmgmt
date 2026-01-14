@@ -176,7 +176,7 @@ export function AddLineItemDialog({
           {/* Item Name with Combobox */}
           <div className="grid gap-2">
             <Label htmlFor="item-name">Item Name</Label>
-            <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+            <Popover open={comboboxOpen} onOpenChange={setComboboxOpen} modal={true}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -195,7 +195,10 @@ export function AddLineItemDialog({
                     value={itemName}
                     onValueChange={handleItemNameChange}
                   />
-                  <CommandList className="max-h-[300px]">
+                  <CommandList
+                    className="max-h-[300px] overflow-y-auto overscroll-contain"
+                    onWheel={(e) => e.stopPropagation()}
+                  >
                     <CommandEmpty>
                       <Button
                         variant="ghost"
