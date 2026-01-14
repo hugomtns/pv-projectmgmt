@@ -43,7 +43,7 @@ export function CumulativeFCFChart({ yearlyData, equityPaybackYears }: Cumulativ
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={data}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
         >
           <defs>
             <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
@@ -92,9 +92,10 @@ export function CumulativeFCFChart({ yearlyData, equityPaybackYears }: Cumulativ
               strokeDasharray="5 5"
               label={{
                 value: 'Payback',
-                position: 'top',
+                position: 'insideTopRight',
                 fill: '#22c55e',
-                fontSize: 12,
+                fontSize: 11,
+                fontWeight: 500,
               }}
             />
           )}
