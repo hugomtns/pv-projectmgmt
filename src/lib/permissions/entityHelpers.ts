@@ -14,6 +14,7 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     user_management: 'User Management',
     documents: 'Files',
     designs: 'Designs',
+    financials: 'Financials',
   };
   return labels[entityType];
 }
@@ -76,6 +77,16 @@ export function getEntityName(entityType: EntityType, entityId: string): string 
     case 'documents': {
       // Documents would need to be looked up from documentStore
       // For now, return null - can be implemented when documentStore is available
+      return null;
+    }
+
+    case 'designs': {
+      // Designs would need to be looked up from designStore
+      return null;
+    }
+
+    case 'financials': {
+      // Financial models would need to be looked up from financialStore
       return null;
     }
 

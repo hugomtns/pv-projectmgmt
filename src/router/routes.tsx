@@ -4,6 +4,8 @@ import { Projects } from '@/pages/Projects';
 import ProjectDetailPage from '@/pages/ProjectDetailPage';
 import DesignDetailPage from '@/pages/DesignDetailPage';
 import DocumentViewerPage from '@/pages/DocumentViewerPage';
+import { Financials } from '@/pages/Financials';
+import { FinancialModelPage } from '@/pages/FinancialModelPage';
 import { WorkflowSettings } from '@/pages/WorkflowSettings';
 import { Users } from '@/pages/Users';
 import { Groups } from '@/pages/Groups';
@@ -20,6 +22,8 @@ export const router = createBrowserRouter([
       { path: 'projects/:projectId', element: <ProjectDetailPage /> },
       { path: 'designs/:designId', element: <DesignDetailPage /> },
       { path: 'documents/:documentId', element: <DocumentViewerPage /> },
+      { path: 'financials', element: <Financials /> },
+      { path: 'financials/:projectId', element: <FinancialModelPage /> },
       { path: 'workflow', element: <WorkflowSettings /> },
       { path: 'users', element: <Users /> },
       { path: 'groups', element: <Groups /> },
