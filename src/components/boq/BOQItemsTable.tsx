@@ -193,16 +193,7 @@ export function BOQItemsTable({
                 <div className="border-t">
                   <ScrollArea className="w-full">
                     <Table className="table-fixed w-full">
-                      <colgroup>
-                        <col className="w-auto" />
-                        <col className="w-[90px]" />
-                        <col className="w-[70px]" />
-                        <col className="w-[110px]" />
-                        <col className="w-[120px]" />
-                        <col className="w-[80px]" />
-                        <col className="w-[100px]" />
-                        {!readOnly && <col className="w-[50px]" />}
-                      </colgroup>
+                      <colgroup><col className="w-auto" /><col className="w-[90px]" /><col className="w-[70px]" /><col className="w-[110px]" /><col className="w-[120px]" /><col className="w-[80px]" /><col className="w-[100px]" />{!readOnly && <col className="w-[50px]" />}</colgroup>
                       <TableHeader>
                         <TableRow className="bg-muted/50 border-b-2">
                           <TableHead className="text-left font-semibold text-foreground">Item</TableHead>

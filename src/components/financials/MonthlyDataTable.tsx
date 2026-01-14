@@ -186,7 +186,7 @@ export function MonthlyDataTable({ monthlyData }: MonthlyDataTableProps) {
                           {month.debt_service > 0 ? formatCurrency(month.debt_service) : '—'}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
-                          {month.dscr !== null ? `${month.dscr.toFixed(2)}x` : '—'}
+                          {month.dscr != null ? `${month.dscr.toFixed(2)}x` : '—'}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm">
                           {formatCurrency(month.fcf_to_equity)}

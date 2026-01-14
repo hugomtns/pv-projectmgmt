@@ -81,7 +81,7 @@ export function CumulativeFCFChart({
 
   return (
     <div id={chartId} className="h-[350px] w-full bg-background">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={200}>
         <ComposedChart
           data={data}
           margin={{ top: 20, right: 60, left: 0, bottom: 0 }}
