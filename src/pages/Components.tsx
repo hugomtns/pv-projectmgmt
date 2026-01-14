@@ -38,6 +38,7 @@ import { Box, Cpu, MoreHorizontal, Pencil, Trash2, Plus, Zap, Upload, FileBox } 
 import { ComponentDialog, type PrefilledComponentData } from '@/components/components/ComponentDialog';
 import { ImportFromDesignDialog, type ImportedComponentData } from '@/components/components/ImportFromDesignDialog';
 import { FileImportDialog } from '@/components/components/FileImportDialog';
+import type { ParsedPANData } from '@/lib/pan/parser';
 
 type FilterType = 'all' | ComponentType;
 
@@ -105,6 +106,19 @@ export function Components() {
       heightMm: data.heightMm,
     });
     setImportFromDesignOpen(false);
+    setCreateDialogOpen(true);
+  };
+
+  const handleImportFromPAN = (data: ParsedPANData) => {
+    // Set prefilled data from PAN file and open component dialog
+    setPrefilledData({
+      type: 'module',
+      manufacturer: data.manufacturer,
+      model: data.model,
+      specs: data.specs,
+      fromPAN: true,
+    });
+    setFileImportOpen(false);
     setCreateDialogOpen(true);
   };
 
@@ -389,6 +403,7 @@ export function Components() {
       <FileImportDialog
         open={fileImportOpen}
         onOpenChange={setFileImportOpen}
+        onImport={handleImportFromPAN}
       />
     </div>
   );

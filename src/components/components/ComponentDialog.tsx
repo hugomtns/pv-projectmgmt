@@ -28,15 +28,20 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { CELL_TYPES, INVERTER_TYPES, CURRENCIES } from '@/lib/types/component';
-import { Box, Zap, FileBox } from 'lucide-react';
+import { Box, Zap, FileBox, Upload } from 'lucide-react';
 
-// Pre-filled data from design import
+// Pre-filled data from design import or PAN file
 export interface PrefilledComponentData {
   type: 'module' | 'inverter';
   linkedDesigns?: DesignUsage[];
-  // Module specs from DXF (mm)
+  // From DXF import
   widthMm?: number | null;
   heightMm?: number | null;
+  // From PAN file import
+  manufacturer?: string;
+  model?: string;
+  specs?: Partial<ModuleSpecs>;
+  fromPAN?: boolean;
 }
 
 interface ComponentDialogProps {
@@ -51,7 +56,8 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
   const updateComponent = useComponentStore((state) => state.updateComponent);
 
   const isEditing = !!component;
-  const isFromDesign = !!prefilledData;
+  const isFromDesign = !!prefilledData && !prefilledData.fromPAN;
+  const isFromPAN = !!prefilledData?.fromPAN;
   const [componentType, setComponentType] = useState<ComponentType>('module');
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
@@ -119,35 +125,59 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           setInverterSpecs(component.specs as InverterSpecs);
         }
       } else if (prefilledData) {
-        // Importing from design - use prefilled data
+        // Importing from design or PAN file - use prefilled data
         setComponentType(prefilledData.type);
-        setManufacturer('');
-        setModel('');
+        setManufacturer(prefilledData.manufacturer || '');
+        setModel(prefilledData.model || '');
         setUnitPrice(0);
         setCurrency('USD');
         setLinkedDesigns(prefilledData.linkedDesigns || []);
 
         if (prefilledData.type === 'module') {
-          // Use extracted dimensions if available, otherwise defaults
-          setModuleSpecs({
-            length: prefilledData.heightMm || 2278,
-            width: prefilledData.widthMm || 1134,
-            thickness: 30,
-            weight: 28,
-            powerRating: 580,
-            voc: 51.5,
-            isc: 14.35,
-            vmp: 43.2,
-            imp: 13.43,
-            efficiency: 22.5,
-            cellType: 'mono-Si',
-            cellCount: 144,
-            bifacial: true,
-            bifacialityFactor: 0.7,
-            tempCoeffPmax: -0.34,
-            tempCoeffVoc: -0.25,
-            tempCoeffIsc: 0.04,
-          });
+          // If from PAN file, use all extracted specs
+          if (prefilledData.fromPAN && prefilledData.specs) {
+            const panSpecs = prefilledData.specs;
+            setModuleSpecs({
+              length: panSpecs.length ?? 2278,
+              width: panSpecs.width ?? 1134,
+              thickness: panSpecs.thickness ?? 30,
+              weight: panSpecs.weight ?? 28,
+              powerRating: panSpecs.powerRating ?? 580,
+              voc: panSpecs.voc ?? 51.5,
+              isc: panSpecs.isc ?? 14.35,
+              vmp: panSpecs.vmp ?? 43.2,
+              imp: panSpecs.imp ?? 13.43,
+              efficiency: panSpecs.efficiency ?? 22.5,
+              cellType: panSpecs.cellType ?? 'mono-Si',
+              cellCount: panSpecs.cellCount ?? 144,
+              bifacial: panSpecs.bifacial ?? false,
+              bifacialityFactor: panSpecs.bifacialityFactor,
+              tempCoeffPmax: panSpecs.tempCoeffPmax ?? -0.34,
+              tempCoeffVoc: panSpecs.tempCoeffVoc ?? -0.25,
+              tempCoeffIsc: panSpecs.tempCoeffIsc ?? 0.04,
+            });
+          } else {
+            // Use extracted dimensions from DXF if available, otherwise defaults
+            setModuleSpecs({
+              length: prefilledData.heightMm || 2278,
+              width: prefilledData.widthMm || 1134,
+              thickness: 30,
+              weight: 28,
+              powerRating: 580,
+              voc: 51.5,
+              isc: 14.35,
+              vmp: 43.2,
+              imp: 13.43,
+              efficiency: 22.5,
+              cellType: 'mono-Si',
+              cellCount: 144,
+              bifacial: true,
+              bifacialityFactor: 0.7,
+              tempCoeffPmax: -0.34,
+              tempCoeffVoc: -0.25,
+              tempCoeffIsc: 0.04,
+            });
+          }
         } else {
           setInverterSpecs({
             length: 1055,
@@ -261,11 +291,19 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Edit Component' : isFromDesign ? 'Add Component from Design' : 'Add New Component'}
+            {isEditing
+              ? 'Edit Component'
+              : isFromPAN
+              ? 'Add Module from PAN File'
+              : isFromDesign
+              ? 'Add Component from Design'
+              : 'Add New Component'}
           </DialogTitle>
           <DialogDescription>
             {isEditing
               ? 'Update the component specifications and pricing.'
+              : isFromPAN
+              ? 'Review the extracted specifications and adjust if needed.'
               : isFromDesign
               ? 'Enter manufacturer and model. Specifications can be added later.'
               : 'Add a PV module or inverter to your component library.'}
@@ -273,6 +311,16 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Import from PAN file info */}
+          {isFromPAN && (
+            <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <Upload className="h-4 w-4 text-green-600" />
+              <span className="text-sm">
+                Specifications extracted from PAN file. All fields are editable.
+              </span>
+            </div>
+          )}
+
           {/* Import from design info */}
           {isFromDesign && (
             <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
@@ -284,7 +332,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           )}
 
           {/* Component Type Selection - only for new components without prefill */}
-          {!isEditing && !isFromDesign && (
+          {!isEditing && !isFromDesign && !isFromPAN && (
             <div className="space-y-2">
               <Label>Component Type</Label>
               <div className="flex gap-4">
@@ -310,8 +358,8 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
             </div>
           )}
 
-          {/* Show locked type when from design */}
-          {!isEditing && isFromDesign && (
+          {/* Show locked type when from design or PAN */}
+          {!isEditing && (isFromDesign || isFromPAN) && (
             <div className="space-y-2">
               <Label>Component Type</Label>
               <div className="flex gap-4">
