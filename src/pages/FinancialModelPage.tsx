@@ -1,38 +1,69 @@
 import { useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { useFinancialStore } from '@/stores/financialStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUserStore } from '@/stores/userStore';
 import { usePermission } from '@/hooks/usePermission';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { FinancialInputForm } from '@/components/financials/FinancialInputForm';
 import { FinancialResults } from '@/components/financials/FinancialResults';
 import { ExportPDFDialog } from '@/components/financials/ExportPDFDialog';
 import { SolarFinanceCalculator } from '@/lib/calculator/calculator';
-import { ArrowLeft, DollarSign, Plus, Settings, BarChart3, FileDown } from 'lucide-react';
+import { ArrowLeft, DollarSign, Plus, Settings, BarChart3, FileDown, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function FinancialModelPage() {
   const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const projects = useProjectStore((state) => state.projects);
   const project = projects.find((p) => p.id === projectId);
 
   const financialModels = useFinancialStore((state) => state.financialModels);
   const addFinancialModel = useFinancialStore((state) => state.addFinancialModel);
   const updateResults = useFinancialStore((state) => state.updateResults);
+  const deleteFinancialModel = useFinancialStore((state) => state.deleteFinancialModel);
   const model = financialModels.find((m) => m.projectId === projectId);
 
+  const currentUser = useUserStore((state) => state.currentUser);
   const canCreate = usePermission('financials', 'create');
+  const canDelete = usePermission('financials', 'delete');
+
   const [isCalculating, setIsCalculating] = useState(false);
   const [activeTab, setActiveTab] = useState(model?.results ? 'results' : 'inputs');
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Check if current user can modify this model
+  const canModifyModel = () => {
+    if (!currentUser || !model) return false;
+    const isAdmin = currentUser.roleId === 'role-admin';
+    const isCreator = model.creatorId === currentUser.id;
+    return isAdmin || isCreator;
+  };
 
   const handleCreateModel = () => {
     if (!projectId || !project) return;
     addFinancialModel(projectId, `${project.name} - Financial Model`);
+  };
+
+  const handleDeleteModel = () => {
+    if (!model) return;
+    deleteFinancialModel(model.id);
+    navigate('/financials');
   };
 
   const handleCalculate = () => {
@@ -80,6 +111,17 @@ export function FinancialModelPage() {
               Back to Financials
             </Link>
           </Button>
+          {model && canDelete && canModifyModel() && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          )}
         </div>
       </Header>
 
@@ -177,6 +219,27 @@ export function FinancialModelPage() {
           projectName={project?.name}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Financial Model</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this financial model? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteModel}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

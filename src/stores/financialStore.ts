@@ -108,10 +108,18 @@ export const useFinancialStore = create<FinancialState>()(
           userState.roles
         );
 
-        // Only creator or admin can update
+        // Check permissions: Admins can update any, Users only their own, Guests none
+        const isAdmin = currentUser.roleId === 'role-admin';
         const isCreator = model.creatorId === currentUser.id;
-        if (!permissions.update && !isCreator) {
-          toast.error('Permission denied: You do not have permission to update this financial model');
+
+        if (!permissions.update) {
+          toast.error('Permission denied: You do not have permission to update financial models');
+          return;
+        }
+
+        // Non-admin users can only update their own models
+        if (!isAdmin && !isCreator) {
+          toast.error('Permission denied: You can only update your own financial models');
           return;
         }
 
@@ -147,9 +155,18 @@ export const useFinancialStore = create<FinancialState>()(
           userState.roles
         );
 
+        // Check permissions: Admins can update any, Users only their own, Guests none
+        const isAdmin = currentUser.roleId === 'role-admin';
         const isCreator = model.creatorId === currentUser.id;
-        if (!permissions.update && !isCreator) {
+
+        if (!permissions.update) {
           toast.error('Permission denied');
+          return;
+        }
+
+        // Non-admin users can only update their own models
+        if (!isAdmin && !isCreator) {
+          toast.error('Permission denied: You can only update your own financial models');
           return;
         }
 
@@ -200,9 +217,18 @@ export const useFinancialStore = create<FinancialState>()(
           userState.roles
         );
 
+        // Check permissions: Admins can delete any, Users only their own, Guests none
+        const isAdmin = currentUser.roleId === 'role-admin';
         const isCreator = model.creatorId === currentUser.id;
-        if (!permissions.delete && !isCreator) {
-          toast.error('Permission denied: You do not have permission to delete this financial model');
+
+        if (!permissions.delete) {
+          toast.error('Permission denied: You do not have permission to delete financial models');
+          return;
+        }
+
+        // Non-admin users can only delete their own models
+        if (!isAdmin && !isCreator) {
+          toast.error('Permission denied: You can only delete your own financial models');
           return;
         }
 
