@@ -45,7 +45,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { DollarSign, Calculator, MoreHorizontal, Pencil, Trash2, Eye, ExternalLink, Plus } from 'lucide-react';
+import { DollarSign, Calculator, MoreHorizontal, Pencil, Trash2, Eye, ExternalLink } from 'lucide-react';
 
 export function Financials() {
   const navigate = useNavigate();
@@ -127,7 +127,6 @@ export function Financials() {
           </div>
           {canCreate && projectsWithoutModels.length > 0 && (
             <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
               New Financial Model
             </Button>
           )}
