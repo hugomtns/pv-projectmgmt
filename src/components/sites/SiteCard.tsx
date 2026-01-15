@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -38,6 +37,8 @@ import { useUserStore } from '@/stores/userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { squareMetersToAcres } from '@/lib/kml/parser';
 import { SiteMapPreview } from './SiteMapPreview';
+import { ScorecardBadge } from './scorecard/ScorecardBadge';
+import { ScorecardSection } from './scorecard/ScorecardSection';
 
 interface SiteCardProps {
   site: Site;
@@ -88,9 +89,7 @@ export function SiteCard({ site }: SiteCardProps) {
               {site.name}
             </CardTitle>
             <div className="flex items-center gap-1 shrink-0">
-              <Badge variant="secondary" className="bg-green-500/10 text-green-700">
-                {site.boundaries.length} {site.boundaries.length === 1 ? 'boundary' : 'boundaries'}
-              </Badge>
+              <ScorecardBadge scorecard={site.scorecard} size="sm" />
               {canDelete && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -182,15 +181,22 @@ export function SiteCard({ site }: SiteCardProps) {
 
       {/* Map preview dialog */}
       <Dialog open={showMapDialog} onOpenChange={setShowMapDialog}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
               {site.name}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 min-h-0">
-            <SiteMapPreview site={site} />
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Map view */}
+            <div className="lg:col-span-2 min-h-[300px]">
+              <SiteMapPreview site={site} />
+            </div>
+            {/* Scorecard panel */}
+            <div className="overflow-y-auto">
+              <ScorecardSection site={site} defaultExpanded={true} />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
