@@ -69,8 +69,10 @@ export function SiteCard({ site }: SiteCardProps) {
     setShowDeleteDialog(false);
   };
 
-  const totalAcres = site.totalArea ? squareMetersToAcres(site.totalArea).toFixed(1) : '0';
-  const usableAcres = site.usableArea
+  const totalAcres = site.totalArea != null && site.totalArea > 0
+    ? squareMetersToAcres(site.totalArea).toFixed(1)
+    : '0';
+  const usableAcres = site.usableArea != null
     ? squareMetersToAcres(site.usableArea).toFixed(1)
     : totalAcres;
 

@@ -179,9 +179,16 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             Total: {squareMetersToAcres(site.totalArea).toFixed(1)} acres
           </div>
         )}
-        {site.usableArea != null && site.usableArea > 0 && (
-          <div className={site.usableArea !== site.totalArea ? 'text-green-600' : 'text-muted-foreground'}>
+        {site.usableArea != null && (
+          <div className={
+            site.usableArea === 0
+              ? 'text-red-500'
+              : site.usableArea !== site.totalArea
+                ? 'text-green-600'
+                : 'text-muted-foreground'
+          }>
             Usable: {squareMetersToAcres(site.usableArea).toFixed(1)} acres
+            {site.usableArea === 0 && ' (highly constrained)'}
           </div>
         )}
         {site.centroid && (
