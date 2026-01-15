@@ -1,10 +1,89 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Site, KMLParseResult } from '@/lib/types';
+import * as turf from '@turf/turf';
+import type { Feature, Polygon, MultiPolygon } from 'geojson';
+import type { Site, KMLParseResult, SiteBoundary, SiteExclusionZone } from '@/lib/types';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
+
+/**
+ * Calculate usable area by clipping exclusion zones to boundary
+ * and subtracting only the overlapping portions
+ */
+function calculateUsableArea(
+  boundaries: SiteBoundary[],
+  exclusionZones: SiteExclusionZone[],
+  totalArea: number
+): number {
+  if (boundaries.length === 0 || exclusionZones.length === 0) {
+    return totalArea;
+  }
+
+  try {
+    // Create boundary polygon(s)
+    const boundaryPolygons = boundaries
+      .filter(b => b.coordinates.length >= 4)
+      .map(b => {
+        const coords = b.coordinates.map(c => [c.lng, c.lat]);
+        // Ensure polygon is closed
+        if (coords[0][0] !== coords[coords.length - 1][0] ||
+            coords[0][1] !== coords[coords.length - 1][1]) {
+          coords.push(coords[0]);
+        }
+        return turf.polygon([coords]);
+      });
+
+    if (boundaryPolygons.length === 0) return totalArea;
+
+    // Union all boundaries into one (may result in Polygon or MultiPolygon)
+    let boundaryUnion: Feature<Polygon | MultiPolygon> = boundaryPolygons[0];
+    for (let i = 1; i < boundaryPolygons.length; i++) {
+      const result = turf.union(turf.featureCollection([boundaryUnion, boundaryPolygons[i]]));
+      if (result) boundaryUnion = result;
+    }
+
+    // Calculate exclusion area that's INSIDE the boundary
+    let clippedExclusionArea = 0;
+
+    for (const ez of exclusionZones) {
+      if (ez.coordinates.length < 4) continue;
+
+      try {
+        const coords = ez.coordinates.map(c => [c.lng, c.lat]);
+        // Ensure polygon is closed
+        if (coords[0][0] !== coords[coords.length - 1][0] ||
+            coords[0][1] !== coords[coords.length - 1][1]) {
+          coords.push(coords[0]);
+        }
+
+        const exclusionPoly = turf.polygon([coords]);
+        const clipped = turf.intersect(turf.featureCollection([boundaryUnion, exclusionPoly]));
+
+        if (clipped) {
+          // Area in square meters
+          clippedExclusionArea += turf.area(clipped);
+        }
+      } catch {
+        // Skip invalid polygons
+      }
+    }
+
+    console.log('[calculateUsableArea] Clipped exclusion area:', {
+      originalExclusionArea: exclusionZones.reduce((sum, ez) => sum + (ez.area || 0), 0),
+      clippedExclusionArea,
+      totalArea,
+    });
+
+    return Math.max(0, totalArea - clippedExclusionArea);
+  } catch (error) {
+    console.error('[calculateUsableArea] Error:', error);
+    // Fallback to simple calculation
+    const exclusionArea = exclusionZones.reduce((sum, ez) => sum + (ez.area || 0), 0);
+    return Math.max(0, totalArea - exclusionArea);
+  }
+}
 
 interface SiteState {
   // State
@@ -193,16 +272,14 @@ export const useSiteStore = create<SiteState>()(
       ) => {
         const { boundaries, exclusionZones, centroid, totalArea } = parseResult;
 
-        // Calculate usable area (total - exclusions)
-        const exclusionArea = exclusionZones.reduce((sum, ez) => sum + (ez.area || 0), 0);
-        const usableArea = (totalArea || 0) - exclusionArea;
+        // Calculate usable area using proper polygon intersection
+        // This clips exclusion zones to the boundary so areas outside don't count
+        const usableArea = calculateUsableArea(boundaries, exclusionZones, totalArea || 0);
 
         console.log('[createSiteFromKML] Calculation:', {
           totalArea,
           exclusionCount: exclusionZones.length,
-          exclusionArea,
           usableArea,
-          sampleExclusionAreas: exclusionZones.slice(0, 3).map(ez => ez.area),
         });
 
         return get().addSite({
@@ -215,7 +292,7 @@ export const useSiteStore = create<SiteState>()(
           exclusionZones,
           centroid,
           totalArea,
-          usableArea: Math.max(0, usableArea),
+          usableArea,
         });
       },
 

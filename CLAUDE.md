@@ -88,6 +88,22 @@ The application uses several Zustand stores with localStorage persistence:
 8. **displayStore** & **filterStore** & **userFilterStore**
    - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search, user filters)
 
+### NTP (Notice to Proceed) Checklist
+
+Projects have an optional NTP checklist (`project.ntpChecklist`) for tracking due diligence items required before construction financing:
+
+- **Categories**: site_control, permitting, grid, environmental, commercial, financial
+- **Templates**: `src/data/ntpChecklistTemplate.ts` contains 26 predefined industry-standard items
+- **Features**:
+  - Initialize from templates or start empty
+  - Add custom items or select from templates via searchable combobox
+  - Target dates with overdue styling
+  - Create milestones from NTP items (individual or bulk)
+  - Category-to-color mapping for milestone creation
+- **Store actions**: `initializeNtpChecklist`, `addNtpChecklistItem`, `updateNtpChecklistItem`, `deleteNtpChecklistItem`, `toggleNtpChecklistItemStatus`
+- **Types**: `src/lib/types/ntpChecklist.ts`
+- **Components**: `src/components/ntp-checklist/`
+
 ### Key Architecture Patterns
 
 **Project-Stage-Task Hierarchy:**
@@ -156,6 +172,7 @@ components/
 ├── designs/         # Design viewer, upload, comments, version control
 ├── components/      # PV component library (ComponentDialog, FileImportDialog)
 ├── financials/      # Financial model editor, charts, reports
+├── ntp-checklist/   # NTP checklist management (AddNtpItemDialog, NtpChecklistSection)
 └── ui/              # shadcn/ui components
 ```
 
@@ -165,7 +182,8 @@ components/
 - **src/lib/types/document.ts** - Document types: `DocumentVersion`, `DocumentComment`, `Drawing`, `WorkflowEvent`, `LocationAnchor`, `DocumentStatus`
 - **src/lib/types/financial.ts** - Financial types: `FinancialModel`, `FinancialInputs`, `ProjectResults`, `CostLineItem`
 - **src/lib/types/component.ts** - Component types: `Component`, `ModuleSpecs`, `InverterSpecs`, `DesignUsage`
-- **src/lib/constants.ts** - Priority labels/colors, task status labels
+- **src/lib/types/ntpChecklist.ts** - NTP types: `NtpChecklist`, `NtpChecklistItem`, `NtpCategory`
+- **src/lib/constants.ts** - Priority labels/colors, task status labels, NTP category colors
 - Priority scale: 0=On Hold, 1=Urgent, 2=High, 3=Medium, 4=Low
 - Document statuses: `draft`, `review`, `approved`, `rejected`
 
@@ -217,4 +235,5 @@ App shows a loading screen for 300ms on mount to ensure Zustand persistence has 
 - `src/lib/dxf/componentExtractor.ts` - Extract component data from DXF designs
 - `src/lib/pan/parser.ts` - PVsyst PAN file parser (modules)
 - `src/lib/ond/parser.ts` - PVsyst OND file parser (inverters)
+- `src/data/ntpChecklistTemplate.ts` - NTP checklist templates and utilities
 - `vite.config.ts` - Vite and Vitest configuration with path aliases

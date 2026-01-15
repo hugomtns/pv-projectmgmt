@@ -48,7 +48,12 @@
       "WebFetch(domain:drei.docs.pmnd.rs)",
       "mcp__shadcn__list_items_in_registries",
       "mcp__shadcn__get_add_command_for_items",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(git pull:*)",
+      "Bash(for file in *.kml)",
+      "Bash(do)",
+      "Bash(echo:*)",
+      "Bash(done)"
     ]
   },
   "enabledMcpjsonServers": [
