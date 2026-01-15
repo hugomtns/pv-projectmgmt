@@ -4,6 +4,11 @@ import { LatLngBounds } from 'leaflet';
 import type { Site, ExclusionZoneType } from '@/lib/types';
 import { squareMetersToAcres } from '@/lib/kml/parser';
 import { EXCLUSION_ZONE_LABELS } from '@/lib/types/site';
+import { getTrafficLightColor } from '@/lib/types/siteScorecard';
+import {
+  SCORECARD_TRAFFIC_LIGHT_COLORS,
+  SCORECARD_TRAFFIC_LIGHT_LABELS,
+} from '@/lib/constants';
 import 'leaflet/dist/leaflet.css';
 
 interface SiteMapPreviewProps {
@@ -190,6 +195,21 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             {site.usableArea === 0 && ' (highly constrained)'}
           </div>
         )}
+        {/* Scorecard score */}
+        {site.scorecard?.compositeScore != null && (() => {
+          const trafficLight = getTrafficLightColor(site.scorecard.compositeScore);
+          const color = trafficLight ? SCORECARD_TRAFFIC_LIGHT_COLORS[trafficLight] : undefined;
+          const label = trafficLight ? SCORECARD_TRAFFIC_LIGHT_LABELS[trafficLight] : '';
+          return (
+            <div className="mt-1 flex items-center gap-1.5" style={{ color }}>
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              Score: {site.scorecard.compositeScore}/100 ({label})
+            </div>
+          );
+        })()}
         {site.centroid && (
           <div className="text-muted-foreground mt-1">
             {site.centroid.latitude.toFixed(5)}, {site.centroid.longitude.toFixed(5)}
