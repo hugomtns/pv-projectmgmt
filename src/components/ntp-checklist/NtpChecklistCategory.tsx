@@ -19,6 +19,7 @@ import {
   Handshake,
   DollarSign,
   CheckCircle2,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +28,7 @@ interface NtpChecklistCategoryProps {
   items: NtpChecklistItem[];
   onToggleStatus: (itemId: string) => void;
   onItemClick: (item: NtpChecklistItem) => void;
+  onAddItem?: () => void;
   defaultOpen?: boolean;
   canModify?: boolean;
 }
@@ -54,6 +56,7 @@ export function NtpChecklistCategory({
   items,
   onToggleStatus,
   onItemClick,
+  onAddItem,
   defaultOpen = true,
   canModify = false,
 }: NtpChecklistCategoryProps) {
@@ -91,7 +94,20 @@ export function NtpChecklistCategory({
               {allRequiredComplete && (
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
               )}
-              <Badge variant="secondary" className="ml-auto">
+              {canModify && onAddItem && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddItem();
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
+              <Badge variant="secondary">
                 {completedCount} / {items.length}
               </Badge>
             </div>

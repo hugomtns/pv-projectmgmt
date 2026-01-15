@@ -7,7 +7,7 @@ import type { NtpChecklistItem, NtpCategory } from '@/lib/types/ntpChecklist';
  * utility-scale solar project financing (Notice to Proceed).
  */
 
-type NtpChecklistItemTemplate = Omit<NtpChecklistItem, 'id' | 'createdAt' | 'updatedAt'>;
+export type NtpChecklistItemTemplate = Omit<NtpChecklistItem, 'id' | 'createdAt' | 'updatedAt'>;
 
 export const DEFAULT_NTP_CHECKLIST_ITEMS: NtpChecklistItemTemplate[] = [
   // Site Control
@@ -361,4 +361,18 @@ export function getItemCounts(): { required: number; optional: number; total: nu
   const required = DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => item.required).length;
   const optional = DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => !item.required).length;
   return { required, optional, total: DEFAULT_NTP_CHECKLIST_ITEMS.length };
+}
+
+/**
+ * Get all template items grouped by category (for searchable picker)
+ */
+export function getTemplateItemsByCategory(): Record<NtpCategory, NtpChecklistItemTemplate[]> {
+  return {
+    site_control: DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => item.category === 'site_control'),
+    permitting: DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => item.category === 'permitting'),
+    grid: DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => item.category === 'grid'),
+    environmental: DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => item.category === 'environmental'),
+    commercial: DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => item.category === 'commercial'),
+    financial: DEFAULT_NTP_CHECKLIST_ITEMS.filter((item) => item.category === 'financial'),
+  };
 }

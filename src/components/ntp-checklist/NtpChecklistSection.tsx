@@ -10,6 +10,7 @@ import { NtpChecklistProgress } from './NtpChecklistProgress';
 import { NtpChecklistCategory } from './NtpChecklistCategory';
 import { NtpChecklistItemDialog } from './NtpChecklistItemDialog';
 import { InitializeNtpDialog } from './InitializeNtpDialog';
+import { AddNtpItemDialog } from './AddNtpItemDialog';
 import { ClipboardList, Plus, Flag } from 'lucide-react';
 
 interface NtpChecklistSectionProps {
@@ -25,6 +26,8 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
   const [selectedItem, setSelectedItem] = useState<NtpChecklistItem | null>(null);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [initDialogOpen, setInitDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addDialogCategory, setAddDialogCategory] = useState<NtpCategory | undefined>(undefined);
 
   if (!project) {
     return (
@@ -54,6 +57,11 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
   const handleItemClick = (item: NtpChecklistItem) => {
     setSelectedItem(item);
     setItemDialogOpen(true);
+  };
+
+  const handleAddItem = (category?: NtpCategory) => {
+    setAddDialogCategory(category);
+    setAddDialogOpen(true);
   };
 
   // Items with target dates (for bulk milestone creation)
@@ -151,11 +159,20 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
               items={items}
               onToggleStatus={handleToggleStatus}
               onItemClick={handleItemClick}
+              onAddItem={() => handleAddItem(category)}
               canModify={canModify}
             />
           );
         })}
       </div>
+
+      {/* Add Item Button */}
+      {canModify && (
+        <Button variant="outline" onClick={() => handleAddItem()} className="w-full">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Item
+        </Button>
+      )}
 
       {/* Item Detail Dialog */}
       <NtpChecklistItemDialog
@@ -164,6 +181,14 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
         open={itemDialogOpen}
         onOpenChange={setItemDialogOpen}
         canModify={canModify}
+      />
+
+      {/* Add Item Dialog */}
+      <AddNtpItemDialog
+        projectId={projectId}
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        defaultCategory={addDialogCategory}
       />
     </div>
   );
