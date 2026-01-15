@@ -93,6 +93,13 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
   const centroid = calculateCentroid(boundaries);
   const totalArea = boundaries.reduce((sum, b) => sum + (b.area || 0), 0);
 
+  console.log('[KML Parser] Parsed results:', {
+    placemarkCount: placemarks.length,
+    boundaries: boundaries.length,
+    exclusionZones: exclusionZones.length,
+    totalArea: squareMetersToAcres(totalArea).toFixed(1) + ' acres',
+  });
+
   return {
     boundaries,
     exclusionZones,

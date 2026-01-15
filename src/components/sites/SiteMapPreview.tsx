@@ -174,13 +174,13 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
       {/* Site info overlay */}
       <div className="absolute top-4 right-4 bg-background/90 backdrop-blur rounded-lg p-3 text-xs z-[1000] shadow-lg border">
         <div className="font-medium">{site.name}</div>
-        {site.totalArea && (
+        {site.totalArea != null && site.totalArea > 0 && (
           <div className="text-muted-foreground mt-1">
             Total: {squareMetersToAcres(site.totalArea).toFixed(1)} acres
           </div>
         )}
-        {site.usableArea != null && site.usableArea > 0 && site.usableArea !== site.totalArea && (
-          <div className="text-green-600">
+        {site.usableArea != null && site.usableArea > 0 && (
+          <div className={site.usableArea !== site.totalArea ? 'text-green-600' : 'text-muted-foreground'}>
             Usable: {squareMetersToAcres(site.usableArea).toFixed(1)} acres
           </div>
         )}

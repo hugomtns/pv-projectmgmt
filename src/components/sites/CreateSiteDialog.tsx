@@ -75,7 +75,7 @@ export function CreateSiteDialog({ open, onOpenChange, projectId }: CreateSiteDi
         if (result.boundaries.length === 0) {
           setParseError('No boundaries found in KML file. Make sure the file contains polygon data.');
         } else {
-          toast.success(`Parsed ${result.boundaries.length} boundaries from KML`);
+          toast.success(`Parsed ${result.boundaries.length} boundary, ${result.exclusionZones.length} exclusions`);
         }
       } catch (error) {
         console.error('Failed to parse KML:', error);
