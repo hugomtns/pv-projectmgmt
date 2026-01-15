@@ -346,6 +346,45 @@ function migrateRolesForAdminLogs() {
 }
 
 /**
+ * Add 'sites' permissions to existing roles
+ */
+function migrateRolesForSites() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'sites' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.sites);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.sites) return role;
+
+      // Determine permissions based on role type
+      let sitesPermissions;
+      if (role.id === 'role-admin') {
+        sitesPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        sitesPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        sitesPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          sites: sitesPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include sites permissions');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -421,6 +460,7 @@ export function initializeStores() {
       migrateRolesForComponents();
       migrateRolesForBOQs();
       migrateRolesForAdminLogs();
+      migrateRolesForSites();
     }
 
     // Initialize user store if empty
