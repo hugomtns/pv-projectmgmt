@@ -179,7 +179,7 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             Total: {squareMetersToAcres(site.totalArea).toFixed(1)} acres
           </div>
         )}
-        {site.usableArea && site.usableArea !== site.totalArea && (
+        {site.usableArea != null && site.usableArea > 0 && site.usableArea !== site.totalArea && (
           <div className="text-green-600">
             Usable: {squareMetersToAcres(site.usableArea).toFixed(1)} acres
           </div>

@@ -4,6 +4,7 @@ import { useUserStore } from '@/stores/userStore';
 import { useFilterStore } from '@/stores/filterStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { useDisplayStore } from '@/stores/displayStore';
+import { useSiteStore } from '@/stores/siteStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
 import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
@@ -346,6 +347,36 @@ function migrateRolesForAdminLogs() {
 }
 
 /**
+ * Fix sites with usableArea = 0 or undefined (should equal totalArea when no exclusions)
+ */
+function migrateSitesUsableArea() {
+  const siteState = useSiteStore.getState();
+  let migrated = false;
+
+  const updatedSites = siteState.sites.map((site: any) => {
+    // If usableArea is 0 or undefined but totalArea exists, calculate it
+    if ((site.usableArea === 0 || site.usableArea === undefined) && site.totalArea) {
+      const exclusionArea = (site.exclusionZones || []).reduce(
+        (sum: number, ez: any) => sum + (ez.area || 0),
+        0
+      );
+      const calculatedUsableArea = Math.max(0, site.totalArea - exclusionArea);
+      migrated = true;
+      return {
+        ...site,
+        usableArea: calculatedUsableArea,
+      };
+    }
+    return site;
+  });
+
+  if (migrated) {
+    useSiteStore.setState({ sites: updatedSites });
+    console.log('✓ Migrated sites to fix usableArea calculation');
+  }
+}
+
+/**
  * Add 'sites' permissions to existing roles
  */
 function migrateRolesForSites() {
@@ -461,6 +492,7 @@ export function initializeStores() {
       migrateRolesForBOQs();
       migrateRolesForAdminLogs();
       migrateRolesForSites();
+      migrateSitesUsableArea();
     }
 
     // Initialize user store if empty
