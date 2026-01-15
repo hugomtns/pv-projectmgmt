@@ -4,6 +4,7 @@ import type { Workflow, Stage, TaskTemplate } from '@/lib/types';
 import { defaultWorkflow } from '@/data/seedData';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
 
 interface WorkflowState {
@@ -48,11 +49,15 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
 
+        const stageId = crypto.randomUUID();
+
         set((state) => ({
           workflow: {
-            stages: [...state.workflow.stages, { ...stage, id: crypto.randomUUID() }]
+            stages: [...state.workflow.stages, { ...stage, id: stageId }]
           }
         }));
+
+        logAdminAction('create', 'workflows', stageId, stage.name);
       },
 
       updateStage: (id, updates) => {
@@ -79,6 +84,8 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
 
+        const stage = useWorkflowStore.getState().workflow.stages.find(s => s.id === id);
+
         set((state) => ({
           workflow: {
             stages: state.workflow.stages.map(s =>
@@ -86,6 +93,8 @@ export const useWorkflowStore = create<WorkflowState>()(
             )
           }
         }));
+
+        logAdminAction('update', 'workflows', id, stage?.name, { updates });
       },
 
       removeStage: (id) => {
@@ -112,11 +121,15 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
 
+        const stage = useWorkflowStore.getState().workflow.stages.find(s => s.id === id);
+
         set((state) => ({
           workflow: {
             stages: state.workflow.stages.filter(s => s.id !== id)
           }
         }));
+
+        logAdminAction('delete', 'workflows', id, stage?.name);
       },
 
       reorderStages: (fromIndex, toIndex) => {
@@ -143,11 +156,19 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
 
+        const movedStage = useWorkflowStore.getState().workflow.stages[fromIndex];
+
         set((state) => {
           const stages = [...state.workflow.stages];
           const [removed] = stages.splice(fromIndex, 1);
           stages.splice(toIndex, 0, removed);
           return { workflow: { stages } };
+        });
+
+        logAdminAction('update', 'workflows', movedStage?.id || 'unknown', movedStage?.name, {
+          action: 'reorderStages',
+          fromIndex,
+          toIndex,
         });
       },
 
@@ -175,15 +196,22 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
 
+        const templateId = crypto.randomUUID();
+
         set((state) => ({
           workflow: {
             stages: state.workflow.stages.map(s =>
               s.id === stageId
-                ? { ...s, taskTemplates: [...s.taskTemplates, { ...template, id: crypto.randomUUID() }] }
+                ? { ...s, taskTemplates: [...s.taskTemplates, { ...template, id: templateId }] }
                 : s
             )
           }
         }));
+
+        logAdminAction('create', 'workflows', templateId, template.title, {
+          action: 'addTaskTemplate',
+          stageId,
+        });
       },
 
       updateTaskTemplate: (stageId, templateId, updates) => {
@@ -210,6 +238,9 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
 
+        const stage = useWorkflowStore.getState().workflow.stages.find(s => s.id === stageId);
+        const template = stage?.taskTemplates.find(t => t.id === templateId);
+
         set((state) => ({
           workflow: {
             stages: state.workflow.stages.map(s =>
@@ -224,6 +255,12 @@ export const useWorkflowStore = create<WorkflowState>()(
             )
           }
         }));
+
+        logAdminAction('update', 'workflows', templateId, template?.title, {
+          action: 'updateTaskTemplate',
+          stageId,
+          updates,
+        });
       },
 
       removeTaskTemplate: (stageId, templateId) => {
@@ -250,6 +287,9 @@ export const useWorkflowStore = create<WorkflowState>()(
           return;
         }
 
+        const stage = useWorkflowStore.getState().workflow.stages.find(s => s.id === stageId);
+        const template = stage?.taskTemplates.find(t => t.id === templateId);
+
         set((state) => ({
           workflow: {
             stages: state.workflow.stages.map(s =>
@@ -259,6 +299,11 @@ export const useWorkflowStore = create<WorkflowState>()(
             )
           }
         }));
+
+        logAdminAction('delete', 'workflows', templateId, template?.title, {
+          action: 'removeTaskTemplate',
+          stageId,
+        });
       },
 
       resetToDefault: () => {
@@ -286,6 +331,8 @@ export const useWorkflowStore = create<WorkflowState>()(
         }
 
         set({ workflow: defaultWorkflow });
+
+        logAdminAction('update', 'workflows', 'workflow', 'Workflow', { action: 'resetToDefault' });
       }
     }),
     { name: 'workflow-storage-v2' }

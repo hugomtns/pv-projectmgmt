@@ -9,6 +9,7 @@ import type {
 } from '@/lib/types/component';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
 
 interface AddComponentData {
@@ -87,6 +88,12 @@ export const useComponentStore = create<ComponentState>()(
           components: [...state.components, newComponent],
         }));
 
+        logAdminAction('create', 'components', newComponent.id, `${data.manufacturer} ${data.model}`, {
+          type,
+          manufacturer: data.manufacturer,
+          model: data.model,
+        });
+
         toast.success(`${type === 'module' ? 'Module' : 'Inverter'} created successfully`);
         return newComponent.id;
       },
@@ -137,6 +144,10 @@ export const useComponentStore = create<ComponentState>()(
           ),
         }));
 
+        logAdminAction('update', 'components', id, `${component.manufacturer} ${component.model}`, {
+          updatedFields: Object.keys(updates),
+        });
+
         toast.success('Component updated successfully');
       },
 
@@ -181,6 +192,8 @@ export const useComponentStore = create<ComponentState>()(
         set((state) => ({
           components: state.components.filter((c) => c.id !== id),
         }));
+
+        logAdminAction('delete', 'components', id, `${component.manufacturer} ${component.model}`);
 
         toast.success('Component deleted');
       },

@@ -17,6 +17,7 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     financials: 'Financials',
     components: 'Components',
     boqs: 'Bill of Quantities',
+    admin_logs: 'Admin Logs',
   };
   return labels[entityType];
 }
@@ -99,6 +100,11 @@ export function getEntityName(entityType: EntityType, entityId: string): string 
 
     case 'boqs': {
       // BOQs would need to be looked up from boqStore
+      return null;
+    }
+
+    case 'admin_logs': {
+      // Admin logs are not individual entities
       return null;
     }
 

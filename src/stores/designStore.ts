@@ -4,6 +4,7 @@ import type { Design, DesignComment, ElementAnchor } from '@/lib/types';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { db, storeBlob, deleteBlob } from '@/lib/db';
+import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
 
 interface DesignState {
@@ -77,6 +78,10 @@ export const useDesignStore = create<DesignState>()(
                     designs: [...state.designs, newDesign]
                 }));
 
+                logAdminAction('create', 'designs', newDesign.id, designData.name, {
+                    projectId: designData.projectId,
+                });
+
                 toast.success('Design created successfully');
                 return newDesign.id;
             },
@@ -122,6 +127,10 @@ export const useDesignStore = create<DesignState>()(
                         d.id === id ? { ...d, ...updates, updatedAt: new Date().toISOString() } : d
                     )
                 }));
+
+                logAdminAction('update', 'designs', id, design.name, {
+                    updatedFields: Object.keys(updates),
+                });
 
                 toast.success('Design updated');
             },
@@ -174,6 +183,8 @@ export const useDesignStore = create<DesignState>()(
                     set((state) => ({
                         designs: state.designs.filter((d) => d.id !== id)
                     }));
+
+                    logAdminAction('delete', 'designs', id, design.name);
 
                     toast.success('Design deleted');
                 } catch (error) {
@@ -236,6 +247,10 @@ export const useDesignStore = create<DesignState>()(
                             d.id === id ? { ...d, status, updatedAt: now } : d
                         ),
                     }));
+
+                    logAdminAction('update', 'designs', id, design.name, {
+                        statusChange: { from: design.status, to: status },
+                    });
 
                     toast.success(`Design ${status.replace('_', ' ')}`);
                     return true;

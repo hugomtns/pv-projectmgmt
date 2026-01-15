@@ -4,6 +4,7 @@ import type { FinancialModel, FinancialInputs, ProjectResults } from '@/lib/type
 import { DEFAULT_FINANCIAL_INPUTS } from '@/lib/types/financial';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
 
 interface FinancialState {
@@ -81,6 +82,10 @@ export const useFinancialStore = create<FinancialState>()(
           financialModels: [...state.financialModels, newModel],
         }));
 
+        logAdminAction('create', 'financials', newModel.id, name, {
+          projectId,
+        });
+
         toast.success('Financial model created successfully');
         return newModel.id;
       },
@@ -130,6 +135,10 @@ export const useFinancialStore = create<FinancialState>()(
               : m
           ),
         }));
+
+        logAdminAction('update', 'financials', id, model.name, {
+          updatedFields: Object.keys(updates),
+        });
       },
 
       updateInputs: (id, inputUpdates) => {
@@ -182,6 +191,10 @@ export const useFinancialStore = create<FinancialState>()(
               : m
           ),
         }));
+
+        logAdminAction('update', 'financials', id, model.name, {
+          updatedInputs: Object.keys(inputUpdates),
+        });
       },
 
       updateResults: (id, results) => {
@@ -235,6 +248,8 @@ export const useFinancialStore = create<FinancialState>()(
         set((state) => ({
           financialModels: state.financialModels.filter((m) => m.id !== id),
         }));
+
+        logAdminAction('delete', 'financials', id, model.name);
 
         toast.success('Financial model deleted');
       },

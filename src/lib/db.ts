@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { DocumentVersion, Drawing, DocumentComment, WorkflowEvent } from './types/document';
 import type { DesignVersion, DesignComment, DesignWorkflowEvent } from './types';
+import type { AdminLogEntry } from './types/adminLog';
 
 // Blob storage record
 interface BlobRecord {
@@ -22,6 +23,7 @@ class DocumentDatabase extends Dexie {
   designVersions!: EntityTable<DesignVersion, 'id'>;
   designComments!: EntityTable<DesignComment, 'id'>;
   designWorkflowEvents!: EntityTable<DesignWorkflowEvent, 'id'>;
+  adminLogs!: EntityTable<AdminLogEntry, 'id'>;
 
   constructor() {
     super('pv-projectmgmt-documents');
@@ -53,6 +55,19 @@ class DocumentDatabase extends Dexie {
       designVersions: 'id, designId, versionNumber, uploadedAt',
       designComments: 'id, designId, versionId, createdAt',
       designWorkflowEvents: 'id, designId, timestamp',  // NEW table
+    });
+
+    // Version 4: Add adminLogs table for audit logging
+    this.version(4).stores({
+      documentVersions: 'id, documentId, versionNumber, uploadedAt',
+      drawings: 'id, [documentId+page], documentId, page, createdBy',
+      documentComments: 'id, documentId, versionId, type, createdAt',
+      workflowEvents: 'id, documentId, timestamp',
+      blobs: 'id',
+      designVersions: 'id, designId, versionNumber, uploadedAt',
+      designComments: 'id, designId, versionId, createdAt',
+      designWorkflowEvents: 'id, designId, timestamp',
+      adminLogs: 'id, timestamp, userId, action, entityType',
     });
   }
 }

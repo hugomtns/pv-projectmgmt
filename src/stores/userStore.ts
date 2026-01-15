@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, UserGroup, CustomRole, GroupPermissionOverride } from '@/lib/types';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
 
 interface UserState {
@@ -64,16 +65,21 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
-        set((state) => {
-          const now = new Date().toISOString();
-          const newUser: User = {
-            ...user,
-            id: crypto.randomUUID(),
-            groupIds: user.groupIds || [],
-            createdAt: now,
-            updatedAt: now,
-          };
-          return { users: [...state.users, newUser] };
+        const now = new Date().toISOString();
+        const userId = crypto.randomUUID();
+        const newUser: User = {
+          ...user,
+          id: userId,
+          groupIds: user.groupIds || [],
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        set((state) => ({ users: [...state.users, newUser] }));
+
+        logAdminAction('create', 'user_management', userId, `${user.firstName} ${user.lastName}`, {
+          email: user.email,
+          roleId: user.roleId,
         });
       },
 
@@ -99,6 +105,8 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
+        const user = useUserStore.getState().users.find(u => u.id === id);
+
         set((state) => ({
           users: state.users.map(u =>
             u.id === id
@@ -106,6 +114,8 @@ export const useUserStore = create<UserState>()(
               : u
           )
         }));
+
+        logAdminAction('update', 'user_management', id, user ? `${user.firstName} ${user.lastName}` : undefined, { updates });
       },
 
       deleteUser: (id) => {
@@ -130,6 +140,8 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
+        const user = useUserStore.getState().users.find(u => u.id === id);
+
         set((state) => ({
           users: state.users.filter(u => u.id !== id),
           // CASCADE: Remove user from all groups
@@ -141,6 +153,8 @@ export const useUserStore = create<UserState>()(
           // If deleted user is current user, clear current user
           currentUser: state.currentUser?.id === id ? null : state.currentUser
         }));
+
+        logAdminAction('delete', 'user_management', id, user ? `${user.firstName} ${user.lastName}` : undefined);
       },
 
       // Group actions
@@ -166,17 +180,19 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
-        set((state) => {
-          const now = new Date().toISOString();
-          const newGroup: UserGroup = {
-            ...group,
-            id: crypto.randomUUID(),
-            memberIds: group.memberIds || [],
-            createdAt: now,
-            updatedAt: now,
-          };
-          return { groups: [...state.groups, newGroup] };
-        });
+        const now = new Date().toISOString();
+        const groupId = crypto.randomUUID();
+        const newGroup: UserGroup = {
+          ...group,
+          id: groupId,
+          memberIds: group.memberIds || [],
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        set((state) => ({ groups: [...state.groups, newGroup] }));
+
+        logAdminAction('create', 'user_management', groupId, group.name, { action: 'addGroup' });
       },
 
       updateGroup: (id, updates) => {
@@ -201,6 +217,8 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
+        const group = useUserStore.getState().groups.find(g => g.id === id);
+
         set((state) => ({
           groups: state.groups.map(g =>
             g.id === id
@@ -208,6 +226,8 @@ export const useUserStore = create<UserState>()(
               : g
           )
         }));
+
+        logAdminAction('update', 'user_management', id, group?.name, { action: 'updateGroup', updates });
       },
 
       deleteGroup: (id) => {
@@ -232,6 +252,8 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
+        const group = useUserStore.getState().groups.find(g => g.id === id);
+
         set((state) => ({
           groups: state.groups.filter(g => g.id !== id),
           // CASCADE: Remove group from all users
@@ -245,6 +267,8 @@ export const useUserStore = create<UserState>()(
             o => o.groupId !== id
           )
         }));
+
+        logAdminAction('delete', 'user_management', id, group?.name, { action: 'deleteGroup' });
       },
 
       // Permission override actions
@@ -270,12 +294,21 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
+        const overrideId = crypto.randomUUID();
+
         set((state) => ({
           permissionOverrides: [
             ...state.permissionOverrides,
-            { ...override, id: crypto.randomUUID() }
+            { ...override, id: overrideId }
           ]
         }));
+
+        const group = useUserStore.getState().groups.find(g => g.id === override.groupId);
+        logAdminAction('create', 'user_management', overrideId, `Override for ${group?.name || 'Unknown Group'}`, {
+          action: 'addPermissionOverride',
+          entityType: override.entityType,
+          groupId: override.groupId,
+        });
       },
 
       updatePermissionOverride: (id, updates) => {
@@ -300,11 +333,19 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
+        const override = useUserStore.getState().permissionOverrides.find(o => o.id === id);
+        const group = useUserStore.getState().groups.find(g => g.id === override?.groupId);
+
         set((state) => ({
           permissionOverrides: state.permissionOverrides.map(o =>
             o.id === id ? { ...o, ...updates } : o
           )
         }));
+
+        logAdminAction('update', 'user_management', id, `Override for ${group?.name || 'Unknown Group'}`, {
+          action: 'updatePermissionOverride',
+          updates,
+        });
       },
 
       deletePermissionOverride: (id) => {
@@ -329,9 +370,16 @@ export const useUserStore = create<UserState>()(
           return;
         }
 
+        const override = useUserStore.getState().permissionOverrides.find(o => o.id === id);
+        const group = useUserStore.getState().groups.find(g => g.id === override?.groupId);
+
         set((state) => ({
           permissionOverrides: state.permissionOverrides.filter(o => o.id !== id)
         }));
+
+        logAdminAction('delete', 'user_management', id, `Override for ${group?.name || 'Unknown Group'}`, {
+          action: 'deletePermissionOverride',
+        });
       },
 
       // Auth
