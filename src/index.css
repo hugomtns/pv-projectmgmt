@@ -24,6 +24,9 @@
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
     --radius: 0.5rem;
+    --success: 142 71% 45%;
+    --warning: 32 95% 44%;
+    --info: 221 83% 53%;
   }
 
   .dark {
@@ -46,9 +49,13 @@
     --border: 0 0% 14.9%;
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
+    --success: 142 71% 45%;
+    --warning: 32 95% 44%;
+    --info: 221 83% 53%;
   }
 
   .corporate {
+    font-family: 'Inter', system-ui, sans-serif;
     --background: 0 0% 100%;           /* White */
     --foreground: 0 0% 12%;            /* Gray 900 #1F1F1F */
     --card: 0 0% 100%;
@@ -69,6 +76,9 @@
     --input: 0 0% 62%;                 /* Gray 500 */
     --ring: 218 34% 27%;
     --radius: 0.25rem;                 /* 4px per spec */
+    --success: 142 71% 45%;            /* Green 600 */
+    --warning: 32 95% 44%;             /* Orange/Brown */
+    --info: 221 83% 53%;               /* Blue */
   }
 }
 
@@ -99,5 +109,82 @@
     opacity: 1;
     margin-left: 8px;
     margin-right: 4px;
+  }
+
+  /* ================================================
+     CORPORATE TYPOGRAPHY UTILITIES
+     Applied only within .corporate scope
+     ================================================ */
+  .corporate .text-heading-lg {
+    font-size: 1.5rem;         /* 24px */
+    line-height: 1.15;         /* 115% */
+    letter-spacing: -0.01em;   /* -1% */
+    font-weight: 700;
+  }
+
+  .corporate .text-heading-sm {
+    font-size: 1.125rem;       /* 18px */
+    line-height: 1.35;         /* 135% */
+    letter-spacing: -0.01em;
+    font-weight: 700;
+  }
+
+  .corporate .text-subheading {
+    font-size: 1rem;           /* 16px */
+    line-height: 1.5;          /* 150% */
+    letter-spacing: -0.01em;
+    font-weight: 700;
+  }
+
+  .corporate .text-body {
+    font-size: 0.875rem;       /* 14px */
+    line-height: 1.45;         /* 145% */
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .corporate .text-body-sm {
+    font-size: 0.75rem;        /* 12px */
+    line-height: 1.5;          /* 150% */
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .corporate .text-button {
+    font-size: 0.875rem;       /* 14px */
+    line-height: 1;            /* 100% */
+    letter-spacing: 0;
+    font-weight: 700;
+  }
+}
+
+/* ================================================
+   CORPORATE COMPONENT OVERRIDES
+   Scoped to .corporate to avoid modifying shadcn/ui base
+   ================================================ */
+@layer components {
+  /* Secondary Button: Add 1px solid border using --input color */
+  .corporate button.bg-secondary {
+    border: 1px solid hsl(var(--input));
+  }
+
+  /* Checkbox: 3px radius per spec */
+  .corporate [role="checkbox"] {
+    border-radius: 3px;
+  }
+
+  /* Radio Group Unchecked: Border uses --input */
+  .corporate [role="radio"]:not([data-state="checked"]) {
+    border-color: hsl(var(--input));
+  }
+
+  /* Dialog/Modal: Apply shadow-xl (Level 4) */
+  .corporate [role="dialog"] {
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+
+  /* Popover: Apply shadow-md (Level 3) */
+  .corporate [data-radix-popper-content-wrapper] [data-side] {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
 }
