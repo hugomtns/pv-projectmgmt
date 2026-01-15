@@ -2,7 +2,19 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import * as turf from '@turf/turf';
 import type { Feature, Polygon, MultiPolygon } from 'geojson';
-import type { Site, KMLParseResult, SiteBoundary, SiteExclusionZone } from '@/lib/types';
+import type {
+  Site,
+  KMLParseResult,
+  SiteBoundary,
+  SiteExclusionZone,
+  ScorecardCategory,
+  ScorecardRating,
+  SiteScorecard,
+} from '@/lib/types';
+import {
+  createEmptyScorecard,
+  calculateCompositeScore,
+} from '@/lib/types/siteScorecard';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { logAdminAction } from '@/lib/adminLogger';
@@ -121,6 +133,15 @@ interface SiteState {
   // Design linking
   linkSiteToDesign: (siteId: string, designId: string) => void;
   unlinkSiteFromDesign: (siteId: string) => void;
+
+  // Scorecard actions
+  initializeScorecard: (siteId: string) => void;
+  updateCategoryScore: (
+    siteId: string,
+    category: ScorecardCategory,
+    rating: ScorecardRating,
+    notes?: string
+  ) => void;
 
   // Helpers
   getSitesByProject: (projectId: string) => Site[];
@@ -314,6 +335,72 @@ export const useSiteStore = create<SiteState>()(
 
       unlinkSiteFromDesign: (siteId) => {
         get().updateSite(siteId, { linkedDesignId: undefined });
+      },
+
+      initializeScorecard: (siteId) => {
+        const site = get().getSiteById(siteId);
+        if (!site) {
+          toast.error('Site not found');
+          return;
+        }
+
+        if (site.scorecard) {
+          // Scorecard already exists, no need to initialize
+          return;
+        }
+
+        // Calculate usable area percentage
+        const usableAreaPercent =
+          site.totalArea && site.totalArea > 0
+            ? Math.round((site.usableArea || site.totalArea) / site.totalArea * 100)
+            : 100;
+
+        const scorecard = createEmptyScorecard(usableAreaPercent);
+        get().updateSite(siteId, { scorecard });
+      },
+
+      updateCategoryScore: (siteId, category, rating, notes) => {
+        const site = get().getSiteById(siteId);
+        if (!site) {
+          toast.error('Site not found');
+          return;
+        }
+
+        // Initialize scorecard if it doesn't exist
+        if (!site.scorecard) {
+          get().initializeScorecard(siteId);
+        }
+
+        // Re-fetch site after potential initialization
+        const updatedSite = get().getSiteById(siteId);
+        if (!updatedSite?.scorecard) {
+          toast.error('Failed to initialize scorecard');
+          return;
+        }
+
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const now = new Date().toISOString();
+
+        // Build updated scorecard
+        const updatedScorecard: SiteScorecard = {
+          ...updatedSite.scorecard,
+          categories: {
+            ...updatedSite.scorecard.categories,
+            [category]: {
+              rating,
+              notes: notes || updatedSite.scorecard.categories[category].notes,
+              updatedAt: now,
+              updatedBy: currentUser?.id,
+            },
+          },
+          updatedAt: now,
+        };
+
+        // Recalculate composite score
+        updatedScorecard.compositeScore = calculateCompositeScore(updatedScorecard);
+
+        get().updateSite(siteId, { scorecard: updatedScorecard });
       },
 
       getSitesByProject: (projectId) => {
