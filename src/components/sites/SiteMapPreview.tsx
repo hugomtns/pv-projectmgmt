@@ -89,8 +89,7 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             pathOptions={{
               color: '#22c55e',
               weight: 3,
-              fillColor: '#22c55e',
-              fillOpacity: 0.2,
+              fillOpacity: 0,
             }}
           >
             <Popup>
