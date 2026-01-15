@@ -106,6 +106,27 @@ export const useProjectStore = create<ProjectState>()(
         }
 
         const project = useProjectStore.getState().projects.find(p => p.id === id);
+        const users = useUserStore.getState().users;
+
+        // Calculate actual changes (only fields that differ from current values)
+        const actualChanges: Record<string, unknown> = {};
+        if (project) {
+          for (const [key, newValue] of Object.entries(updates)) {
+            const oldValue = project[key as keyof Project];
+            // Simple comparison for primitives, stringify for objects/arrays
+            const oldStr = typeof oldValue === 'object' ? JSON.stringify(oldValue) : oldValue;
+            const newStr = typeof newValue === 'object' ? JSON.stringify(newValue) : newValue;
+            if (oldStr !== newStr) {
+              // Resolve user IDs to names for owner field
+              if (key === 'owner' && typeof newValue === 'string') {
+                const user = users.find(u => u.id === newValue);
+                actualChanges[key] = user ? `${user.firstName} ${user.lastName}` : newValue;
+              } else {
+                actualChanges[key] = newValue;
+              }
+            }
+          }
+        }
 
         set((state) => ({
           projects: state.projects.map(p =>
@@ -113,8 +134,10 @@ export const useProjectStore = create<ProjectState>()(
           )
         }));
 
-        // Log the action
-        logAdminAction('update', 'projects', id, project?.name, { updates });
+        // Log the action only if there are actual changes
+        if (Object.keys(actualChanges).length > 0) {
+          logAdminAction('update', 'projects', id, project?.name, { updates: actualChanges });
+        }
       },
 
       deleteProject: (id) => {
@@ -298,9 +321,29 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
-        // Get task name before update
+        // Get task before update
         const project = useProjectStore.getState().projects.find(p => p.id === projectId);
         const task = project?.stages[stageId]?.tasks.find(t => t.id === taskId);
+        const users = useUserStore.getState().users;
+
+        // Calculate actual changes
+        const actualChanges: Record<string, unknown> = {};
+        if (task) {
+          for (const [key, newValue] of Object.entries(updates)) {
+            const oldValue = task[key as keyof Task];
+            const oldStr = typeof oldValue === 'object' ? JSON.stringify(oldValue) : oldValue;
+            const newStr = typeof newValue === 'object' ? JSON.stringify(newValue) : newValue;
+            if (oldStr !== newStr) {
+              // Resolve user IDs to names for assignee field
+              if (key === 'assignee' && typeof newValue === 'string' && newValue.startsWith('user-')) {
+                const user = users.find(u => u.id === newValue);
+                actualChanges[key] = user ? `${user.firstName} ${user.lastName}` : newValue;
+              } else {
+                actualChanges[key] = newValue;
+              }
+            }
+          }
+        }
 
         set((state) => ({
           projects: state.projects.map(p =>
@@ -322,8 +365,10 @@ export const useProjectStore = create<ProjectState>()(
           )
         }));
 
-        // Log the action
-        logAdminAction('update', 'tasks', taskId, task?.title, { projectId, stageId, updates });
+        // Log the action only if there are actual changes
+        if (Object.keys(actualChanges).length > 0) {
+          logAdminAction('update', 'tasks', taskId, task?.title, { projectId, stageId, updates: actualChanges });
+        }
       },
 
       deleteTask: (projectId, stageId, taskId) => {
