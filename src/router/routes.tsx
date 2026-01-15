@@ -11,6 +11,7 @@ import { WorkflowSettings } from '@/pages/WorkflowSettings';
 import { Users } from '@/pages/Users';
 import { Groups } from '@/pages/Groups';
 import { Permissions } from '@/pages/Permissions';
+import { AdminLog } from '@/pages/AdminLog';
 import NotFound from '@/pages/NotFound';
 
 export const router = createBrowserRouter([
@@ -30,6 +31,7 @@ export const router = createBrowserRouter([
       { path: 'users', element: <Users /> },
       { path: 'groups', element: <Groups /> },
       { path: 'permissions', element: <Permissions /> },
+      { path: 'admin-log', element: <AdminLog /> },
       { path: '*', element: <NotFound /> },
     ],
   },

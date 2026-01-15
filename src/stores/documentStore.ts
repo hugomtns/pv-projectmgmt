@@ -7,6 +7,7 @@ import { useUserStore } from './userStore';
 import { useProjectStore } from './projectStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { getFileType, convertImageToPdf } from '@/components/documents/utils/fileConversion';
+import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
 
 // Helper to get user's full name
@@ -165,6 +166,12 @@ export const useDocumentStore = create<DocumentState>()(
             documents: [...state.documents, document],
           }));
 
+          logAdminAction('create', 'documents', documentId, name, {
+            projectId,
+            taskId,
+            fileSize: file.size,
+          });
+
           toast.success('Document uploaded successfully');
           return documentId;
         } catch (error) {
@@ -284,6 +291,11 @@ export const useDocumentStore = create<DocumentState>()(
             timestamp: now,
           });
 
+          logAdminAction('update', 'documents', documentId, document.name, {
+            versionNumber,
+            fileSize: file.size,
+          });
+
           toast.success(`Version ${versionNumber} uploaded`);
           return versionId;
         } catch (error) {
@@ -315,6 +327,8 @@ export const useDocumentStore = create<DocumentState>()(
           return;
         }
 
+        const document = get().documents.find((d) => d.id === id);
+
         set((state) => ({
           documents: state.documents.map((d) =>
             d.id === id
@@ -326,6 +340,12 @@ export const useDocumentStore = create<DocumentState>()(
               : d
           ),
         }));
+
+        if (document) {
+          logAdminAction('update', 'documents', id, document.name, {
+            updatedFields: Object.keys(updates),
+          });
+        }
 
         toast.success('Document updated');
       },
@@ -385,6 +405,10 @@ export const useDocumentStore = create<DocumentState>()(
           ),
         }));
 
+        logAdminAction('update', 'documents', id, document.name, {
+          statusChange: { from: document.status, to: status },
+        });
+
         toast.success(`Document ${status.replace('_', ' ')}`);
         return true;
       },
@@ -441,6 +465,8 @@ export const useDocumentStore = create<DocumentState>()(
           set((state) => ({
             documents: state.documents.filter((d) => d.id !== id),
           }));
+
+          logAdminAction('delete', 'documents', id, document.name);
 
           // Cascade delete: Remove from project/task attachments
           const projectStore = useProjectStore.getState();

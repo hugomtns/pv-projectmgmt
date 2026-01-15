@@ -4,6 +4,7 @@ import type { Project, Task, Comment, Milestone } from '@/lib/types';
 import { useWorkflowStore } from './workflowStore';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
 
 interface ProjectState {
@@ -69,6 +70,13 @@ export const useProjectStore = create<ProjectState>()(
             attachments: project.attachments || [],
             milestones: project.milestones || []
           };
+
+          // Log the action
+          logAdminAction('create', 'projects', newProject.id, newProject.name, {
+            location: newProject.location,
+            priority: newProject.priority,
+          });
+
           return { projects: [...state.projects, newProject] };
         });
       },
@@ -97,11 +105,16 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        const project = useProjectStore.getState().projects.find(p => p.id === id);
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
           )
         }));
+
+        // Log the action
+        logAdminAction('update', 'projects', id, project?.name, { updates });
       },
 
       deleteProject: (id) => {
@@ -128,10 +141,15 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        const project = useProjectStore.getState().projects.find(p => p.id === id);
+
         set((state) => ({
           projects: state.projects.filter(p => p.id !== id),
           selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId
         }));
+
+        // Log the action
+        logAdminAction('delete', 'projects', id, project?.name);
       },
 
       moveProjectToStage: (projectId, stageId) => {
@@ -189,6 +207,19 @@ export const useProjectStore = create<ProjectState>()(
             )
           };
         });
+
+        // Log successful stage moves
+        if (success) {
+          const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+          const workflow = useWorkflowStore.getState().workflow;
+          const stageName = workflow.stages.find(s => s.id === stageId)?.name;
+          logAdminAction('update', 'projects', projectId, project?.name, {
+            action: 'moveToStage',
+            stageId,
+            stageName,
+          });
+        }
+
         return success;
       },
 
@@ -216,6 +247,8 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        const taskId = crypto.randomUUID();
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -228,7 +261,7 @@ export const useProjectStore = create<ProjectState>()(
                       ...p.stages[stageId],
                       tasks: [
                         ...(p.stages[stageId]?.tasks || []),
-                        { ...task, id: crypto.randomUUID(), attachments: task.attachments || [] }
+                        { ...task, id: taskId, attachments: task.attachments || [] }
                       ]
                     }
                   }
@@ -236,6 +269,9 @@ export const useProjectStore = create<ProjectState>()(
               : p
           )
         }));
+
+        // Log the action
+        logAdminAction('create', 'tasks', taskId, task.title, { projectId, stageId });
       },
 
       updateTask: (projectId, stageId, taskId, updates) => {
@@ -262,6 +298,10 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        // Get task name before update
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const task = project?.stages[stageId]?.tasks.find(t => t.id === taskId);
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -281,6 +321,9 @@ export const useProjectStore = create<ProjectState>()(
               : p
           )
         }));
+
+        // Log the action
+        logAdminAction('update', 'tasks', taskId, task?.title, { projectId, stageId, updates });
       },
 
       deleteTask: (projectId, stageId, taskId) => {
@@ -307,6 +350,10 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        // Get task name before delete
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const task = project?.stages[stageId]?.tasks.find(t => t.id === taskId);
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -324,6 +371,9 @@ export const useProjectStore = create<ProjectState>()(
               : p
           )
         }));
+
+        // Log the action
+        logAdminAction('delete', 'tasks', taskId, task?.title, { projectId, stageId });
       },
 
       addComment: (projectId, stageId, taskId, comment) => {
@@ -350,6 +400,8 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        const commentId = crypto.randomUUID();
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -368,7 +420,7 @@ export const useProjectStore = create<ProjectState>()(
                                 ...t.comments,
                                 {
                                   ...comment,
-                                  id: crypto.randomUUID(),
+                                  id: commentId,
                                   createdAt: new Date().toISOString()
                                 }
                               ]
@@ -381,6 +433,9 @@ export const useProjectStore = create<ProjectState>()(
               : p
           )
         }));
+
+        // Log the action
+        logAdminAction('create', 'comments', commentId, undefined, { projectId, stageId, taskId });
       },
 
       // Milestone actions
@@ -408,30 +463,35 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
-        set((state) => {
-          const project = state.projects.find(p => p.id === projectId);
-          if (!project) {
-            toast.error('Project not found');
-            return state;
-          }
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        if (!project) {
+          toast.error('Project not found');
+          return;
+        }
 
-          const now = new Date().toISOString();
-          const newMilestone: Milestone = {
-            id: crypto.randomUUID(),
-            ...milestoneData,
-            completed: false,
-            completedAt: null,
-            createdAt: now,
-            updatedAt: now,
-          };
+        const now = new Date().toISOString();
+        const milestoneId = crypto.randomUUID();
+        const newMilestone: Milestone = {
+          id: milestoneId,
+          ...milestoneData,
+          completed: false,
+          completedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        };
 
-          return {
-            projects: state.projects.map((p) =>
-              p.id === projectId
-                ? { ...p, milestones: [...(p.milestones || []), newMilestone], updatedAt: now }
-                : p
-            ),
-          };
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? { ...p, milestones: [...(p.milestones || []), newMilestone], updatedAt: now }
+              : p
+          ),
+        }));
+
+        // Log the action
+        logAdminAction('create', 'projects', milestoneId, milestoneData.name, {
+          action: 'addMilestone',
+          projectId,
         });
 
         toast.success('Milestone added');
@@ -461,6 +521,9 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const milestone = project?.milestones?.find(m => m.id === milestoneId);
+
         set((state) => ({
           projects: state.projects.map((p) =>
             p.id === projectId
@@ -476,6 +539,13 @@ export const useProjectStore = create<ProjectState>()(
               : p
           ),
         }));
+
+        // Log the action
+        logAdminAction('update', 'projects', milestoneId, milestone?.name, {
+          action: 'updateMilestone',
+          projectId,
+          updates,
+        });
 
         toast.success('Milestone updated');
       },
@@ -504,6 +574,9 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const milestone = project?.milestones?.find(m => m.id === milestoneId);
+
         set((state) => ({
           projects: state.projects.map((p) =>
             p.id === projectId
@@ -515,6 +588,12 @@ export const useProjectStore = create<ProjectState>()(
               : p
           ),
         }));
+
+        // Log the action
+        logAdminAction('delete', 'projects', milestoneId, milestone?.name, {
+          action: 'deleteMilestone',
+          projectId,
+        });
 
         toast.success('Milestone deleted');
       },
@@ -543,6 +622,10 @@ export const useProjectStore = create<ProjectState>()(
           return;
         }
 
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const milestone = project?.milestones?.find(m => m.id === milestoneId);
+        const newCompletedState = !milestone?.completed;
+
         set((state) => ({
           projects: state.projects.map((p) =>
             p.id === projectId
@@ -563,6 +646,13 @@ export const useProjectStore = create<ProjectState>()(
               : p
           ),
         }));
+
+        // Log the action
+        logAdminAction('update', 'projects', milestoneId, milestone?.name, {
+          action: 'toggleMilestoneComplete',
+          projectId,
+          completed: newCompletedState,
+        });
       },
 
       selectProject: (id) => set({ selectedProjectId: id })
