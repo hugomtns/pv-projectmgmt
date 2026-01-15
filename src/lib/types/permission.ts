@@ -10,7 +10,8 @@ export type EntityType =
   | 'financials'
   | 'components'
   | 'boqs'
-  | 'admin_logs';
+  | 'admin_logs'
+  | 'sites';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 

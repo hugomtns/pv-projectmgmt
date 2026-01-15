@@ -19,6 +19,7 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     components: 'Components',
     boqs: 'Bill of Quantities',
     admin_logs: 'Admin Logs',
+    sites: 'Sites',
   };
   return labels[entityType];
 }

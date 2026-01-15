@@ -31,6 +31,7 @@ import { UserSelectField } from '@/components/users/UserSelectField';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
 import { DocumentList } from '@/components/documents/DocumentList';
 import { DesignList } from '@/components/designs/DesignList';
+import { SiteList } from '@/components/sites/SiteList';
 import { MilestoneSection } from '@/components/projects/milestones/MilestoneSection';
 import { NtpChecklistSection } from '@/components/ntp-checklist';
 import { ArrowLeft, Upload } from 'lucide-react';
@@ -229,12 +230,13 @@ export default function ProjectDetailPage() {
       <div className="flex-1 overflow-auto p-6">
         <div className="max-w-6xl mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-7 mb-6">
+            <TabsList className="grid w-full grid-cols-8 mb-6">
               <TabsTrigger value="properties">Properties</TabsTrigger>
               <TabsTrigger value="status">Status</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="milestones">Milestones</TabsTrigger>
               <TabsTrigger value="ntp-checklist">NTP Checklist</TabsTrigger>
+              <TabsTrigger value="sites">Sites</TabsTrigger>
               <TabsTrigger value="designs">Designs</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
@@ -387,6 +389,11 @@ export default function ProjectDetailPage() {
             {/* NTP Checklist Tab */}
             <TabsContent value="ntp-checklist" className="space-y-4">
               <NtpChecklistSection projectId={projectId || ''} />
+            </TabsContent>
+
+            {/* Sites Tab */}
+            <TabsContent value="sites" className="space-y-4">
+              <SiteList projectId={projectId || ''} />
             </TabsContent>
 
             {/* Designs Tab */}

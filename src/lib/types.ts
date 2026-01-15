@@ -149,6 +149,16 @@ export type {
 } from './types/ntpChecklist';
 export { NTP_CATEGORY_LABELS, NTP_CATEGORY_ORDER } from './types/ntpChecklist';
 
+// Site Management
+export type {
+  Site,
+  SiteBoundary,
+  SiteExclusionZone,
+  ExclusionZoneType,
+  KMLParseResult,
+} from './types/site';
+export { EXCLUSION_ZONE_LABELS } from './types/site';
+
 // Design Management
 export interface GPSCoordinates {
   latitude: number;   // e.g., 37.7749
