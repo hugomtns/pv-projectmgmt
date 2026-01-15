@@ -246,7 +246,7 @@ export function NtpChecklistItemDialog({
               className="w-full"
             >
               <Flag className="h-4 w-4 mr-2" />
-              Create Milestone from This Item
+              Add as Milestone
             </Button>
           )}
 

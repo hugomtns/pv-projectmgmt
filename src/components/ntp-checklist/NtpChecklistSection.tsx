@@ -133,7 +133,7 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
         {canModify && itemsWithDates.length > 0 && (
           <Button variant="outline" size="sm" onClick={handleCreateAllMilestones} className="w-full sm:w-auto">
             <Flag className="h-4 w-4 mr-2" />
-            Create All as Milestones ({itemsWithDates.length})
+            Add All as Milestones ({itemsWithDates.length})
           </Button>
         )}
       </div>
