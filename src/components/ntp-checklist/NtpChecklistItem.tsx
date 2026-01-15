@@ -97,7 +97,7 @@ export function NtpChecklistItem({ item, onToggleStatus, onClick, canModify = fa
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {item.targetDate && (
+        {item.targetDate ? (
           <Badge
             variant="outline"
             className={cn(
@@ -108,6 +108,11 @@ export function NtpChecklistItem({ item, onToggleStatus, onClick, canModify = fa
           >
             <CalendarIcon className="h-3 w-3" />
             {format(new Date(item.targetDate), 'MMM d')}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="gap-1 text-muted-foreground">
+            <CalendarIcon className="h-3 w-3" />
+            No Date
           </Badge>
         )}
         {item.attachmentIds.length > 0 && (
