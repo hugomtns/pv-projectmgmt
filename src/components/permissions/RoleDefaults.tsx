@@ -12,6 +12,7 @@ interface EntityHierarchy {
 
 const entityHierarchy: EntityHierarchy[] = [
   { type: 'projects', label: 'Projects', level: 0 },
+  { type: 'ntp_checklists', label: 'NTP Checklists', level: 1 },
   { type: 'workflows', label: 'Workflows', level: 1 },
   { type: 'tasks', label: 'Tasks', level: 2 },
   { type: 'comments', label: 'Comments', level: 2 },

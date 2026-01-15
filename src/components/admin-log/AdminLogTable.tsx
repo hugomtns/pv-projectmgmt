@@ -22,6 +22,7 @@ const ACTION_COLORS: Record<AdminLogAction, string> = {
 
 const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   projects: 'Project',
+  ntp_checklists: 'NTP Checklist',
   workflows: 'Workflow',
   tasks: 'Task',
   comments: 'Comment',
@@ -158,7 +159,23 @@ function formatDetailsText(
     lines.push(`Role: ${details.roleName}`);
   }
 
-  return lines;
+  // Handle NTP checklist actions
+  if (details.action === 'initializeNtpChecklist' && typeof details.itemCount === 'number') {
+    lines.push(`Initialized with ${details.itemCount} items`);
+  }
+  if (details.action === 'addNtpChecklistItem' && details.itemTitle) {
+    lines.push(`Added: ${details.itemTitle}`);
+  }
+  if (details.action === 'deleteNtpChecklistItem' && details.itemTitle) {
+    lines.push(`Removed: ${details.itemTitle}`);
+  }
+  if (details.action === 'updateNtpChecklistItem' || details.action === 'toggleNtpChecklistItemStatus') {
+    if (details.itemTitle) {
+      lines.push(`Item: ${details.itemTitle}`);
+    }
+  }
+
+  return lines
 }
 
 function DetailsCell({

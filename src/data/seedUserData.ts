@@ -12,6 +12,7 @@ export const seedRoles: CustomRole[] = [
     isSystem: true,
     permissions: {
       projects: fullAccess,
+      ntp_checklists: fullAccess,
       workflows: fullAccess,
       tasks: fullAccess,
       comments: fullAccess,
@@ -33,6 +34,7 @@ export const seedRoles: CustomRole[] = [
     isSystem: true,
     permissions: {
       projects: fullAccess,
+      ntp_checklists: readOnly,  // Base permission; owners get full access via custom logic
       workflows: readOnly,
       tasks: fullAccess,
       comments: fullAccess,
@@ -54,6 +56,7 @@ export const seedRoles: CustomRole[] = [
     isSystem: true,
     permissions: {
       projects: readOnly,
+      ntp_checklists: readOnly,
       workflows: readOnly,
       tasks: readOnly,
       comments: readOnly,

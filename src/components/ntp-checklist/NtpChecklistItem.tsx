@@ -14,9 +14,10 @@ interface NtpChecklistItemProps {
   item: NtpChecklistItemType;
   onToggleStatus: () => void;
   onClick: () => void;
+  canModify?: boolean;
 }
 
-export function NtpChecklistItem({ item, onToggleStatus, onClick }: NtpChecklistItemProps) {
+export function NtpChecklistItem({ item, onToggleStatus, onClick, canModify = false }: NtpChecklistItemProps) {
   const getStatusIcon = () => {
     switch (item.status) {
       case 'complete':
@@ -47,17 +48,23 @@ export function NtpChecklistItem({ item, onToggleStatus, onClick }: NtpChecklist
       )}
       onClick={onClick}
     >
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 shrink-0"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleStatus();
-        }}
-      >
-        {getStatusIcon()}
-      </Button>
+      {canModify ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleStatus();
+          }}
+        >
+          {getStatusIcon()}
+        </Button>
+      ) : (
+        <div className="h-8 w-8 shrink-0 flex items-center justify-center">
+          {getStatusIcon()}
+        </div>
+      )}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">

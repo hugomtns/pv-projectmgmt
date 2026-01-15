@@ -28,6 +28,7 @@ interface NtpChecklistCategoryProps {
   onToggleStatus: (itemId: string) => void;
   onItemClick: (item: NtpChecklistItem) => void;
   defaultOpen?: boolean;
+  canModify?: boolean;
 }
 
 const CATEGORY_ICONS: Record<NtpCategory, React.ReactNode> = {
@@ -54,6 +55,7 @@ export function NtpChecklistCategory({
   onToggleStatus,
   onItemClick,
   defaultOpen = true,
+  canModify = false,
 }: NtpChecklistCategoryProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -104,6 +106,7 @@ export function NtpChecklistCategory({
               item={item}
               onToggleStatus={() => onToggleStatus(item.id)}
               onClick={() => onItemClick(item)}
+              canModify={canModify}
             />
           ))}
         </div>

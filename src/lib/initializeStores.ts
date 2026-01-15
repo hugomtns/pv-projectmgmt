@@ -23,7 +23,7 @@ function createSeededProjects(): Project[] {
 }
 
 // Data version - increment this to force a data refresh
-const DATA_VERSION = 9;
+const DATA_VERSION = 10;
 
 /**
  * Migrate old task data structure from 'name' to 'title' field

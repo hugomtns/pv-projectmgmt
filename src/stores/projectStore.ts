@@ -711,30 +711,24 @@ export const useProjectStore = create<ProjectState>()(
       initializeNtpChecklist: (projectId) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
-        const roles = userState.roles;
-        const overrides = userState.permissionOverrides;
 
         if (!currentUser) {
           toast.error('You must be logged in');
           return;
         }
 
-        const permissions = resolvePermissions(
-          currentUser,
-          'projects',
-          projectId,
-          overrides,
-          roles
-        );
-
-        if (!permissions.update) {
-          toast.error('Permission denied: Cannot initialize NTP checklist');
-          return;
-        }
-
         const project = useProjectStore.getState().projects.find(p => p.id === projectId);
         if (!project) {
           toast.error('Project not found');
+          return;
+        }
+
+        // Permission check: Admins have full access, project owners have full access, others view-only
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isProjectOwner = project.owner === currentUser.id;
+
+        if (!isAdmin && !isProjectOwner) {
+          toast.error('Permission denied: Only admins or project owners can initialize NTP checklists');
           return;
         }
 
@@ -765,7 +759,7 @@ export const useProjectStore = create<ProjectState>()(
           ),
         }));
 
-        logAdminAction('create', 'projects', projectId, project.name, {
+        logAdminAction('create', 'ntp_checklists', projectId, project.name, {
           action: 'initializeNtpChecklist',
           itemCount: items.length,
         });
@@ -776,28 +770,27 @@ export const useProjectStore = create<ProjectState>()(
       updateNtpChecklistItem: (projectId, itemId, updates) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
-        const roles = userState.roles;
-        const overrides = userState.permissionOverrides;
 
         if (!currentUser) {
           toast.error('You must be logged in');
           return;
         }
 
-        const permissions = resolvePermissions(
-          currentUser,
-          'projects',
-          projectId,
-          overrides,
-          roles
-        );
-
-        if (!permissions.update) {
-          toast.error('Permission denied: Cannot update NTP checklist');
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        if (!project) {
+          toast.error('Project not found');
           return;
         }
 
-        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        // Permission check: Admins have full access, project owners have full access, others view-only
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isProjectOwner = project.owner === currentUser.id;
+
+        if (!isAdmin && !isProjectOwner) {
+          toast.error('Permission denied: Only admins or project owners can update NTP checklists');
+          return;
+        }
+
         const item = project?.ntpChecklist?.items.find(i => i.id === itemId);
 
         const now = new Date().toISOString();
@@ -833,8 +826,9 @@ export const useProjectStore = create<ProjectState>()(
           ),
         }));
 
-        logAdminAction('update', 'projects', itemId, item?.title, {
+        logAdminAction('update', 'ntp_checklists', itemId, item?.title, {
           action: 'updateNtpChecklistItem',
+          itemTitle: item?.title,
           projectId,
           updates,
         });
@@ -843,28 +837,27 @@ export const useProjectStore = create<ProjectState>()(
       toggleNtpChecklistItemStatus: (projectId, itemId) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
-        const roles = userState.roles;
-        const overrides = userState.permissionOverrides;
 
         if (!currentUser) {
           toast.error('You must be logged in');
           return;
         }
 
-        const permissions = resolvePermissions(
-          currentUser,
-          'projects',
-          projectId,
-          overrides,
-          roles
-        );
-
-        if (!permissions.update) {
-          toast.error('Permission denied: Cannot update NTP checklist');
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        if (!project) {
+          toast.error('Project not found');
           return;
         }
 
-        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        // Permission check: Admins have full access, project owners have full access, others view-only
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isProjectOwner = project.owner === currentUser.id;
+
+        if (!isAdmin && !isProjectOwner) {
+          toast.error('Permission denied: Only admins or project owners can update NTP checklists');
+          return;
+        }
+
         const item = project?.ntpChecklist?.items.find(i => i.id === itemId);
         if (!item) return;
 
@@ -905,39 +898,39 @@ export const useProjectStore = create<ProjectState>()(
           ),
         }));
 
-        logAdminAction('update', 'projects', itemId, item.title, {
+        logAdminAction('update', 'ntp_checklists', itemId, item.title, {
           action: 'toggleNtpChecklistItemStatus',
+          itemTitle: item.title,
           projectId,
-          newStatus,
+          statusChange: { from: item.status, to: newStatus },
         });
       },
 
       addNtpChecklistItem: (projectId, item) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
-        const roles = userState.roles;
-        const overrides = userState.permissionOverrides;
 
         if (!currentUser) {
           toast.error('You must be logged in');
           return;
         }
 
-        const permissions = resolvePermissions(
-          currentUser,
-          'projects',
-          projectId,
-          overrides,
-          roles
-        );
-
-        if (!permissions.update) {
-          toast.error('Permission denied: Cannot add NTP checklist item');
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        if (!project) {
+          toast.error('Project not found');
           return;
         }
 
-        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
-        if (!project?.ntpChecklist) {
+        // Permission check: Admins have full access, project owners have full access, others view-only
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isProjectOwner = project.owner === currentUser.id;
+
+        if (!isAdmin && !isProjectOwner) {
+          toast.error('Permission denied: Only admins or project owners can add NTP checklist items');
+          return;
+        }
+
+        if (!project.ntpChecklist) {
           toast.error('NTP checklist not initialized');
           return;
         }
@@ -967,8 +960,9 @@ export const useProjectStore = create<ProjectState>()(
           ),
         }));
 
-        logAdminAction('create', 'projects', itemId, item.title, {
+        logAdminAction('create', 'ntp_checklists', itemId, item.title, {
           action: 'addNtpChecklistItem',
+          itemTitle: item.title,
           projectId,
           category: item.category,
         });
@@ -979,28 +973,27 @@ export const useProjectStore = create<ProjectState>()(
       deleteNtpChecklistItem: (projectId, itemId) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
-        const roles = userState.roles;
-        const overrides = userState.permissionOverrides;
 
         if (!currentUser) {
           toast.error('You must be logged in');
           return;
         }
 
-        const permissions = resolvePermissions(
-          currentUser,
-          'projects',
-          projectId,
-          overrides,
-          roles
-        );
-
-        if (!permissions.update) {
-          toast.error('Permission denied: Cannot delete NTP checklist item');
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        if (!project) {
+          toast.error('Project not found');
           return;
         }
 
-        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        // Permission check: Admins have full access, project owners have full access, others view-only
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isProjectOwner = project.owner === currentUser.id;
+
+        if (!isAdmin && !isProjectOwner) {
+          toast.error('Permission denied: Only admins or project owners can delete NTP checklist items');
+          return;
+        }
+
         const item = project?.ntpChecklist?.items.find(i => i.id === itemId);
 
         set((state) => ({
@@ -1019,8 +1012,9 @@ export const useProjectStore = create<ProjectState>()(
           ),
         }));
 
-        logAdminAction('delete', 'projects', itemId, item?.title, {
+        logAdminAction('delete', 'ntp_checklists', itemId, item?.title, {
           action: 'deleteNtpChecklistItem',
+          itemTitle: item?.title,
           projectId,
         });
 

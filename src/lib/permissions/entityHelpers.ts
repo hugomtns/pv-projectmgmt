@@ -8,6 +8,7 @@ import { useWorkflowStore } from '@/stores/workflowStore';
 export function getEntityTypeLabel(entityType: EntityType): string {
   const labels: Record<EntityType, string> = {
     projects: 'Projects',
+    ntp_checklists: 'NTP Checklists',
     workflows: 'Workflows',
     tasks: 'Tasks',
     comments: 'Comments',

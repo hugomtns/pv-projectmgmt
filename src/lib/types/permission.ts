@@ -1,5 +1,6 @@
 export type EntityType =
   | 'projects'
+  | 'ntp_checklists'
   | 'workflows'
   | 'tasks'
   | 'comments'

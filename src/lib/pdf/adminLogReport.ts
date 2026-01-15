@@ -5,6 +5,7 @@ import type { EntityType } from '@/lib/types/permission';
 
 const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   projects: 'Project',
+  ntp_checklists: 'NTP Checklist',
   workflows: 'Workflow',
   tasks: 'Task',
   comments: 'Comment',

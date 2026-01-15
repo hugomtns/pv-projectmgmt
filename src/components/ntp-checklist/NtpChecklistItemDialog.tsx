@@ -37,6 +37,7 @@ interface NtpChecklistItemDialogProps {
   projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  canModify?: boolean;
 }
 
 export function NtpChecklistItemDialog({
@@ -44,6 +45,7 @@ export function NtpChecklistItemDialog({
   projectId,
   open,
   onOpenChange,
+  canModify = false,
 }: NtpChecklistItemDialogProps) {
   const updateNtpChecklistItem = useProjectStore((s) => s.updateNtpChecklistItem);
   const deleteNtpChecklistItem = useProjectStore((s) => s.deleteNtpChecklistItem);
@@ -123,7 +125,7 @@ export function NtpChecklistItemDialog({
           {/* Status */}
           <div className="space-y-2">
             <Label>Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+            <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)} disabled={!canModify}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -168,6 +170,7 @@ export function NtpChecklistItemDialog({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add notes about this checklist item..."
               rows={3}
+              disabled={!canModify}
             />
           </div>
 
@@ -183,6 +186,7 @@ export function NtpChecklistItemDialog({
               id="required"
               checked={required}
               onCheckedChange={setRequired}
+              disabled={!canModify}
             />
           </div>
 
@@ -215,19 +219,21 @@ export function NtpChecklistItemDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDelete}
-            className="sm:mr-auto"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Item
-          </Button>
+          {canModify && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              className="sm:mr-auto"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Item
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {canModify ? 'Cancel' : 'Close'}
           </Button>
-          <Button onClick={handleSave}>Save Changes</Button>
+          {canModify && <Button onClick={handleSave}>Save Changes</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

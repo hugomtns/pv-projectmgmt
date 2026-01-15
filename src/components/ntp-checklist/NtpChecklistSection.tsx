@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { NtpChecklistItem, NtpCategory } from '@/lib/types';
 import { NTP_CATEGORY_ORDER } from '@/lib/types';
 import { useProjectStore } from '@/stores/projectStore';
+import { useUserStore } from '@/stores/userStore';
 import { Button } from '@/components/ui/button';
 import { NtpChecklistProgress } from './NtpChecklistProgress';
 import { NtpChecklistCategory } from './NtpChecklistCategory';
@@ -16,6 +17,7 @@ interface NtpChecklistSectionProps {
 export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
   const project = useProjectStore((s) => s.projects.find((p) => p.id === projectId));
   const toggleNtpChecklistItemStatus = useProjectStore((s) => s.toggleNtpChecklistItemStatus);
+  const currentUser = useUserStore((s) => s.currentUser);
 
   const [selectedItem, setSelectedItem] = useState<NtpChecklistItem | null>(null);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
@@ -28,6 +30,11 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
       </div>
     );
   }
+
+  // Permission check: Admins and project owners can modify, others can only view
+  const isAdmin = currentUser?.roleId === 'role-admin';
+  const isProjectOwner = currentUser ? project.owner === currentUser.id : false;
+  const canModify = isAdmin || isProjectOwner;
 
   const ntpChecklist = project.ntpChecklist;
 
@@ -56,20 +63,25 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
         <div className="text-center space-y-2">
           <h3 className="text-lg font-semibold">No NTP Checklist</h3>
           <p className="text-muted-foreground max-w-md">
-            Initialize an NTP (Notice to Proceed) checklist to track all due diligence
-            items required before construction financing and project commencement.
+            {canModify
+              ? 'Initialize an NTP (Notice to Proceed) checklist to track all due diligence items required before construction financing and project commencement.'
+              : 'No NTP checklist has been initialized for this project yet. Only the project owner or an admin can initialize it.'}
           </p>
         </div>
-        <Button onClick={() => setInitDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Initialize NTP Checklist
-        </Button>
+        {canModify && (
+          <>
+            <Button onClick={() => setInitDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Initialize NTP Checklist
+            </Button>
 
-        <InitializeNtpDialog
-          projectId={projectId}
-          open={initDialogOpen}
-          onOpenChange={setInitDialogOpen}
-        />
+            <InitializeNtpDialog
+              projectId={projectId}
+              open={initDialogOpen}
+              onOpenChange={setInitDialogOpen}
+            />
+          </>
+        )}
       </div>
     );
   }
@@ -92,6 +104,7 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
               items={items}
               onToggleStatus={handleToggleStatus}
               onItemClick={handleItemClick}
+              canModify={canModify}
             />
           );
         })}
@@ -103,6 +116,7 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
         projectId={projectId}
         open={itemDialogOpen}
         onOpenChange={setItemDialogOpen}
+        canModify={canModify}
       />
     </div>
   );
