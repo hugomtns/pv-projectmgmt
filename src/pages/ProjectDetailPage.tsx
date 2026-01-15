@@ -32,6 +32,7 @@ import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialo
 import { DocumentList } from '@/components/documents/DocumentList';
 import { DesignList } from '@/components/designs/DesignList';
 import { MilestoneSection } from '@/components/projects/milestones/MilestoneSection';
+import { NtpChecklistSection } from '@/components/ntp-checklist';
 import { ArrowLeft, Upload } from 'lucide-react';
 import NotFound from './NotFound';
 import type { Priority } from '@/lib/types';
@@ -226,13 +227,14 @@ export default function ProjectDetailPage() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-6 mb-6">
+            <TabsList className="grid w-full grid-cols-7 mb-6">
               <TabsTrigger value="properties">Properties</TabsTrigger>
               <TabsTrigger value="status">Status</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="milestones">Milestones</TabsTrigger>
+              <TabsTrigger value="ntp-checklist">NTP Checklist</TabsTrigger>
               <TabsTrigger value="designs">Designs</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
@@ -380,6 +382,11 @@ export default function ProjectDetailPage() {
                 milestones={project.milestones || []}
                 canUpdate={projectPermissions.update}
               />
+            </TabsContent>
+
+            {/* NTP Checklist Tab */}
+            <TabsContent value="ntp-checklist" className="space-y-4">
+              <NtpChecklistSection projectId={projectId || ''} />
             </TabsContent>
 
             {/* Designs Tab */}

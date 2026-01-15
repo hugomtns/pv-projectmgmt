@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Project, Task, Comment, Milestone } from '@/lib/types';
+import type { Project, Task, Comment, Milestone, NtpChecklistItem, NtpChecklist } from '@/lib/types';
+import { DEFAULT_NTP_CHECKLIST_ITEMS } from '@/data/ntpChecklistTemplate';
 import { useWorkflowStore } from './workflowStore';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
@@ -25,6 +26,12 @@ interface ProjectState {
   updateMilestone: (projectId: string, milestoneId: string, updates: Partial<Milestone>) => void;
   deleteMilestone: (projectId: string, milestoneId: string) => void;
   toggleMilestoneComplete: (projectId: string, milestoneId: string) => void;
+  // NTP Checklist actions
+  initializeNtpChecklist: (projectId: string) => void;
+  updateNtpChecklistItem: (projectId: string, itemId: string, updates: Partial<NtpChecklistItem>) => void;
+  toggleNtpChecklistItemStatus: (projectId: string, itemId: string) => void;
+  addNtpChecklistItem: (projectId: string, item: Omit<NtpChecklistItem, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  deleteNtpChecklistItem: (projectId: string, itemId: string) => void;
   // Selection
   selectProject: (id: string | null) => void;
 }
@@ -698,6 +705,326 @@ export const useProjectStore = create<ProjectState>()(
           projectId,
           completed: newCompletedState,
         });
+      },
+
+      // NTP Checklist actions
+      initializeNtpChecklist: (projectId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot initialize NTP checklist');
+          return;
+        }
+
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        if (!project) {
+          toast.error('Project not found');
+          return;
+        }
+
+        if (project.ntpChecklist) {
+          toast.error('NTP checklist already exists for this project');
+          return;
+        }
+
+        const now = new Date().toISOString();
+        const items: NtpChecklistItem[] = DEFAULT_NTP_CHECKLIST_ITEMS.map((template) => ({
+          ...template,
+          id: crypto.randomUUID(),
+          createdAt: now,
+          updatedAt: now,
+        }));
+
+        const ntpChecklist: NtpChecklist = {
+          items,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId
+              ? { ...p, ntpChecklist, updatedAt: now }
+              : p
+          ),
+        }));
+
+        logAdminAction('create', 'projects', projectId, project.name, {
+          action: 'initializeNtpChecklist',
+          itemCount: items.length,
+        });
+
+        toast.success('NTP checklist initialized');
+      },
+
+      updateNtpChecklistItem: (projectId, itemId, updates) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot update NTP checklist');
+          return;
+        }
+
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const item = project?.ntpChecklist?.items.find(i => i.id === itemId);
+
+        const now = new Date().toISOString();
+        const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+
+        // If status is being changed to complete, set completedAt and completedBy
+        const statusUpdates: Partial<NtpChecklistItem> = {};
+        if (updates.status === 'complete' && item?.status !== 'complete') {
+          statusUpdates.completedAt = now;
+          statusUpdates.completedBy = userFullName;
+        } else if (updates.status && updates.status !== 'complete' && item?.status === 'complete') {
+          statusUpdates.completedAt = null;
+          statusUpdates.completedBy = null;
+        }
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId && p.ntpChecklist
+              ? {
+                  ...p,
+                  ntpChecklist: {
+                    ...p.ntpChecklist,
+                    items: p.ntpChecklist.items.map((i) =>
+                      i.id === itemId
+                        ? { ...i, ...updates, ...statusUpdates, updatedAt: now }
+                        : i
+                    ),
+                    updatedAt: now,
+                  },
+                  updatedAt: now,
+                }
+              : p
+          ),
+        }));
+
+        logAdminAction('update', 'projects', itemId, item?.title, {
+          action: 'updateNtpChecklistItem',
+          projectId,
+          updates,
+        });
+      },
+
+      toggleNtpChecklistItemStatus: (projectId, itemId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot update NTP checklist');
+          return;
+        }
+
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const item = project?.ntpChecklist?.items.find(i => i.id === itemId);
+        if (!item) return;
+
+        const now = new Date().toISOString();
+        const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+
+        // Cycle through statuses: not_started -> in_progress -> complete -> not_started
+        const statusCycle: Record<string, 'not_started' | 'in_progress' | 'complete'> = {
+          'not_started': 'in_progress',
+          'in_progress': 'complete',
+          'complete': 'not_started',
+        };
+        const newStatus = statusCycle[item.status];
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId && p.ntpChecklist
+              ? {
+                  ...p,
+                  ntpChecklist: {
+                    ...p.ntpChecklist,
+                    items: p.ntpChecklist.items.map((i) =>
+                      i.id === itemId
+                        ? {
+                            ...i,
+                            status: newStatus,
+                            completedAt: newStatus === 'complete' ? now : null,
+                            completedBy: newStatus === 'complete' ? userFullName : null,
+                            updatedAt: now,
+                          }
+                        : i
+                    ),
+                    updatedAt: now,
+                  },
+                  updatedAt: now,
+                }
+              : p
+          ),
+        }));
+
+        logAdminAction('update', 'projects', itemId, item.title, {
+          action: 'toggleNtpChecklistItemStatus',
+          projectId,
+          newStatus,
+        });
+      },
+
+      addNtpChecklistItem: (projectId, item) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot add NTP checklist item');
+          return;
+        }
+
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        if (!project?.ntpChecklist) {
+          toast.error('NTP checklist not initialized');
+          return;
+        }
+
+        const now = new Date().toISOString();
+        const itemId = crypto.randomUUID();
+        const newItem: NtpChecklistItem = {
+          ...item,
+          id: itemId,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId && p.ntpChecklist
+              ? {
+                  ...p,
+                  ntpChecklist: {
+                    ...p.ntpChecklist,
+                    items: [...p.ntpChecklist.items, newItem],
+                    updatedAt: now,
+                  },
+                  updatedAt: now,
+                }
+              : p
+          ),
+        }));
+
+        logAdminAction('create', 'projects', itemId, item.title, {
+          action: 'addNtpChecklistItem',
+          projectId,
+          category: item.category,
+        });
+
+        toast.success('Checklist item added');
+      },
+
+      deleteNtpChecklistItem: (projectId, itemId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'projects',
+          projectId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: Cannot delete NTP checklist item');
+          return;
+        }
+
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const item = project?.ntpChecklist?.items.find(i => i.id === itemId);
+
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === projectId && p.ntpChecklist
+              ? {
+                  ...p,
+                  ntpChecklist: {
+                    ...p.ntpChecklist,
+                    items: p.ntpChecklist.items.filter((i) => i.id !== itemId),
+                    updatedAt: new Date().toISOString(),
+                  },
+                  updatedAt: new Date().toISOString(),
+                }
+              : p
+          ),
+        }));
+
+        logAdminAction('delete', 'projects', itemId, item?.title, {
+          action: 'deleteNtpChecklistItem',
+          projectId,
+        });
+
+        toast.success('Checklist item deleted');
       },
 
       selectProject: (id) => set({ selectedProjectId: id })

@@ -1,5 +1,7 @@
 // lib/types.ts
 
+import type { NtpChecklist } from './types/ntpChecklist';
+
 export type Priority = 0 | 1 | 2 | 3 | 4;
 // 0 = On Hold, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low
 
@@ -69,6 +71,7 @@ export interface Project {
   stages: Record<string, ProjectStageData>;
   attachments: string[]; // Document IDs
   milestones: Milestone[]; // Project milestones
+  ntpChecklist?: NtpChecklist; // NTP readiness checklist
 }
 
 export type ViewType = 'list' | 'board' | 'timeline';
@@ -137,6 +140,14 @@ export type {
   Drawing,
   WorkflowEvent,
 } from './types/document';
+
+// NTP Checklist
+export type {
+  NtpCategory,
+  NtpChecklistItem,
+  NtpChecklist,
+} from './types/ntpChecklist';
+export { NTP_CATEGORY_LABELS, NTP_CATEGORY_ORDER } from './types/ntpChecklist';
 
 // Design Management
 export interface GPSCoordinates {
