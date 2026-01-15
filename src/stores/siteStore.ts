@@ -197,6 +197,14 @@ export const useSiteStore = create<SiteState>()(
         const exclusionArea = exclusionZones.reduce((sum, ez) => sum + (ez.area || 0), 0);
         const usableArea = (totalArea || 0) - exclusionArea;
 
+        console.log('[createSiteFromKML] Calculation:', {
+          totalArea,
+          exclusionCount: exclusionZones.length,
+          exclusionArea,
+          usableArea,
+          sampleExclusionAreas: exclusionZones.slice(0, 3).map(ez => ez.area),
+        });
+
         return get().addSite({
           projectId,
           name,
