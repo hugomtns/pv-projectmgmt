@@ -47,6 +47,29 @@
     --input: 0 0% 14.9%;
     --ring: 0 0% 83.1%;
   }
+
+  .corporate {
+    --background: 0 0% 100%;           /* White */
+    --foreground: 0 0% 12%;            /* Gray 900 #1F1F1F */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 12%;
+    --primary: 218 34% 27%;            /* Brand #2E405E */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 98%;             /* #FAFAFA */
+    --secondary-foreground: 0 0% 12%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 38%;      /* Gray 700 */
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 12%;
+    --destructive: 0 65% 51%;          /* Red #D32F2F */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 88%;
+    --input: 0 0% 62%;                 /* Gray 500 */
+    --ring: 218 34% 27%;
+    --radius: 0.25rem;                 /* 4px per spec */
+  }
 }
 
 @layer base {

@@ -1,14 +1,24 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './Sidebar';
-import logoUrl from '@/assets/fakehub.png';
-import { MessageSquare } from 'lucide-react';
+import logoDark from '@/assets/fakehub.png';
+import logoLight from '@/assets/fakehub-white.png';
+import { MessageSquare, Moon, Sun, Building2 } from 'lucide-react';
+import { useThemeStore } from '@/stores/themeStore';
+import type { StyleMode } from '@/stores/themeStore';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -19,6 +29,17 @@ interface AppShellProps {
 export function AppShell({ children, currentPage }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const styleMode = useThemeStore((state) => state.styleMode);
+  const setStyleMode = useThemeStore((state) => state.setStyleMode);
+  const logoUrl = styleMode === 'dark' ? logoDark : logoLight;
+
+  const themes: { value: StyleMode; label: string; icon: React.ReactNode }[] = [
+    { value: 'dark', label: 'Dark', icon: <Moon className="h-5 w-5" /> },
+    { value: 'light', label: 'Light', icon: <Sun className="h-5 w-5" /> },
+    { value: 'corporate', label: 'Corporate', icon: <Building2 className="h-5 w-5" /> },
+  ];
+
+  const currentTheme = themes.find((t) => t.value === styleMode) || themes[0];
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -85,9 +106,51 @@ export function AppShell({ children, currentPage }: AppShellProps) {
           />
         </div>
 
-        {/* Feedback button at bottom */}
-        <div className="border-t border-border p-4">
+        {/* Theme switcher and Feedback button at bottom */}
+        <div className="border-t border-border p-4 space-y-1">
           <TooltipProvider>
+            {/* Theme Switcher */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors w-full',
+                        'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                        !sidebarOpen && 'justify-center'
+                      )}
+                      aria-label="Select theme"
+                    >
+                      {currentTheme.icon}
+                      {sidebarOpen && <span>{currentTheme.label}</span>}
+                    </button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                {!sidebarOpen && (
+                  <TooltipContent side="right">
+                    <p>{currentTheme.label}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+              <DropdownMenuContent side="right" align="end">
+                <DropdownMenuRadioGroup
+                  value={styleMode}
+                  onValueChange={(value) => setStyleMode(value as StyleMode)}
+                >
+                  {themes.map((theme) => (
+                    <DropdownMenuRadioItem key={theme.value} value={theme.value}>
+                      <span className="flex items-center gap-2">
+                        {theme.icon}
+                        {theme.label}
+                      </span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Feedback button */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <a

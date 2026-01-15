@@ -6,6 +6,10 @@ import './index.css'
 import { router } from './router/routes'
 import { initializeStores } from './lib/initializeStores'
 import { LoadingScreen } from './components/layout/LoadingScreen'
+import { applyStoredTheme } from './stores/themeStore'
+
+// Apply theme immediately to prevent flash of wrong theme
+applyStoredTheme()
 
 // Initialize stores with seed data on first load
 initializeStores()
