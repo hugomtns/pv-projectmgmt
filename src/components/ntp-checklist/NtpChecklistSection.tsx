@@ -128,10 +128,10 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
   return (
     <div className="space-y-6">
       {/* Progress Summary */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="space-y-3">
         <NtpChecklistProgress items={ntpChecklist.items} />
         {canModify && itemsWithDates.length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleCreateAllMilestones} className="shrink-0">
+          <Button variant="outline" size="sm" onClick={handleCreateAllMilestones} className="w-full sm:w-auto">
             <Flag className="h-4 w-4 mr-2" />
             Create All as Milestones ({itemsWithDates.length})
           </Button>
