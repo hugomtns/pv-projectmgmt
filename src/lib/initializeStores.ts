@@ -7,6 +7,20 @@ import { useDisplayStore } from '@/stores/displayStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
 import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
+import type { Project } from '@/lib/types';
+
+/**
+ * Create full Project objects from mock data without triggering store actions (and thus logging)
+ */
+function createSeededProjects(): Project[] {
+  const now = new Date().toISOString();
+  return mockProjects.map((mock) => ({
+    ...mock,
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  }));
+}
 
 // Data version - increment this to force a data refresh
 const DATA_VERSION = 9;
@@ -348,11 +362,8 @@ export function initializeStores() {
       // Clear all stores and re-seed
       useWorkflowStore.setState({ workflow: defaultWorkflow });
 
-      // Clear projects and re-add
-      useProjectStore.setState({ projects: [] });
-      mockProjects.forEach((project) => {
-        useProjectStore.getState().addProject(project);
-      });
+      // Clear projects and set seeded projects directly (without logging)
+      useProjectStore.setState({ projects: createSeededProjects() });
 
       // Clear and re-seed user store
       useUserStore.setState({
@@ -394,10 +405,8 @@ export function initializeStores() {
       // Seed workflow
       useWorkflowStore.setState({ workflow: defaultWorkflow });
 
-      // Seed projects
-      mockProjects.forEach((project) => {
-        useProjectStore.getState().addProject(project);
-      });
+      // Seed projects directly (without logging)
+      useProjectStore.setState({ projects: createSeededProjects() });
 
       console.log('✓ Stores initialized with seed data');
     } else {
@@ -444,9 +453,7 @@ export function initializeStores() {
     // Fallback: seed with default data
     try {
       useWorkflowStore.setState({ workflow: defaultWorkflow });
-      mockProjects.forEach((project) => {
-        useProjectStore.getState().addProject(project);
-      });
+      useProjectStore.setState({ projects: createSeededProjects() });
     } catch (fallbackError) {
       console.error('Fallback initialization also failed:', fallbackError);
       toast.error('Critical error', {
