@@ -115,7 +115,7 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
               color: EXCLUSION_COLORS[poly.type] || EXCLUSION_COLORS.other,
               weight: 2,
               fillColor: EXCLUSION_COLORS[poly.type] || EXCLUSION_COLORS.other,
-              fillOpacity: 0.4,
+              fillOpacity: 0.15,
               dashArray: '5, 5',
             }}
           >
