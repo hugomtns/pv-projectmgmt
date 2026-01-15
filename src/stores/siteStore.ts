@@ -44,8 +44,8 @@ function calculateUsableArea(
       if (result) boundaryUnion = result;
     }
 
-    // Calculate exclusion area that's INSIDE the boundary
-    let clippedExclusionArea = 0;
+    // Build exclusion polygons and union them (to handle overlaps)
+    const exclusionPolygons: Feature<Polygon>[] = [];
 
     for (const ez of exclusionZones) {
       if (ez.coordinates.length < 4) continue;
@@ -57,23 +57,35 @@ function calculateUsableArea(
             coords[0][1] !== coords[coords.length - 1][1]) {
           coords.push(coords[0]);
         }
-
-        const exclusionPoly = turf.polygon([coords]);
-        const clipped = turf.intersect(turf.featureCollection([boundaryUnion, exclusionPoly]));
-
-        if (clipped) {
-          // Area in square meters
-          clippedExclusionArea += turf.area(clipped);
-        }
+        exclusionPolygons.push(turf.polygon([coords]));
       } catch {
         // Skip invalid polygons
       }
     }
 
-    console.log('[calculateUsableArea] Clipped exclusion area:', {
+    if (exclusionPolygons.length === 0) return totalArea;
+
+    // Union all exclusion zones to handle overlaps
+    let exclusionUnion: Feature<Polygon | MultiPolygon> = exclusionPolygons[0];
+    for (let i = 1; i < exclusionPolygons.length; i++) {
+      try {
+        const result = turf.union(turf.featureCollection([exclusionUnion, exclusionPolygons[i]]));
+        if (result) exclusionUnion = result;
+      } catch {
+        // Skip if union fails
+      }
+    }
+
+    // Clip the merged exclusion to the boundary
+    const clippedExclusion = turf.intersect(turf.featureCollection([boundaryUnion, exclusionUnion]));
+    const clippedExclusionArea = clippedExclusion ? turf.area(clippedExclusion) : 0;
+
+    console.log('[calculateUsableArea] Result:', {
       originalExclusionArea: exclusionZones.reduce((sum, ez) => sum + (ez.area || 0), 0),
+      mergedExclusionArea: turf.area(exclusionUnion),
       clippedExclusionArea,
       totalArea,
+      usableArea: totalArea - clippedExclusionArea,
     });
 
     return Math.max(0, totalArea - clippedExclusionArea);
