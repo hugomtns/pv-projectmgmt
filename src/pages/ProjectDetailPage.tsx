@@ -381,6 +381,7 @@ export default function ProjectDetailPage() {
                 projectId={projectId || ''}
                 milestones={project.milestones || []}
                 canUpdate={projectPermissions.update}
+                onNavigateToNtpChecklist={() => setActiveTab('ntp-checklist')}
               />
             </TabsContent>
 
