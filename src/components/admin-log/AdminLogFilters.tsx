@@ -38,6 +38,7 @@ const ENTITY_TYPE_OPTIONS: { value: EntityType; label: string }[] = [
   { value: 'financials', label: 'Financials' },
   { value: 'components', label: 'Components' },
   { value: 'boqs', label: 'BOQs' },
+  { value: 'admin_logs', label: 'Admin Logs' },
 ];
 
 export function AdminLogFilters() {

@@ -9,7 +9,7 @@ import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
 
 // Data version - increment this to force a data refresh
-const DATA_VERSION = 8;
+const DATA_VERSION = 9;
 
 /**
  * Migrate old task data structure from 'name' to 'title' field
@@ -299,6 +299,39 @@ function migrateRolesForBOQs() {
 }
 
 /**
+ * Add 'admin_logs' permissions to existing roles
+ */
+function migrateRolesForAdminLogs() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'admin_logs' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.admin_logs);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.admin_logs) return role;
+
+      // Only admins get access to admin logs
+      const adminLogsPermissions = role.id === 'role-admin'
+        ? { create: true, read: true, update: true, delete: true }
+        : { create: false, read: false, update: false, delete: false };
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          admin_logs: adminLogsPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include admin_logs permissions');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -378,6 +411,7 @@ export function initializeStores() {
       migrateDisplayStoreForTimeline();
       migrateRolesForComponents();
       migrateRolesForBOQs();
+      migrateRolesForAdminLogs();
     }
 
     // Initialize user store if empty

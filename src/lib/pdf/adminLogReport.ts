@@ -14,6 +14,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   financials: 'Financial',
   components: 'Component',
   boqs: 'BOQ',
+  admin_logs: 'Admin Log',
 };
 
 // Format file size to human readable

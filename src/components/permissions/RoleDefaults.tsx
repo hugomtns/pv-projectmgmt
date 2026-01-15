@@ -20,6 +20,7 @@ const entityHierarchy: EntityHierarchy[] = [
   { type: 'financials', label: 'Financials', level: 0 },
   { type: 'components', label: 'Components', level: 0 },
   { type: 'user_management', label: 'User Management', level: 0 },
+  { type: 'admin_logs', label: 'Admin Logs', level: 0 },
 ];
 
 function PermissionIcon({ granted }: { granted: boolean }) {
