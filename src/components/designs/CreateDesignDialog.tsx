@@ -11,6 +11,7 @@ import { useDesignStore } from '@/stores/designStore';
 import { LocationPicker } from './LocationPicker';
 import { extractGeoDataFromDXF } from '@/lib/dxf/parser';
 import { toast } from 'sonner';
+import { Upload, FileUp } from 'lucide-react';
 import type { GPSCoordinates } from '@/lib/types';
 
 const createDesignSchema = z.object({
@@ -130,18 +131,30 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="file">DXF File (optional)</Label>
-                        <Input
-                            id="file"
-                            type="file"
-                            accept=".dxf"
-                            onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                        />
-                        {selectedFile && (
-                            <p className="text-sm text-muted-foreground">
-                                Selected: {selectedFile.name}
-                            </p>
-                        )}
+                        <Label htmlFor="dxf-file">DXF File (optional)</Label>
+                        <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
+                            <Input
+                                id="dxf-file"
+                                type="file"
+                                accept=".dxf"
+                                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                                className="hidden"
+                            />
+                            <label htmlFor="dxf-file" className="cursor-pointer block">
+                                {selectedFile ? (
+                                    <div className="flex items-center justify-center gap-2 text-primary">
+                                        <FileUp className="h-5 w-5" />
+                                        {selectedFile.name}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                        <Upload className="h-8 w-8" />
+                                        <span>Click to upload DXF file</span>
+                                        <span className="text-xs">GPS coordinates will be extracted if available</span>
+                                    </div>
+                                )}
+                            </label>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <Label>Project Location (optional)</Label>
