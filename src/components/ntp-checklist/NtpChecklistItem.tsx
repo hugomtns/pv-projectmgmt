@@ -7,8 +7,10 @@ import {
   Clock,
   Paperclip,
   ChevronRight,
+  CalendarIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { format, isPast, isToday } from 'date-fns';
 
 interface NtpChecklistItemProps {
   item: NtpChecklistItemType;
@@ -95,6 +97,19 @@ export function NtpChecklistItem({ item, onToggleStatus, onClick, canModify = fa
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {item.targetDate && (
+          <Badge
+            variant="outline"
+            className={cn(
+              'gap-1',
+              item.status !== 'complete' && isPast(new Date(item.targetDate)) && !isToday(new Date(item.targetDate)) && 'text-red-500 border-red-200 dark:border-red-800',
+              item.status !== 'complete' && isToday(new Date(item.targetDate)) && 'text-orange-500 border-orange-200 dark:border-orange-800'
+            )}
+          >
+            <CalendarIcon className="h-3 w-3" />
+            {format(new Date(item.targetDate), 'MMM d')}
+          </Badge>
+        )}
         {item.attachmentIds.length > 0 && (
           <Badge variant="secondary" className="gap-1">
             <Paperclip className="h-3 w-3" />

@@ -3,6 +3,9 @@ import type { NtpChecklistItem, TaskStatus, NtpCategory } from '@/lib/types';
 import { NTP_CATEGORY_LABELS } from '@/lib/types';
 import { useProjectStore } from '@/stores/projectStore';
 import { useDocumentStore } from '@/stores/documentStore';
+import { NTP_CATEGORY_TO_MILESTONE_COLOR } from '@/lib/constants';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,12 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   CheckCircle2,
   Circle,
@@ -30,7 +39,10 @@ import {
   FileText,
   Trash2,
   ExternalLink,
+  CalendarIcon,
+  Flag,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface NtpChecklistItemDialogProps {
   item: NtpChecklistItem | null;
@@ -49,17 +61,21 @@ export function NtpChecklistItemDialog({
 }: NtpChecklistItemDialogProps) {
   const updateNtpChecklistItem = useProjectStore((s) => s.updateNtpChecklistItem);
   const deleteNtpChecklistItem = useProjectStore((s) => s.deleteNtpChecklistItem);
+  const addMilestone = useProjectStore((s) => s.addMilestone);
+  const projects = useProjectStore((s) => s.projects);
   const documents = useDocumentStore((s) => s.documents);
 
   const [status, setStatus] = useState<TaskStatus>('not_started');
   const [notes, setNotes] = useState('');
   const [required, setRequired] = useState(true);
+  const [targetDate, setTargetDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (item) {
       setStatus(item.status);
       setNotes(item.notes || '');
       setRequired(item.required);
+      setTargetDate(item.targetDate ? new Date(item.targetDate) : undefined);
     }
   }, [item]);
 
@@ -74,6 +90,7 @@ export function NtpChecklistItemDialog({
       status,
       notes,
       required,
+      targetDate: targetDate ? format(targetDate, 'yyyy-MM-dd') : null,
     });
     onOpenChange(false);
   };
@@ -81,6 +98,24 @@ export function NtpChecklistItemDialog({
   const handleDelete = () => {
     deleteNtpChecklistItem(projectId, item.id);
     onOpenChange(false);
+  };
+
+  const handleCreateMilestone = () => {
+    if (!targetDate || !item) return;
+
+    // Check for duplicate
+    const project = projects.find((p) => p.id === projectId);
+    const hasDuplicate = project?.milestones?.some((m) => m.name === item.title);
+    if (hasDuplicate) {
+      toast.warning('A milestone with this name already exists');
+    }
+
+    addMilestone(projectId, {
+      name: item.title,
+      description: item.description || `NTP checklist item: ${item.title}`,
+      date: format(targetDate, 'yyyy-MM-dd'),
+      color: NTP_CATEGORY_TO_MILESTONE_COLOR[item.category] || '#3b82f6',
+    });
   };
 
   const getStatusIcon = (s: TaskStatus) => {
@@ -173,6 +208,47 @@ export function NtpChecklistItemDialog({
               disabled={!canModify}
             />
           </div>
+
+          {/* Target Date */}
+          <div className="space-y-2">
+            <Label>Target Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !targetDate && 'text-muted-foreground'
+                  )}
+                  disabled={!canModify}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {targetDate ? format(targetDate, 'PPP') : 'No target date set'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={targetDate}
+                  onSelect={setTargetDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Create Milestone Button */}
+          {targetDate && canModify && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCreateMilestone}
+              className="w-full"
+            >
+              <Flag className="h-4 w-4 mr-2" />
+              Create Milestone from This Item
+            </Button>
+          )}
 
           {/* Required Toggle */}
           <div className="flex items-center justify-between">

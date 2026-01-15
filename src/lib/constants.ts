@@ -37,6 +37,16 @@ export const MILESTONE_STATUS_COLORS = {
   overdue: '#ef4444',   // Red
 } as const;
 
+// Map NTP categories to milestone colors for visual consistency
+export const NTP_CATEGORY_TO_MILESTONE_COLOR: Record<string, string> = {
+  site_control: '#3b82f6',   // Blue
+  permitting: '#a855f7',     // Purple
+  grid: '#eab308',           // Yellow
+  environmental: '#14b8a6',  // Teal
+  commercial: '#f97316',     // Orange
+  financial: '#06b6d4',      // Cyan
+};
+
 // Drawing annotation colors (used in DocumentViewer drawing toolbar)
 export const DRAWING_COLORS = [
   '#EF4444', // red

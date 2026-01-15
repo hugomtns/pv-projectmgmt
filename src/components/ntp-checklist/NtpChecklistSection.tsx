@@ -3,12 +3,14 @@ import type { NtpChecklistItem, NtpCategory } from '@/lib/types';
 import { NTP_CATEGORY_ORDER } from '@/lib/types';
 import { useProjectStore } from '@/stores/projectStore';
 import { useUserStore } from '@/stores/userStore';
+import { NTP_CATEGORY_TO_MILESTONE_COLOR } from '@/lib/constants';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { NtpChecklistProgress } from './NtpChecklistProgress';
 import { NtpChecklistCategory } from './NtpChecklistCategory';
 import { NtpChecklistItemDialog } from './NtpChecklistItemDialog';
 import { InitializeNtpDialog } from './InitializeNtpDialog';
-import { ClipboardList, Plus } from 'lucide-react';
+import { ClipboardList, Plus, Flag } from 'lucide-react';
 
 interface NtpChecklistSectionProps {
   projectId: string;
@@ -17,6 +19,7 @@ interface NtpChecklistSectionProps {
 export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
   const project = useProjectStore((s) => s.projects.find((p) => p.id === projectId));
   const toggleNtpChecklistItemStatus = useProjectStore((s) => s.toggleNtpChecklistItemStatus);
+  const addMilestone = useProjectStore((s) => s.addMilestone);
   const currentUser = useUserStore((s) => s.currentUser);
 
   const [selectedItem, setSelectedItem] = useState<NtpChecklistItem | null>(null);
@@ -51,6 +54,42 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
   const handleItemClick = (item: NtpChecklistItem) => {
     setSelectedItem(item);
     setItemDialogOpen(true);
+  };
+
+  // Items with target dates (for bulk milestone creation)
+  const itemsWithDates = ntpChecklist?.items.filter((item) => item.targetDate) || [];
+
+  const handleCreateAllMilestones = () => {
+    if (itemsWithDates.length === 0) return;
+
+    const existingNames = new Set(project.milestones?.map((m) => m.name) || []);
+    let created = 0;
+    let skipped = 0;
+
+    for (const item of itemsWithDates) {
+      if (existingNames.has(item.title)) {
+        skipped++;
+        continue;
+      }
+
+      addMilestone(projectId, {
+        name: item.title,
+        description: item.description || `NTP checklist item: ${item.title}`,
+        date: item.targetDate!,
+        color: NTP_CATEGORY_TO_MILESTONE_COLOR[item.category] || '#3b82f6',
+      });
+      created++;
+    }
+
+    if (created > 0) {
+      toast.success(`Created ${created} milestone${created > 1 ? 's' : ''}`);
+    }
+    if (skipped > 0) {
+      toast.info(`Skipped ${skipped} item${skipped > 1 ? 's' : ''} (milestones already exist)`);
+    }
+    if (created === 0 && skipped === 0) {
+      toast.info('No milestones to create');
+    }
   };
 
   // Show initialize prompt if no checklist exists
@@ -89,7 +128,15 @@ export function NtpChecklistSection({ projectId }: NtpChecklistSectionProps) {
   return (
     <div className="space-y-6">
       {/* Progress Summary */}
-      <NtpChecklistProgress items={ntpChecklist.items} />
+      <div className="flex items-start justify-between gap-4">
+        <NtpChecklistProgress items={ntpChecklist.items} />
+        {canModify && itemsWithDates.length > 0 && (
+          <Button variant="outline" size="sm" onClick={handleCreateAllMilestones} className="shrink-0">
+            <Flag className="h-4 w-4 mr-2" />
+            Create All as Milestones ({itemsWithDates.length})
+          </Button>
+        )}
+      </div>
 
       {/* Categories */}
       <div className="space-y-2 border rounded-lg">

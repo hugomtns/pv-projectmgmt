@@ -25,6 +25,7 @@ export interface NtpChecklistItem {
   required: boolean;
   attachmentIds: string[];
   notes: string;
+  targetDate: string | null; // Target completion date in 'YYYY-MM-DD' format
   completedAt: string | null;
   completedBy: string | null;
   createdAt: string;
