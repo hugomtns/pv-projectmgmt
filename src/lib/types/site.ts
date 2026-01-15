@@ -5,6 +5,8 @@
  * containing boundaries and exclusion zones parsed from KML/KMZ files.
  */
 
+import type { SiteScorecard } from './siteScorecard';
+
 export interface SiteBoundary {
   id: string;
   name: string;
@@ -54,6 +56,9 @@ export interface Site {
 
   // Optional link to design
   linkedDesignId?: string;
+
+  // Site selection scorecard
+  scorecard?: SiteScorecard;
 }
 
 export interface KMLParseResult {

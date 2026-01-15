@@ -66,3 +66,40 @@ export const DIALOG_SIZES = {
   lg: 'sm:max-w-[600px]',  // Complex forms, with preview
   xl: 'sm:max-w-[800px]',  // Multi-step, with side panel
 } as const;
+
+// Site Selection Scorecard
+import type { ScorecardCategory, ScorecardRating, TrafficLightColor } from './types/siteScorecard';
+
+export const SCORECARD_CATEGORY_LABELS: Record<ScorecardCategory, string> = {
+  grid: 'Grid Connection',
+  access: 'Site Access',
+  land: 'Land Factors',
+  environmental: 'Environmental',
+};
+
+export const SCORECARD_CATEGORY_DESCRIPTIONS: Record<ScorecardCategory, string> = {
+  grid: 'Distance to substation, interconnection complexity, upgrade costs',
+  access: 'Road access quality, proximity to main roads',
+  land: 'Land cost/lease terms, ownership complexity, zoning status',
+  environmental: 'Permitting risk, community acceptance, visual impact',
+};
+
+export const SCORECARD_RATING_LABELS: Record<NonNullable<ScorecardRating>, string> = {
+  1: 'Poor',
+  2: 'Below Average',
+  3: 'Average',
+  4: 'Good',
+  5: 'Excellent',
+};
+
+export const SCORECARD_TRAFFIC_LIGHT_COLORS: Record<TrafficLightColor, string> = {
+  red: '#ef4444',
+  yellow: '#eab308',
+  green: '#22c55e',
+};
+
+export const SCORECARD_TRAFFIC_LIGHT_LABELS: Record<TrafficLightColor, string> = {
+  red: 'Poor',
+  yellow: 'Fair',
+  green: 'Good',
+};

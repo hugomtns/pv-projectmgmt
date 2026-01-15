@@ -159,6 +159,22 @@ export type {
 } from './types/site';
 export { EXCLUSION_ZONE_LABELS } from './types/site';
 
+// Site Selection Scorecard
+export type {
+  ScorecardCategory,
+  ScorecardRating,
+  CategoryScore,
+  TrafficLightColor,
+  SiteScorecard,
+} from './types/siteScorecard';
+export {
+  DEFAULT_SCORECARD_WEIGHTS,
+  isScorecardComplete,
+  getTrafficLightColor,
+  calculateCompositeScore,
+  createEmptyScorecard,
+} from './types/siteScorecard';
+
 // Design Management
 export interface GPSCoordinates {
   latitude: number;   // e.g., 37.7749
