@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useInspectionStore } from '@/stores/inspectionStore';
 import { useSiteStore } from '@/stores/siteStore';
 import { useUserStore } from '@/stores/userStore';
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { InspectionProgress } from './InspectionProgress';
 import { InspectionCategory } from './InspectionCategory';
+import { InspectionItemDialog } from './InspectionItemDialog';
 import { format } from 'date-fns';
 import { Calendar, MapPin, User, Building2, Play, XCircle } from 'lucide-react';
 import {
@@ -31,15 +32,14 @@ interface InspectionDetailProps {
   inspection: Inspection | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onItemClick?: (item: InspectionItem) => void;
 }
 
 export function InspectionDetail({
   inspection,
   open,
   onOpenChange,
-  onItemClick,
 }: InspectionDetailProps) {
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const updateInspection = useInspectionStore((state) => state.updateInspection);
   const updateInspectionItem = useInspectionStore((state) => state.updateInspectionItem);
 
@@ -90,6 +90,15 @@ export function InspectionDetail({
 
   const isEditable = canEdit && inspection.status !== 'completed' && inspection.status !== 'cancelled';
 
+  // Get selected item for dialog
+  const selectedItem = selectedItemId
+    ? inspection.items.find((i) => i.id === selectedItemId) || null
+    : null;
+
+  const handleItemClick = (item: InspectionItem) => {
+    setSelectedItemId(item.id);
+  };
+
   const statusVariant = {
     scheduled: 'secondary',
     in_progress: 'default',
@@ -101,27 +110,27 @@ export function InspectionDetail({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader className="space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <SheetTitle className="text-xl">
-                {INSPECTION_TYPE_LABELS[inspection.type]}
-              </SheetTitle>
-              <p className="text-sm text-muted-foreground mt-1">
+          <div>
+            <SheetTitle className="text-xl pr-8">
+              {INSPECTION_TYPE_LABELS[inspection.type]}
+            </SheetTitle>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-muted-foreground">
                 {inspection.items.length} checklist items
               </p>
+              <Badge
+                variant={statusVariant}
+                className={
+                  inspection.status === 'completed'
+                    ? 'bg-green-500'
+                    : inspection.status === 'in_progress'
+                    ? 'bg-blue-500'
+                    : ''
+                }
+              >
+                {INSPECTION_STATUS_LABELS[inspection.status]}
+              </Badge>
             </div>
-            <Badge
-              variant={statusVariant}
-              className={
-                inspection.status === 'completed'
-                  ? 'bg-green-500'
-                  : inspection.status === 'in_progress'
-                  ? 'bg-blue-500'
-                  : ''
-              }
-            >
-              {INSPECTION_STATUS_LABELS[inspection.status]}
-            </Badge>
           </div>
 
           {/* Meta info */}
@@ -180,7 +189,7 @@ export function InspectionDetail({
                 category={category}
                 items={items}
                 onItemResultChange={handleItemResultChange}
-                onItemClick={onItemClick}
+                onItemClick={handleItemClick}
                 disabled={!isEditable}
               />
             );
@@ -207,6 +216,15 @@ export function InspectionDetail({
             </p>
           </div>
         )}
+
+        {/* Item detail dialog */}
+        <InspectionItemDialog
+          inspectionId={inspection.id}
+          item={selectedItem}
+          open={!!selectedItemId}
+          onOpenChange={(open) => !open && setSelectedItemId(null)}
+          disabled={!isEditable}
+        />
       </SheetContent>
     </Sheet>
   );
