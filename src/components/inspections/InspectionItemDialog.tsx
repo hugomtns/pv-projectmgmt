@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useInspectionStore } from '@/stores/inspectionStore';
 import {
   Dialog,
@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Check, X, Minus, Camera } from 'lucide-react';
+import { InspectionPhotoGallery } from './InspectionPhotoGallery';
+import { Check, X, Minus, Camera, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   INSPECTION_CATEGORY_LABELS,
@@ -41,9 +42,13 @@ export function InspectionItemDialog({
   disabled,
 }: InspectionItemDialogProps) {
   const updateInspectionItem = useInspectionStore((state) => state.updateInspectionItem);
+  const addItemPhoto = useInspectionStore((state) => state.addItemPhoto);
+  const deleteItemPhoto = useInspectionStore((state) => state.deleteItemPhoto);
 
   const [result, setResult] = useState<InspectionItemResult>('pending');
   const [notes, setNotes] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync state when item changes
   useEffect(() => {
@@ -66,23 +71,47 @@ export function InspectionItemDialog({
     updateInspectionItem(inspectionId, item.id, { result: newResult });
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        await addItemPhoto(inspectionId, item.id, file);
+      }
+    } finally {
+      setIsUploading(false);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeletePhoto = async (photoId: string) => {
+    await deleteItemPhoto(inspectionId, item.id, photoId);
+  };
+
   const hasChanges = notes !== item.notes;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <div className="flex items-start gap-2">
-            <DialogTitle className="flex-1">{item.title}</DialogTitle>
-            {item.required && (
-              <Badge variant="secondary" className="shrink-0">
-                Required
-              </Badge>
-            )}
+          <div>
+            <DialogTitle className="pr-8">{item.title}</DialogTitle>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-muted-foreground">
+                {INSPECTION_CATEGORY_LABELS[item.category]}
+              </p>
+              {item.required && (
+                <Badge variant="secondary" className="text-xs">
+                  Required
+                </Badge>
+              )}
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {INSPECTION_CATEGORY_LABELS[item.category]}
-          </p>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -128,29 +157,64 @@ export function InspectionItemDialog({
             />
           </div>
 
-          {/* Photos section - placeholder for Story 6 */}
+          {/* Photos section */}
           <div className="space-y-2">
-            <Label>Photos</Label>
+            <Label>Photos ({item.photos.length})</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
             {item.photos.length === 0 ? (
-              <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                <Camera className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <div
+                className={cn(
+                  'border-2 border-dashed rounded-lg p-6 text-center',
+                  !disabled && 'cursor-pointer hover:bg-muted/50',
+                  isUploading && 'opacity-50'
+                )}
+                onClick={() => !disabled && !isUploading && fileInputRef.current?.click()}
+              >
+                {isUploading ? (
+                  <Loader2 className="w-8 h-8 mx-auto text-muted-foreground mb-2 animate-spin" />
+                ) : (
+                  <Camera className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                )}
                 <p className="text-sm text-muted-foreground">
-                  No photos attached
+                  {isUploading ? 'Uploading...' : 'No photos attached'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Photo capture coming soon
-                </p>
+                {!disabled && !isUploading && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Click to add photos
+                  </p>
+                )}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {item.photos.map((photo) => (
+              <div className="space-y-2">
+                <InspectionPhotoGallery
+                  photos={item.photos}
+                  onDelete={handleDeletePhoto}
+                  disabled={disabled}
+                />
+                {!disabled && (
                   <div
-                    key={photo.id}
-                    className="aspect-square bg-muted rounded-md flex items-center justify-center"
+                    className={cn(
+                      'border-2 border-dashed rounded-lg p-3 text-center cursor-pointer hover:bg-muted/50',
+                      isUploading && 'opacity-50'
+                    )}
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
                   >
-                    <Camera className="w-6 h-6 text-muted-foreground" />
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 mx-auto text-muted-foreground animate-spin" />
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Click to add more photos
+                      </p>
+                    )}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>

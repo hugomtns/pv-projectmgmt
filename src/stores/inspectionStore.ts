@@ -5,12 +5,14 @@ import type {
   InspectionType,
   InspectionItem,
   InspectionItemResult,
+  InspectionItemPhoto,
   InspectorSignature,
 } from '@/lib/types';
 import { INSPECTION_TEMPLATES } from '@/data/inspectionTemplates';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { logAdminAction } from '@/lib/adminLogger';
+import { storeBlob, deleteBlob } from '@/lib/db';
 import { toast } from 'sonner';
 
 interface InspectionState {
@@ -49,6 +51,20 @@ interface InspectionState {
     itemId: string,
     updates: Partial<Pick<InspectionItem, 'result' | 'notes' | 'isPunchListItem'>>
   ) => void;
+
+  // Photo operations
+  addItemPhoto: (
+    inspectionId: string,
+    itemId: string,
+    file: File,
+    caption?: string
+  ) => Promise<string | undefined>;
+
+  deleteItemPhoto: (
+    inspectionId: string,
+    itemId: string,
+    photoId: string
+  ) => Promise<void>;
 
   // Punch list operations
   markPunchListResolved: (inspectionId: string, itemId: string) => void;
@@ -282,6 +298,133 @@ export const useInspectionStore = create<InspectionState>()(
               : i
           ),
         }));
+      },
+
+      addItemPhoto: async (inspectionId, itemId, file, caption) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to add photos');
+          return;
+        }
+
+        const inspection = get().inspections.find((i) => i.id === inspectionId);
+        if (!inspection) {
+          toast.error('Inspection not found');
+          return;
+        }
+
+        const isSystemAdmin = currentUser.roleId === 'role-admin';
+        const isCreator = inspection.creatorId === currentUser.id;
+
+        if (!isSystemAdmin && !isCreator) {
+          toast.error('Permission denied: You can only edit inspections you created');
+          return;
+        }
+
+        try {
+          // Store the blob in IndexedDB
+          const blobId = await storeBlob(file);
+          const now = new Date().toISOString();
+
+          const newPhoto: InspectionItemPhoto = {
+            id: crypto.randomUUID(),
+            blobId,
+            fileName: file.name,
+            fileSize: file.size,
+            capturedAt: now,
+            caption,
+          };
+
+          set((state) => ({
+            inspections: state.inspections.map((i) =>
+              i.id === inspectionId
+                ? {
+                    ...i,
+                    updatedAt: now,
+                    items: i.items.map((item) =>
+                      item.id === itemId
+                        ? {
+                            ...item,
+                            photos: [...item.photos, newPhoto],
+                            updatedAt: now,
+                          }
+                        : item
+                    ),
+                  }
+                : i
+            ),
+          }));
+
+          toast.success('Photo added');
+          return newPhoto.id;
+        } catch (error) {
+          console.error('Failed to store photo:', error);
+          toast.error('Failed to add photo');
+          return;
+        }
+      },
+
+      deleteItemPhoto: async (inspectionId, itemId, photoId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to delete photos');
+          return;
+        }
+
+        const inspection = get().inspections.find((i) => i.id === inspectionId);
+        if (!inspection) {
+          toast.error('Inspection not found');
+          return;
+        }
+
+        const isSystemAdmin = currentUser.roleId === 'role-admin';
+        const isCreator = inspection.creatorId === currentUser.id;
+
+        if (!isSystemAdmin && !isCreator) {
+          toast.error('Permission denied: You can only edit inspections you created');
+          return;
+        }
+
+        // Find the photo to get its blobId
+        const item = inspection.items.find((i) => i.id === itemId);
+        const photo = item?.photos.find((p) => p.id === photoId);
+
+        if (photo) {
+          try {
+            // Delete the blob from IndexedDB
+            await deleteBlob(photo.blobId);
+          } catch (error) {
+            console.error('Failed to delete blob:', error);
+          }
+        }
+
+        const now = new Date().toISOString();
+
+        set((state) => ({
+          inspections: state.inspections.map((i) =>
+            i.id === inspectionId
+              ? {
+                  ...i,
+                  updatedAt: now,
+                  items: i.items.map((item) =>
+                    item.id === itemId
+                      ? {
+                          ...item,
+                          photos: item.photos.filter((p) => p.id !== photoId),
+                          updatedAt: now,
+                        }
+                      : item
+                  ),
+                }
+              : i
+          ),
+        }));
+
+        toast.success('Photo deleted');
       },
 
       markPunchListResolved: (inspectionId, itemId) => {

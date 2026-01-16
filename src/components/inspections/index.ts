@@ -6,3 +6,4 @@ export { InspectionProgress } from './InspectionProgress';
 export { InspectionCategory } from './InspectionCategory';
 export { InspectionItem } from './InspectionItem';
 export { InspectionItemDialog } from './InspectionItemDialog';
+export { InspectionPhotoGallery } from './InspectionPhotoGallery';
