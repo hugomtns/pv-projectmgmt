@@ -122,6 +122,7 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
               </div>
               <Badge
                 variant="outline"
+                className="mr-6"
                 style={{
                   borderColor: statusColor,
                   color: statusColor,
