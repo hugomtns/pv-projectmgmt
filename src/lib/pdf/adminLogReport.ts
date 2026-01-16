@@ -18,6 +18,10 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   admin_logs: 'Admin Log',
   sites: 'Site',
   inspections: 'Inspection',
+  equipment: 'Equipment',
+  maintenance_schedules: 'Maintenance Schedule',
+  work_orders: 'Work Order',
+  performance_logs: 'Performance Log',
 };
 
 // Format file size to human readable

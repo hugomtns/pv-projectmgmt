@@ -265,3 +265,64 @@ export {
   INSPECTION_CATEGORY_ORDER,
   INSPECTION_SIGNATURE_ROLE_LABELS,
 } from './types/inspection';
+
+// Equipment Management
+export type {
+  EquipmentType,
+  EquipmentStatus,
+  Equipment,
+} from './types/equipment';
+export {
+  EQUIPMENT_TYPE_LABELS,
+  EQUIPMENT_STATUS_LABELS,
+  EQUIPMENT_STATUS_COLORS,
+  EQUIPMENT_TYPE_ORDER,
+} from './types/equipment';
+
+// Maintenance Schedules
+export type {
+  MaintenanceCategory,
+  RecurrenceType,
+  MaintenanceTaskTemplate,
+  MaintenanceSchedule,
+} from './types/maintenance';
+export {
+  MAINTENANCE_CATEGORY_LABELS,
+  RECURRENCE_LABELS,
+  MAINTENANCE_CATEGORY_COLORS,
+  MAINTENANCE_CATEGORY_ORDER,
+  calculateNextDueDate,
+} from './types/maintenance';
+
+// Work Orders
+export type {
+  WorkOrderType,
+  WorkOrderPriority,
+  WorkOrderStatus,
+  WorkOrderItemResult,
+  WorkOrderPart,
+  WorkOrderItem,
+  WorkOrderSignature,
+  WorkOrder,
+  WorkOrderItemTemplate,
+} from './types/workOrder';
+export {
+  WORK_ORDER_TYPE_LABELS,
+  WORK_ORDER_PRIORITY_LABELS,
+  WORK_ORDER_PRIORITY_COLORS,
+  WORK_ORDER_STATUS_LABELS,
+  WORK_ORDER_STATUS_COLORS,
+  WORK_ORDER_ITEM_RESULT_LABELS,
+  WORK_ORDER_SIGNATURE_ROLE_LABELS,
+} from './types/workOrder';
+
+// Performance Logs
+export type {
+  PerformancePeriod,
+  PerformanceLog,
+  PerformanceKPIs,
+} from './types/performanceLog';
+export {
+  PERFORMANCE_PERIOD_LABELS,
+  calculatePerformanceKPIs,
+} from './types/performanceLog';

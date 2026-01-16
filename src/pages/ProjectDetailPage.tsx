@@ -34,6 +34,10 @@ import { SiteList } from '@/components/sites/SiteList';
 import { MilestoneSection } from '@/components/projects/milestones/MilestoneSection';
 import { NtpChecklistSection } from '@/components/ntp-checklist';
 import { InspectionList } from '@/components/inspections';
+import { EquipmentList } from '@/components/asset-management/equipment';
+import { ScheduleList } from '@/components/asset-management/schedules';
+import { WorkOrderList } from '@/components/asset-management/work-orders';
+import { PerformanceLogList } from '@/components/asset-management/performance';
 import { Upload } from 'lucide-react';
 import NotFound from './NotFound';
 import type { Priority } from '@/lib/types';
@@ -211,6 +215,10 @@ export default function ProjectDetailPage() {
     sites: 'Sites',
     designs: 'Designs',
     documents: 'Documents',
+    equipment: 'Equipment',
+    maintenance: 'Maintenance Schedules',
+    'work-orders': 'Work Orders',
+    performance: 'Performance',
   };
 
   return (
@@ -417,6 +425,26 @@ export default function ProjectDetailPage() {
                 showSearch
               />
             </div>
+          )}
+
+          {/* Equipment Section */}
+          {activeSection === 'equipment' && (
+            <EquipmentList projectId={projectId || ''} />
+          )}
+
+          {/* Maintenance Schedules Section */}
+          {activeSection === 'maintenance' && (
+            <ScheduleList projectId={projectId || ''} />
+          )}
+
+          {/* Work Orders Section */}
+          {activeSection === 'work-orders' && (
+            <WorkOrderList projectId={projectId || ''} />
+          )}
+
+          {/* Performance Section */}
+          {activeSection === 'performance' && (
+            <PerformanceLogList projectId={projectId || ''} />
           )}
         </div>
       </div>

@@ -18,6 +18,10 @@ import {
   MapPin,
   Layers,
   FileText,
+  Cpu,
+  CalendarClock,
+  Wrench,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -32,6 +36,10 @@ const ICON_MAP: Record<string, LucideIcon> = {
   MapPin,
   Layers,
   FileText,
+  Cpu,
+  CalendarClock,
+  Wrench,
+  TrendingUp,
 };
 
 interface ProjectContextSidebarProps {

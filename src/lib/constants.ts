@@ -125,6 +125,16 @@ export const PROJECT_SECTION_GROUPS = [
       { id: 'sites', label: 'Sites', icon: 'MapPin' },
       { id: 'designs', label: 'Designs', icon: 'Layers' },
       { id: 'documents', label: 'Documents', icon: 'FileText' },
+      { id: 'equipment', label: 'Equipment', icon: 'Cpu' },
+    ],
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    sections: [
+      { id: 'maintenance', label: 'Maintenance', icon: 'CalendarClock' },
+      { id: 'work-orders', label: 'Work Orders', icon: 'Wrench' },
+      { id: 'performance', label: 'Performance', icon: 'TrendingUp' },
     ],
   },
 ] as const;

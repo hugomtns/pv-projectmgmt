@@ -21,6 +21,10 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     admin_logs: 'Admin Logs',
     sites: 'Sites',
     inspections: 'Inspections',
+    equipment: 'Equipment',
+    maintenance_schedules: 'Maintenance Schedules',
+    work_orders: 'Work Orders',
+    performance_logs: 'Performance Logs',
   };
   return labels[entityType];
 }
@@ -108,6 +112,16 @@ export function getEntityName(entityType: EntityType, entityId: string): string 
 
     case 'admin_logs': {
       // Admin logs are not individual entities
+      return null;
+    }
+
+    case 'sites':
+    case 'inspections':
+    case 'equipment':
+    case 'maintenance_schedules':
+    case 'work_orders':
+    case 'performance_logs': {
+      // These would need to be looked up from their respective stores
       return null;
     }
 

@@ -12,7 +12,11 @@ export type EntityType =
   | 'boqs'
   | 'admin_logs'
   | 'sites'
-  | 'inspections';
+  | 'inspections'
+  | 'equipment'
+  | 'maintenance_schedules'
+  | 'work_orders'
+  | 'performance_logs';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 
