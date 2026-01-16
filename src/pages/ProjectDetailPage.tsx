@@ -216,7 +216,7 @@ export default function ProjectDetailPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Section Header */}
-      <div className="flex h-14 items-center border-b px-6">
+      <div className="flex h-16 items-center border-b px-6">
         <h1 className="text-lg font-semibold">{sectionTitles[activeSection] || 'Project'}</h1>
       </div>
 
