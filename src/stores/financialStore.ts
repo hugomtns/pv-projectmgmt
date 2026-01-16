@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { FinancialModel, FinancialInputs, ProjectResults } from '@/lib/types/financial';
 import { DEFAULT_FINANCIAL_INPUTS } from '@/lib/types/financial';
+import type { YieldEstimate, YieldCalculationInput } from '@/lib/yield/types';
+import { calculateYield } from '@/lib/yield';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { logAdminAction } from '@/lib/adminLogger';
@@ -21,6 +23,14 @@ interface FinancialState {
   updateInputs: (id: string, inputs: Partial<FinancialInputs>) => void;
   updateResults: (id: string, results: ProjectResults) => void;
   deleteFinancialModel: (id: string) => void;
+
+  // Yield calculation actions
+  calculateYieldForModel: (
+    id: string,
+    input: Omit<YieldCalculationInput, 'capacityKwp'>
+  ) => Promise<YieldEstimate | null>;
+  applyYieldEstimate: (id: string, estimate: YieldEstimate) => void;
+  clearYieldEstimate: (id: string) => void;
 
   // Helpers
   getModelByProject: (projectId: string) => FinancialModel | undefined;
@@ -254,6 +264,182 @@ export const useFinancialStore = create<FinancialState>()(
         toast.success('Financial model deleted');
       },
 
+      // Yield calculation actions
+      calculateYieldForModel: async (id, input) => {
+        console.log('[Store] calculateYieldForModel called', { id, input });
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          console.log('[Store] No current user');
+          toast.error('You must be logged in to calculate yield');
+          return null;
+        }
+
+        const model = get().financialModels.find((m) => m.id === id);
+        if (!model) {
+          console.log('[Store] Model not found');
+          toast.error('Financial model not found');
+          return null;
+        }
+        console.log('[Store] Found model:', model.name);
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'financials',
+          id,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isCreator = model.creatorId === currentUser.id;
+
+        if (!permissions.update || (!isAdmin && !isCreator)) {
+          console.log('[Store] Permission denied', { permissions, isAdmin, isCreator });
+          toast.error('Permission denied');
+          return null;
+        }
+
+        // Get capacity from model (convert MW to kWp)
+        const capacityKwp = model.inputs.capacity * 1000;
+        console.log('[Store] Capacity:', capacityKwp, 'kWp');
+
+        try {
+          console.log('[Store] Calling calculateYield...');
+          const result = await calculateYield({
+            ...input,
+            capacityKwp,
+          });
+          console.log('[Store] calculateYield result:', result);
+
+          if (result.success && result.estimate) {
+            return result.estimate;
+          } else {
+            toast.error(result.error || 'Failed to calculate yield');
+            return null;
+          }
+        } catch (error) {
+          console.error('[Store] Error calculating yield:', error);
+          toast.error('Failed to calculate yield');
+          return null;
+        }
+      },
+
+      applyYieldEstimate: (id, estimate) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to apply yield estimate');
+          return;
+        }
+
+        const model = get().financialModels.find((m) => m.id === id);
+        if (!model) {
+          toast.error('Financial model not found');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'financials',
+          id,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isCreator = model.creatorId === currentUser.id;
+
+        if (!permissions.update || (!isAdmin && !isCreator)) {
+          toast.error('Permission denied');
+          return;
+        }
+
+        // Convert annual yield from kWh to MWh for p50_year_0_yield (round to whole number)
+        const p50YieldMwh = Math.round(estimate.annualYield / 1000);
+
+        set((state) => ({
+          financialModels: state.financialModels.map((m) =>
+            m.id === id
+              ? {
+                  ...m,
+                  inputs: {
+                    ...m.inputs,
+                    p50_year_0_yield: p50YieldMwh,
+                    yieldEstimate: estimate,
+                  },
+                  results: undefined, // Clear cached results
+                  updatedAt: new Date().toISOString(),
+                }
+              : m
+          ),
+        }));
+
+        logAdminAction('update', 'financials', id, model.name, {
+          action: 'apply_yield_estimate',
+          source: estimate.source,
+          annualYield: estimate.annualYield,
+        });
+
+        toast.success('Yield estimate applied');
+      },
+
+      clearYieldEstimate: (id) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in');
+          return;
+        }
+
+        const model = get().financialModels.find((m) => m.id === id);
+        if (!model) {
+          toast.error('Financial model not found');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'financials',
+          id,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        const isAdmin = currentUser.roleId === 'role-admin';
+        const isCreator = model.creatorId === currentUser.id;
+
+        if (!permissions.update || (!isAdmin && !isCreator)) {
+          toast.error('Permission denied');
+          return;
+        }
+
+        set((state) => ({
+          financialModels: state.financialModels.map((m) =>
+            m.id === id
+              ? {
+                  ...m,
+                  inputs: {
+                    ...m.inputs,
+                    yieldEstimate: undefined,
+                  },
+                  updatedAt: new Date().toISOString(),
+                }
+              : m
+          ),
+        }));
+
+        logAdminAction('update', 'financials', id, model.name, {
+          action: 'clear_yield_estimate',
+        });
+
+        toast.success('Yield estimate cleared');
+      },
+
+      // Helpers
       getModelByProject: (projectId) => {
         return get().financialModels.find((m) => m.projectId === projectId);
       },

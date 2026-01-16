@@ -185,6 +185,7 @@ export function FinancialModelPage() {
               <TabsContent value="inputs" className="mt-6">
                 <FinancialInputForm
                   modelId={model.id}
+                  projectId={projectId!}
                   inputs={model.inputs}
                   onCalculate={handleCalculate}
                   isCalculating={isCalculating}
