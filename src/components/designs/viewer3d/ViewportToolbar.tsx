@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Box, Square, MessageSquarePlus, Eye, EyeOff, Layers } from 'lucide-react';
+import { Box, Square, MessageSquarePlus, Eye, EyeOff, Layers, Activity } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
@@ -18,6 +18,9 @@ export interface LayerVisibility {
   boundaries: boolean;
   electrical: boolean;
   trees: boolean;
+  // Digital Twin overlays
+  digitalTwinMetrics: boolean;
+  performanceHeatmap: boolean;
 }
 
 interface ViewportToolbarProps {
@@ -29,6 +32,8 @@ interface ViewportToolbarProps {
   onShowPinsChange?: (show: boolean) => void;
   visibility?: LayerVisibility;
   onVisibilityChange?: (visibility: LayerVisibility) => void;
+  // Digital Twin
+  digitalTwinActive?: boolean;
 }
 
 /**
@@ -42,6 +47,8 @@ const defaultVisibility: LayerVisibility = {
   boundaries: true,
   electrical: true,
   trees: true,
+  digitalTwinMetrics: true,
+  performanceHeatmap: true,
 };
 
 export function ViewportToolbar({
@@ -53,6 +60,7 @@ export function ViewportToolbar({
   onShowPinsChange,
   visibility = defaultVisibility,
   onVisibilityChange,
+  digitalTwinActive = false,
 }: ViewportToolbarProps) {
   // Helper to toggle a single layer
   const toggleLayer = (layer: keyof LayerVisibility) => {
@@ -127,6 +135,28 @@ export function ViewportToolbar({
           >
             Trees
           </DropdownMenuCheckboxItem>
+          {/* Digital Twin overlays - only show when active */}
+          {digitalTwinActive && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-2">
+                <Activity className="h-3 w-3" />
+                Digital Twin
+              </DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={visibility.digitalTwinMetrics}
+                onCheckedChange={() => toggleLayer('digitalTwinMetrics')}
+              >
+                Equipment Metrics
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={visibility.performanceHeatmap}
+                onCheckedChange={() => toggleLayer('performanceHeatmap')}
+              >
+                Performance Heatmap
+              </DropdownMenuCheckboxItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -13,10 +13,13 @@ import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import type { DXFParsedData, PanelGeometry, BoundaryGeometry, ElectricalComponent } from '@/lib/dxf/types';
 import type { ElementAnchor } from '@/lib/types';
+import type { TelemetrySnapshot } from '@/lib/digitaltwin/types';
 import { PanelInstances } from './PanelInstances';
 import { Equipment3D } from './Equipment3D';
 import { Tree3D } from './Tree3D';
 import { ElementCommentMarkers } from './ElementCommentMarkers';
+import { EquipmentStatusOverlay } from './EquipmentStatusOverlay';
+import { PanelHeatmap } from './PanelHeatmap';
 
 interface PVLayoutRendererProps {
   parsedData: DXFParsedData;
@@ -35,6 +38,10 @@ interface PVLayoutRendererProps {
   onBadgeClick?: (elementType: string, elementId: string) => void;
   highlightedElementKey?: string | null;
   showPins?: boolean;
+  // Digital Twin
+  telemetry?: TelemetrySnapshot | null;
+  showDigitalTwinMetrics?: boolean;
+  showPerformanceHeatmap?: boolean;
 }
 
 export function PVLayoutRenderer({
@@ -52,6 +59,9 @@ export function PVLayoutRenderer({
   onBadgeClick,
   highlightedElementKey,
   showPins = true,
+  telemetry,
+  showDigitalTwinMetrics = false,
+  showPerformanceHeatmap = false,
 }: PVLayoutRendererProps) {
   // Center offset to position layout at origin
   const centerOffset = useMemo(() => ({
@@ -106,6 +116,24 @@ export function PVLayoutRenderer({
           onBadgeClick={onBadgeClick}
           highlightedElementKey={highlightedElementKey}
           showPins={showPins}
+        />
+      )}
+
+      {/* Digital Twin: Equipment Status Overlay */}
+      {telemetry && showDigitalTwinMetrics && (
+        <EquipmentStatusOverlay
+          equipment={parsedData.electrical}
+          telemetry={telemetry}
+          showMetrics={true}
+        />
+      )}
+
+      {/* Digital Twin: Panel Performance Heatmap */}
+      {telemetry && showPerformanceHeatmap && (
+        <PanelHeatmap
+          panels={parsedData.panels}
+          panelZones={telemetry.panelZones}
+          enabled={true}
         />
       )}
     </group>

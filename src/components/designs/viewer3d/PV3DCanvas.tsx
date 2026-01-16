@@ -11,6 +11,7 @@ import { parseDXFFromURL } from '@/lib/dxf/parser';
 import { getElementPosition } from './cameraUtils';
 import type { DXFParsedData, DXFGeoData, PanelGeometry } from '@/lib/dxf/types';
 import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
+import { useDigitalTwinStore } from '@/stores/digitalTwinStore';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -53,6 +54,8 @@ interface PV3DCanvasProps {
   highlightedElementKey?: string | null;
   onBadgeClick?: (elementType: string, elementId: string) => void;
   onGeoDataExtracted?: (geoData: DXFGeoData) => void;
+  // Digital Twin
+  digitalTwinActive?: boolean;
 }
 
 type CameraMode = '3d' | '2d';
@@ -70,6 +73,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   highlightedElementKey,
   onBadgeClick,
   onGeoDataExtracted,
+  digitalTwinActive = false,
 }, ref) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
@@ -96,7 +100,12 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
     boundaries: true,
     electrical: true,
     trees: true,
+    digitalTwinMetrics: true,
+    performanceHeatmap: true,
   });
+
+  // Digital Twin telemetry
+  const telemetry = useDigitalTwinStore((state) => state.currentSnapshot);
 
   // Load and parse DXF file when URL changes
   useEffect(() => {
@@ -223,6 +232,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         onShowPinsChange={setShowPins}
         visibility={visibility}
         onVisibilityChange={setVisibility}
+        digitalTwinActive={digitalTwinActive}
       />
 
       {/* Loading overlay */}
@@ -285,6 +295,9 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
             onBadgeClick={onBadgeClick}
             highlightedElementKey={highlightedElementKey}
             showPins={showPins}
+            telemetry={digitalTwinActive ? telemetry : null}
+            showDigitalTwinMetrics={digitalTwinActive && visibility.digitalTwinMetrics}
+            showPerformanceHeatmap={digitalTwinActive && visibility.performanceHeatmap}
           />
         )}
 
