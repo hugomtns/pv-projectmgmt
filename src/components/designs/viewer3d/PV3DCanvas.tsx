@@ -298,6 +298,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
             telemetry={digitalTwinActive ? telemetry : null}
             showDigitalTwinMetrics={digitalTwinActive && visibility.digitalTwinMetrics}
             showPerformanceHeatmap={digitalTwinActive && visibility.performanceHeatmap}
+            cameraMode={cameraMode}
           />
         )}
 

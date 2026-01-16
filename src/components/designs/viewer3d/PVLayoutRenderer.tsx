@@ -42,6 +42,8 @@ interface PVLayoutRendererProps {
   telemetry?: TelemetrySnapshot | null;
   showDigitalTwinMetrics?: boolean;
   showPerformanceHeatmap?: boolean;
+  // Camera mode (affects how overlays render)
+  cameraMode?: '3d' | '2d';
 }
 
 export function PVLayoutRenderer({
@@ -62,6 +64,7 @@ export function PVLayoutRenderer({
   telemetry,
   showDigitalTwinMetrics = false,
   showPerformanceHeatmap = false,
+  cameraMode = '3d',
 }: PVLayoutRendererProps) {
   // Center offset to position layout at origin
   const centerOffset = useMemo(() => ({
@@ -124,7 +127,7 @@ export function PVLayoutRenderer({
         <EquipmentStatusOverlay
           equipment={parsedData.electrical}
           telemetry={telemetry}
-          showMetrics={true}
+          showMetrics={cameraMode === '3d'}
         />
       )}
 
