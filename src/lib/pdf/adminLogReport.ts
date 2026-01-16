@@ -19,6 +19,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   sites: 'Site',
   inspections: 'Inspection',
   equipment: 'Equipment',
+  equipment_units: 'Equipment Unit',
   maintenance_schedules: 'Maintenance Schedule',
   work_orders: 'Work Order',
   performance_logs: 'Performance Log',

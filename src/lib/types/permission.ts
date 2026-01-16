@@ -14,6 +14,7 @@ export type EntityType =
   | 'sites'
   | 'inspections'
   | 'equipment'
+  | 'equipment_units'
   | 'maintenance_schedules'
   | 'work_orders'
   | 'performance_logs';

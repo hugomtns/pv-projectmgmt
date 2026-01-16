@@ -4,6 +4,7 @@ import type {
   Equipment,
   EquipmentType,
   EquipmentStatus,
+  TrackingMode,
 } from '@/lib/types/equipment';
 import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
@@ -22,6 +23,7 @@ interface CreateEquipmentData {
   model?: string;
   quantity: number;
   status?: EquipmentStatus;
+  trackingMode?: TrackingMode;
   warrantyExpiration?: string;
   warrantyProvider?: string;
   commissionedDate?: string;
@@ -92,6 +94,12 @@ export const useEquipmentStore = create<EquipmentState>()(
         const now = new Date().toISOString();
         const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
 
+        // Default tracking mode: individual for high-value equipment, batch for bulk
+        const defaultTrackingMode: TrackingMode =
+          data.type === 'inverter' || data.type === 'transformer'
+            ? 'individual'
+            : 'batch';
+
         const newEquipment: Equipment = {
           id: crypto.randomUUID(),
           projectId: data.projectId,
@@ -105,6 +113,7 @@ export const useEquipmentStore = create<EquipmentState>()(
           model: data.model,
           quantity: data.quantity,
           status: data.status || 'operational',
+          trackingMode: data.trackingMode || defaultTrackingMode,
           warrantyExpiration: data.warrantyExpiration,
           warrantyProvider: data.warrantyProvider,
           commissionedDate: data.commissionedDate,
@@ -255,6 +264,11 @@ export const useEquipmentStore = create<EquipmentState>()(
         const newEquipment: Equipment[] = items.map((item) => {
           const id = crypto.randomUUID();
           createdIds.push(id);
+          // Default tracking mode based on type
+          const trackingMode: TrackingMode =
+            item.type === 'inverter' || item.type === 'transformer'
+              ? 'individual'
+              : 'batch';
           return {
             id,
             projectId,
@@ -266,6 +280,7 @@ export const useEquipmentStore = create<EquipmentState>()(
             model: item.model,
             quantity: item.quantity,
             status: 'operational' as EquipmentStatus,
+            trackingMode,
             createdBy: userFullName,
             creatorId: currentUser.id,
             createdAt: now,

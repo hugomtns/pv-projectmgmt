@@ -22,6 +22,7 @@ export function getEntityTypeLabel(entityType: EntityType): string {
     sites: 'Sites',
     inspections: 'Inspections',
     equipment: 'Equipment',
+    equipment_units: 'Equipment Units',
     maintenance_schedules: 'Maintenance Schedules',
     work_orders: 'Work Orders',
     performance_logs: 'Performance Logs',

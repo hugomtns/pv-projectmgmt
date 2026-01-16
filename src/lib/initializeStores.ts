@@ -5,10 +5,12 @@ import { useFilterStore } from '@/stores/filterStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { useDisplayStore } from '@/stores/displayStore';
 import { useSiteStore } from '@/stores/siteStore';
+import { useEquipmentStore } from '@/stores/equipmentStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
 import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
 import type { Project } from '@/lib/types';
+import type { TrackingMode } from '@/lib/types/equipment';
 
 /**
  * Create full Project objects from mock data without triggering store actions (and thus logging)
@@ -611,6 +613,76 @@ function migrateRolesForPerformanceLogs() {
 }
 
 /**
+ * Add trackingMode to existing equipment
+ */
+function migrateEquipmentForTrackingMode() {
+  const equipmentState = useEquipmentStore.getState();
+  const equipment = equipmentState.equipment;
+
+  // Check if any equipment is missing trackingMode
+  const needsMigration = equipment.some((e: any) => e.trackingMode === undefined);
+
+  if (needsMigration) {
+    const updatedEquipment = equipment.map((e: any) => {
+      if (e.trackingMode !== undefined) return e;
+
+      // Default: individual for inverters/transformers, batch for others
+      const trackingMode: TrackingMode =
+        e.type === 'inverter' || e.type === 'transformer'
+          ? 'individual'
+          : 'batch';
+
+      return {
+        ...e,
+        trackingMode,
+      };
+    });
+
+    useEquipmentStore.setState({ equipment: updatedEquipment });
+    console.log('✓ Migrated equipment to include trackingMode');
+  }
+}
+
+/**
+ * Add 'equipment_units' permissions to existing roles
+ */
+function migrateRolesForEquipmentUnits() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'equipment_units' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.equipment_units);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.equipment_units) return role;
+
+      // Determine permissions based on role type
+      let equipmentUnitsPermissions;
+      if (role.id === 'role-admin') {
+        equipmentUnitsPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        equipmentUnitsPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        equipmentUnitsPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          equipment_units: equipmentUnitsPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include equipment_units permissions');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -692,7 +764,9 @@ export function initializeStores() {
       migrateRolesForMaintenanceSchedules();
       migrateRolesForWorkOrders();
       migrateRolesForPerformanceLogs();
+      migrateRolesForEquipmentUnits();
       migrateSitesUsableArea();
+      migrateEquipmentForTrackingMode();
     }
 
     // Initialize user store if empty

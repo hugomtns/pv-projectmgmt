@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useEquipmentStore } from '@/stores/equipmentStore';
+import { useEquipmentUnitStore } from '@/stores/equipmentUnitStore';
 import { useComponentStore } from '@/stores/componentStore';
 import { useUserStore } from '@/stores/userStore';
+import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { EquipmentUnitDialog } from './EquipmentUnitDialog';
 import {
   Sheet,
   SheetContent,
@@ -23,13 +26,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import type { Equipment, EquipmentStatus } from '@/lib/types/equipment';
+import type { Equipment, EquipmentStatus, EquipmentUnit, TrackingMode } from '@/lib/types/equipment';
 import {
   EQUIPMENT_TYPE_LABELS,
   EQUIPMENT_STATUS_LABELS,
   EQUIPMENT_STATUS_COLORS,
+  UNIT_STATUS_LABELS,
+  UNIT_STATUS_COLORS,
+  TRACKING_MODE_LABELS,
 } from '@/lib/types/equipment';
-import { Trash2, Edit2, Save, X, ExternalLink } from 'lucide-react';
+import { Trash2, Edit2, Save, X, ExternalLink, Plus, Package } from 'lucide-react';
 
 interface EquipmentDetailProps {
   equipment: Equipment | null;
@@ -42,10 +48,32 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
   const deleteEquipment = useEquipmentStore((state) => state.deleteEquipment);
   const components = useComponentStore((state) => state.components);
   const currentUser = useUserStore((state) => state.currentUser);
+  const permissionOverrides = useUserStore((state) => state.permissionOverrides);
+  const roles = useUserStore((state) => state.roles);
+
+  // Units
+  const allUnits = useEquipmentUnitStore((state) => state.units);
+  const deleteUnit = useEquipmentUnitStore((state) => state.deleteUnit);
+  const getUnitStats = useEquipmentUnitStore((state) => state.getUnitStats);
 
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editData, setEditData] = useState<Partial<Equipment>>({});
+  const [isUnitDialogOpen, setIsUnitDialogOpen] = useState(false);
+  const [editingUnit, setEditingUnit] = useState<EquipmentUnit | null>(null);
+  const [unitToDelete, setUnitToDelete] = useState<EquipmentUnit | null>(null);
+
+  // Get units for this equipment
+  const units = useMemo(
+    () => (equipment ? allUnits.filter((u) => u.equipmentId === equipment.id) : []),
+    [allUnits, equipment]
+  );
+
+  // Get unit stats
+  const unitStats = useMemo(
+    () => (equipment ? getUnitStats(equipment.id) : null),
+    [equipment, getUnitStats, units] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   if (!equipment) return null;
 
@@ -56,6 +84,10 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
   const canEdit =
     currentUser?.roleId === 'role-admin' || currentUser?.id === equipment.creatorId;
 
+  const canManageUnits = currentUser
+    ? resolvePermissions(currentUser, 'equipment_units', undefined, permissionOverrides, roles).create
+    : false;
+
   const handleStartEdit = () => {
     setEditData({
       name: equipment.name,
@@ -64,6 +96,7 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
       serialNumber: equipment.serialNumber,
       quantity: equipment.quantity,
       status: equipment.status,
+      trackingMode: equipment.trackingMode,
       warrantyExpiration: equipment.warrantyExpiration,
       warrantyProvider: equipment.warrantyProvider,
       commissionedDate: equipment.commissionedDate,
@@ -88,6 +121,18 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
     onOpenChange(false);
   };
 
+  const handleEditUnit = (unit: EquipmentUnit) => {
+    setEditingUnit(unit);
+    setIsUnitDialogOpen(true);
+  };
+
+  const handleDeleteUnit = () => {
+    if (unitToDelete) {
+      deleteUnit(unitToDelete.id);
+      setUnitToDelete(null);
+    }
+  };
+
   const statusColor = EQUIPMENT_STATUS_COLORS[equipment.status];
 
   // Calculate warranty status
@@ -108,10 +153,12 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
     }
   }
 
+  const isIndividualTracking = equipment.trackingMode === 'individual';
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="sm:max-w-[480px] overflow-y-auto">
+        <SheetContent className="sm:max-w-[500px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{equipment.name}</SheetTitle>
             <SheetDescription>
@@ -119,7 +166,7 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
             </SheetDescription>
           </SheetHeader>
 
-          <div className="mt-4">
+          <div className="mt-4 flex items-center gap-2">
             <Badge
               variant="outline"
               style={{
@@ -128,6 +175,9 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
               }}
             >
               {EQUIPMENT_STATUS_LABELS[equipment.status]}
+            </Badge>
+            <Badge variant="secondary" className="text-xs">
+              {TRACKING_MODE_LABELS[equipment.trackingMode || 'batch']}
             </Badge>
           </div>
 
@@ -179,23 +229,43 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={editData.status}
-                    onValueChange={(v) => setEditData((prev) => ({ ...prev, status: v as EquipmentStatus }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(EQUIPMENT_STATUS_LABELS) as EquipmentStatus[]).map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {EQUIPMENT_STATUS_LABELS[status]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={editData.status}
+                      onValueChange={(v) => setEditData((prev) => ({ ...prev, status: v as EquipmentStatus }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(EQUIPMENT_STATUS_LABELS) as EquipmentStatus[]).map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {EQUIPMENT_STATUS_LABELS[status]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tracking Mode</Label>
+                    <Select
+                      value={editData.trackingMode}
+                      onValueChange={(v) => setEditData((prev) => ({ ...prev, trackingMode: v as TrackingMode }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(Object.keys(TRACKING_MODE_LABELS) as TrackingMode[]).map((mode) => (
+                          <SelectItem key={mode} value={mode}>
+                            {TRACKING_MODE_LABELS[mode]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -299,6 +369,114 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
                       </div>
                     </>
                   )}
+
+                  {/* Units Section */}
+                  <Separator />
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium">
+                        {isIndividualTracking ? 'Tracked Units' : 'Logged Units'}
+                      </h4>
+                      {canManageUnits && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingUnit(null);
+                            setIsUnitDialogOpen(true);
+                          }}
+                          className="h-7 gap-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add Unit
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Unit Stats Summary */}
+                    {unitStats && unitStats.total > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge variant="outline" className="text-xs">
+                          {unitStats.total} tracked
+                        </Badge>
+                        {unitStats.operational > 0 && (
+                          <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                            {unitStats.operational} operational
+                          </Badge>
+                        )}
+                        {unitStats.degraded > 0 && (
+                          <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-600">
+                            {unitStats.degraded} degraded
+                          </Badge>
+                        )}
+                        {unitStats.offline > 0 && (
+                          <Badge variant="outline" className="text-xs text-red-600 border-red-600">
+                            {unitStats.offline} offline
+                          </Badge>
+                        )}
+                        {unitStats.replaced > 0 && (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-600">
+                            {unitStats.replaced} replaced
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    {units.length === 0 ? (
+                      <div className="text-center py-6 border rounded-lg bg-muted/30">
+                        <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          {isIndividualTracking
+                            ? 'No units tracked yet. Add individual units to track serial numbers and status.'
+                            : 'No exceptions logged. Add units to track failures, replacements, or special cases.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {units.map((unit) => (
+                          <div
+                            key={unit.id}
+                            className="flex items-center justify-between p-2 border rounded-lg text-sm hover:bg-muted/50 cursor-pointer"
+                            onClick={() => handleEditUnit(unit)}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate">
+                                  {unit.serialNumber || unit.assetTag || 'Unit'}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs"
+                                  style={{
+                                    borderColor: UNIT_STATUS_COLORS[unit.status],
+                                    color: UNIT_STATUS_COLORS[unit.status],
+                                  }}
+                                >
+                                  {UNIT_STATUS_LABELS[unit.status]}
+                                </Badge>
+                              </div>
+                              {unit.location && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {unit.location}
+                                </p>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 ml-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUnitToDelete(unit);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Warranty */}
                   <Separator />
@@ -411,6 +589,26 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
         description={`Are you sure you want to delete "${equipment.name}"? This action cannot be undone.`}
         confirmText="Delete"
         variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={!!unitToDelete}
+        onOpenChange={(open) => !open && setUnitToDelete(null)}
+        onConfirm={handleDeleteUnit}
+        title="Delete Unit"
+        description={`Are you sure you want to delete this unit${unitToDelete?.serialNumber ? ` (${unitToDelete.serialNumber})` : ''}?`}
+        confirmText="Delete"
+        variant="destructive"
+      />
+
+      <EquipmentUnitDialog
+        open={isUnitDialogOpen}
+        onOpenChange={(open) => {
+          setIsUnitDialogOpen(open);
+          if (!open) setEditingUnit(null);
+        }}
+        equipmentId={equipment.id}
+        unit={editingUnit}
       />
     </>
   );
