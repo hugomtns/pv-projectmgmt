@@ -79,6 +79,20 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
         pv3DCanvasRef.current?.focusOnElement(elementType, elementId);
     }, []);
 
+    // Handle equipment click from Digital Twin panel → focus camera on equipment
+    const handleEquipmentClick = useCallback((type: 'inverter' | 'transformer', index: number) => {
+        const parsedData = pv3DCanvasRef.current?.parsedData;
+        if (!parsedData) return;
+
+        // Filter to get equipment of the specified type
+        const equipmentOfType = parsedData.electrical.filter(e => e.type === type);
+        const equipment = equipmentOfType[index];
+
+        if (equipment) {
+            pv3DCanvasRef.current?.focusOnElement(type, equipment.id);
+        }
+    }, []);
+
     // Handle geo data extracted from DXF - auto-update design with GPS coordinates
     const handleGeoDataExtracted = useCallback((geoData: DXFGeoData) => {
         if (geoData.latitude && geoData.longitude) {
@@ -401,6 +415,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                         designId={designId}
                         onActiveChange={setDigitalTwinActive}
                         equipmentCounts={equipmentCounts}
+                        onEquipmentClick={handleEquipmentClick}
                     />
                 )}
             </div>

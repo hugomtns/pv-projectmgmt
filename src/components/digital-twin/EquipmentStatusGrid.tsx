@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 interface EquipmentStatusGridProps {
   inverters: InverterTelemetry[] | undefined;
   transformers: TransformerTelemetry[] | undefined;
+  /** Called when equipment card is clicked - type is 'inverter' or 'transformer', index is 0-based */
+  onEquipmentClick?: (type: 'inverter' | 'transformer', index: number) => void;
 }
 
 const statusConfig: Record<EquipmentStatus, { icon: typeof CheckCircle2; color: string; bg: string }> = {
@@ -40,6 +42,7 @@ const statusConfig: Record<EquipmentStatus, { icon: typeof CheckCircle2; color: 
 export function EquipmentStatusGrid({
   inverters,
   transformers,
+  onEquipmentClick,
 }: EquipmentStatusGridProps) {
   const hasInverters = inverters && inverters.length > 0;
   const hasTransformers = transformers && transformers.length > 0;
@@ -73,8 +76,12 @@ export function EquipmentStatusGrid({
           <CardContent className="p-3 pt-0">
             <ScrollArea className="h-[140px]">
               <div className="grid grid-cols-2 gap-2">
-                {inverters.map((inv) => (
-                  <InverterCard key={inv.equipmentId} inverter={inv} />
+                {inverters.map((inv, index) => (
+                  <InverterCard
+                    key={inv.equipmentId}
+                    inverter={inv}
+                    onClick={onEquipmentClick ? () => onEquipmentClick('inverter', index) : undefined}
+                  />
                 ))}
               </div>
             </ScrollArea>
@@ -96,8 +103,12 @@ export function EquipmentStatusGrid({
           </CardHeader>
           <CardContent className="p-3 pt-0">
             <div className="space-y-2">
-              {transformers.map((xfr) => (
-                <TransformerCard key={xfr.equipmentId} transformer={xfr} />
+              {transformers.map((xfr, index) => (
+                <TransformerCard
+                  key={xfr.equipmentId}
+                  transformer={xfr}
+                  onClick={onEquipmentClick ? () => onEquipmentClick('transformer', index) : undefined}
+                />
               ))}
             </div>
           </CardContent>
@@ -151,12 +162,22 @@ function StatusSummary({ counts }: { counts: Record<EquipmentStatus, number> }) 
   );
 }
 
-function InverterCard({ inverter }: { inverter: InverterTelemetry }) {
+function InverterCard({ inverter, onClick }: { inverter: InverterTelemetry; onClick?: () => void }) {
   const config = statusConfig[inverter.status];
   const StatusIcon = config.icon;
 
   return (
-    <div className={cn('p-2 rounded-md text-xs', config.bg)}>
+    <div
+      className={cn(
+        'p-2 rounded-md text-xs',
+        config.bg,
+        onClick && 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow'
+      )}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+    >
       <div className="flex items-center justify-between mb-1">
         <span className="font-medium">{inverter.name}</span>
         <StatusIcon className={cn('h-3.5 w-3.5', config.color)} />
@@ -178,12 +199,22 @@ function InverterCard({ inverter }: { inverter: InverterTelemetry }) {
   );
 }
 
-function TransformerCard({ transformer }: { transformer: TransformerTelemetry }) {
+function TransformerCard({ transformer, onClick }: { transformer: TransformerTelemetry; onClick?: () => void }) {
   const config = statusConfig[transformer.status];
   const StatusIcon = config.icon;
 
   return (
-    <div className={cn('p-2 rounded-md text-xs flex items-center justify-between', config.bg)}>
+    <div
+      className={cn(
+        'p-2 rounded-md text-xs flex items-center justify-between',
+        config.bg,
+        onClick && 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow'
+      )}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+    >
       <div>
         <div className="flex items-center gap-2">
           <span className="font-medium">{transformer.name}</span>

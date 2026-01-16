@@ -36,9 +36,11 @@ interface DigitalTwinPanelProps {
   onActiveChange?: (active: boolean) => void;
   /** Equipment counts from parsed DXF */
   equipmentCounts?: EquipmentCounts | null;
+  /** Callback when equipment card is clicked - focuses camera on equipment */
+  onEquipmentClick?: (type: 'inverter' | 'transformer', index: number) => void;
 }
 
-export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts }: DigitalTwinPanelProps) {
+export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, onEquipmentClick }: DigitalTwinPanelProps) {
   const {
     isActive,
     isLoading,
@@ -146,6 +148,7 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts }: 
           <EquipmentStatusGrid
             inverters={currentSnapshot.inverters}
             transformers={currentSnapshot.transformers}
+            onEquipmentClick={onEquipmentClick}
           />
 
           {/* Alerts */}
