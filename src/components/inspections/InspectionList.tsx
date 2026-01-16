@@ -3,6 +3,7 @@ import { useInspectionStore } from '@/stores/inspectionStore';
 import { useUserStore } from '@/stores/userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { InspectionCard } from './InspectionCard';
+import { CreateInspectionDialog } from './CreateInspectionDialog';
 import { Button } from '@/components/ui/button';
 import { Plus, ClipboardList } from 'lucide-react';
 import type { Inspection } from '@/lib/types';
@@ -22,7 +23,7 @@ function groupInspections(inspections: Inspection[]) {
 }
 
 export function InspectionList({ projectId }: InspectionListProps) {
-  const [_isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Get all inspections and filter in useMemo to avoid infinite re-renders
   const allInspections = useInspectionStore((state) => state.inspections);
@@ -176,12 +177,11 @@ export function InspectionList({ projectId }: InspectionListProps) {
         </div>
       )}
 
-      {/* Create Inspection Dialog - will be added in Story 3 */}
-      {/* <CreateInspectionDialog
+      <CreateInspectionDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         projectId={projectId}
-      /> */}
+      />
     </div>
   );
 }
