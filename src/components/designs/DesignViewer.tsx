@@ -11,6 +11,7 @@ import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
 import type { PV3DCanvasRef } from './viewer3d/PV3DCanvas';
 import { ImageGenerationModal } from './ImageGenerationModal';
+import { DesignYieldModal } from './DesignYieldModal';
 import { BOQModal } from '@/components/boq';
 import { toast } from 'sonner';
 import type { DesignContext } from '@/lib/gemini';
@@ -24,6 +25,7 @@ import {
     Upload,
     Sparkles,
     ClipboardList,
+    Sun,
 } from 'lucide-react';
 
 interface DesignViewerProps {
@@ -42,6 +44,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     // Sidebars
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | null>('comments');
     const [boqModalOpen, setBOQModalOpen] = useState(false);
+    const [yieldModalOpen, setYieldModalOpen] = useState(false);
 
     // State
     const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
@@ -281,6 +284,15 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                             <ClipboardList className="h-4 w-4" />
                             BOQ
                         </Button>
+                        <Button
+                            variant={yieldModalOpen ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setYieldModalOpen(true)}
+                        >
+                            <Sun className="h-4 w-4" />
+                            Yield
+                        </Button>
                     </div>
 
                     {/* Separator */}
@@ -384,6 +396,15 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                 onOpenChange={setShowImageModal}
                 onCapture={handleCaptureCanvas}
                 designContext={designContext}
+            />
+
+            {/* Yield Estimate Modal */}
+            <DesignYieldModal
+                open={yieldModalOpen}
+                onOpenChange={setYieldModalOpen}
+                designName={design.name}
+                gpsCoordinates={design.gpsCoordinates}
+                parsedData={pv3DCanvasRef.current?.parsedData ?? undefined}
             />
         </div>
     );
