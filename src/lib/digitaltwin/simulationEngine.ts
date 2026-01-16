@@ -249,6 +249,7 @@ export class DigitalTwinSimulator {
       }
 
       const hasFault = this.hasActiveFault(equipmentId);
+      const activeFault = hasFault ? this.activeFaults.get(equipmentId) : null;
       const status: EquipmentStatus = hasFault ? 'fault' : 'online';
 
       // Add realistic variation (+/- 5%)
@@ -267,6 +268,12 @@ export class DigitalTwinSimulator {
         ? [dcPower / 2 / mpptVoltage[0], dcPower / 2 / mpptVoltage[1]]
         : [0, 0];
 
+      // Temperature: elevated if INV_004 (temperature fault)
+      const isTemperatureFault = activeFault?.title === 'INV_004';
+      const temperature = isTemperatureFault
+        ? 85 + Math.random() * 10 // Overheating: 85-95°C
+        : weather.temperature + 15 + Math.random() * 10; // Normal: ambient + 15-25°C
+
       inverters.push({
         equipmentId,
         name: `INV-${String(i + 1).padStart(2, '0')}`,
@@ -274,11 +281,11 @@ export class DigitalTwinSimulator {
         dcPower,
         acPower,
         efficiency: dcPower > 0 ? (acPower / dcPower) * 100 : 0,
-        temperature: weather.temperature + 15 + Math.random() * 10,
+        temperature,
         mpptVoltage,
         mpptCurrent,
-        faultCode: hasFault ? this.activeFaults.get(equipmentId)?.title : undefined,
-        faultMessage: hasFault ? this.activeFaults.get(equipmentId)?.message : undefined,
+        faultCode: hasFault ? activeFault?.title : undefined,
+        faultMessage: hasFault ? activeFault?.message : undefined,
       });
     }
 
@@ -310,6 +317,7 @@ export class DigitalTwinSimulator {
       }
 
       const hasFault = this.hasActiveFault(equipmentId);
+      const activeFault = hasFault ? this.activeFaults.get(equipmentId) : null;
       const status: EquipmentStatus = hasFault ? 'warning' : 'online';
 
       const loadPercent = (powerPerTransformer / ratedCapacity) * 100;
@@ -318,13 +326,27 @@ export class DigitalTwinSimulator {
       const baseTemp = 40;
       const tempRise = loadPercent * 0.3;
 
+      // Check for temperature-related faults
+      const isWindingTempFault = activeFault?.title === 'XFR_001';
+      const isOilTempFault = activeFault?.title === 'XFR_002';
+
+      // Winding temperature: elevated if XFR_001
+      const temperature = isWindingTempFault
+        ? 95 + Math.random() * 10 // Overheating: 95-105°C
+        : baseTemp + tempRise + Math.random() * 5; // Normal
+
+      // Oil temperature: elevated if XFR_002
+      const oilTemperature = isOilTempFault
+        ? 80 + Math.random() * 10 // Elevated: 80-90°C
+        : baseTemp - 5 + tempRise * 0.8 + Math.random() * 3; // Normal
+
       transformers.push({
         equipmentId,
         name: `XFR-${String(i + 1).padStart(2, '0')}`,
         status,
         loadPercent: Math.min(100, loadPercent + Math.random() * 2),
-        temperature: baseTemp + tempRise + Math.random() * 5,
-        oilTemperature: baseTemp - 5 + tempRise * 0.8 + Math.random() * 3,
+        temperature,
+        oilTemperature,
         tapPosition: 5, // Neutral tap position
       });
     }
