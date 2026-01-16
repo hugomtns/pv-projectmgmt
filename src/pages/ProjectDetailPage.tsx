@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { PriorityBadge } from '@/components/projects/PriorityBadge';
 import { StageStepper } from '@/components/projects/StageStepper';
 import { StageTaskSection } from '@/components/projects/StageTaskSection';
@@ -34,7 +33,7 @@ import { DesignList } from '@/components/designs/DesignList';
 import { SiteList } from '@/components/sites/SiteList';
 import { MilestoneSection } from '@/components/projects/milestones/MilestoneSection';
 import { NtpChecklistSection } from '@/components/ntp-checklist';
-import { ArrowLeft, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import NotFound from './NotFound';
 import type { Priority } from '@/lib/types';
 
@@ -57,17 +56,8 @@ export default function ProjectDetailPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [moveBackStageId, setMoveBackStageId] = useState<string | null>(null);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'properties';
-  const [activeTab, setActiveTab] = useState(initialTab);
-
-  // Sync tab changes to URL
-  useEffect(() => {
-    setSearchParams(prev => {
-      prev.set('tab', activeTab);
-      return prev;
-    }, { replace: true });
-  }, [activeTab, setSearchParams]);
+  const [searchParams] = useSearchParams();
+  const activeSection = searchParams.get('tab') || 'properties';
 
   // Form state for Properties tab
   const [formValues, setFormValues] = useState({
@@ -129,8 +119,8 @@ export default function ProjectDetailPage() {
   // Keyboard shortcuts for save/cancel
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle if Properties tab is active and form is dirty
-      if (activeTab !== 'properties' || !isDirty) return;
+      // Only handle if Properties section is active and form is dirty
+      if (activeSection !== 'properties' || !isDirty) return;
 
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -143,7 +133,7 @@ export default function ProjectDetailPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, isDirty, formValues]);
+  }, [activeSection, isDirty, formValues]);
 
   if (!project) {
     return <NotFound message="Project not found" />;
@@ -209,40 +199,31 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Section title mapping
+  const sectionTitles: Record<string, string> = {
+    properties: 'Properties',
+    status: 'Status',
+    tasks: 'Tasks',
+    milestones: 'Milestones',
+    'ntp-checklist': 'NTP Checklist',
+    sites: 'Sites',
+    designs: 'Designs',
+    documents: 'Documents',
+  };
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header with Back Button */}
-      <div className="flex h-16 items-center border-b px-6">
-        <div className="flex gap-4 items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/projects')}
-            aria-label="Back to projects"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-2xl font-semibold">Project Details</h1>
-        </div>
+      {/* Section Header */}
+      <div className="flex h-14 items-center border-b px-6">
+        <h1 className="text-lg font-semibold">{sectionTitles[activeSection] || 'Project'}</h1>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-6xl mx-auto">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-8 mb-6">
-              <TabsTrigger value="properties">Properties</TabsTrigger>
-              <TabsTrigger value="status">Status</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
-              <TabsTrigger value="milestones">Milestones</TabsTrigger>
-              <TabsTrigger value="ntp-checklist">NTP Checklist</TabsTrigger>
-              <TabsTrigger value="sites">Sites</TabsTrigger>
-              <TabsTrigger value="designs">Designs</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-            </TabsList>
-
-            {/* Properties Tab */}
-            <TabsContent value="properties" className="space-y-4">
+        <div className="max-w-4xl mx-auto">
+          {/* Properties Section */}
+          {activeSection === 'properties' && (
+            <div className="space-y-4">
               {/* Name */}
               <div>
                 <label className="text-sm font-medium">Project Name</label>
@@ -300,10 +281,12 @@ export default function ProjectDetailPage() {
                   </Button>
                 </div>
               )}
-            </TabsContent>
+            </div>
+          )}
 
-            {/* Status Tab */}
-            <TabsContent value="status" className="space-y-6">
+          {/* Status Section */}
+          {activeSection === 'status' && (
+            <div className="space-y-6">
               {/* Current Stage */}
               <div>
                 <label className="text-sm font-medium">Current Stage</label>
@@ -346,10 +329,12 @@ export default function ProjectDetailPage() {
                   onStageSelect={() => { }}
                 />
               </div>
-            </TabsContent>
+            </div>
+          )}
 
-            {/* Tasks Tab */}
-            <TabsContent value="tasks" className="space-y-4">
+          {/* Tasks Section */}
+          {activeSection === 'tasks' && (
+            <div className="space-y-4">
               {/* Stage Selector */}
               <div>
                 <label className="text-sm font-medium block mb-2">Select Stage</label>
@@ -375,34 +360,36 @@ export default function ProjectDetailPage() {
                   stageName={workflow.stages.find((s) => s.id === selectedStageId)?.name || 'Stage'}
                 />
               </div>
-            </TabsContent>
+            </div>
+          )}
 
-            {/* Milestones Tab */}
-            <TabsContent value="milestones" className="space-y-4">
-              <MilestoneSection
-                projectId={projectId || ''}
-                milestones={project.milestones || []}
-                canUpdate={projectPermissions.update}
-              />
-            </TabsContent>
+          {/* Milestones Section */}
+          {activeSection === 'milestones' && (
+            <MilestoneSection
+              projectId={projectId || ''}
+              milestones={project.milestones || []}
+              canUpdate={projectPermissions.update}
+            />
+          )}
 
-            {/* NTP Checklist Tab */}
-            <TabsContent value="ntp-checklist" className="space-y-4">
-              <NtpChecklistSection projectId={projectId || ''} />
-            </TabsContent>
+          {/* NTP Checklist Section */}
+          {activeSection === 'ntp-checklist' && (
+            <NtpChecklistSection projectId={projectId || ''} />
+          )}
 
-            {/* Sites Tab */}
-            <TabsContent value="sites" className="space-y-4">
-              <SiteList projectId={projectId || ''} />
-            </TabsContent>
+          {/* Sites Section */}
+          {activeSection === 'sites' && (
+            <SiteList projectId={projectId || ''} />
+          )}
 
-            {/* Designs Tab */}
-            <TabsContent value="designs" className="space-y-4">
-              <DesignList projectId={projectId || ''} />
-            </TabsContent>
+          {/* Designs Section */}
+          {activeSection === 'designs' && (
+            <DesignList projectId={projectId || ''} />
+          )}
 
-            {/* Documents Tab */}
-            <TabsContent value="documents" className="space-y-4">
+          {/* Documents Section */}
+          {activeSection === 'documents' && (
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Documents</label>
                 {documentPermissions.create && (
@@ -422,8 +409,8 @@ export default function ProjectDetailPage() {
                 variant="compact"
                 showSearch
               />
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </div>
       </div>
 

@@ -103,3 +103,29 @@ export const SCORECARD_TRAFFIC_LIGHT_LABELS: Record<TrafficLightColor, string> =
   yellow: 'Fair',
   green: 'Good',
 };
+
+// Project Detail Sidebar - Section Groups
+export const PROJECT_SECTION_GROUPS = [
+  {
+    id: 'management',
+    label: 'Management',
+    sections: [
+      { id: 'properties', label: 'Properties', icon: 'Settings' },
+      { id: 'status', label: 'Status', icon: 'CircleCheck' },
+      { id: 'tasks', label: 'Tasks', icon: 'ListTodo' },
+      { id: 'milestones', label: 'Milestones', icon: 'Flag' },
+      { id: 'ntp-checklist', label: 'NTP Checklist', icon: 'ClipboardCheck' },
+    ],
+  },
+  {
+    id: 'assets',
+    label: 'Assets',
+    sections: [
+      { id: 'sites', label: 'Sites', icon: 'MapPin' },
+      { id: 'designs', label: 'Designs', icon: 'Layers' },
+      { id: 'documents', label: 'Documents', icon: 'FileText' },
+    ],
+  },
+] as const;
+
+export type ProjectSectionId = typeof PROJECT_SECTION_GROUPS[number]['sections'][number]['id'];
