@@ -45,6 +45,12 @@ export interface PV3DCanvasRef {
   parsedData: DXFParsedData | null;
 }
 
+export interface EquipmentCounts {
+  inverterCount: number;
+  transformerCount: number;
+  panelCount: number;
+}
+
 interface PV3DCanvasProps {
   designId: string;
   versionId: string;
@@ -54,6 +60,7 @@ interface PV3DCanvasProps {
   highlightedElementKey?: string | null;
   onBadgeClick?: (elementType: string, elementId: string) => void;
   onGeoDataExtracted?: (geoData: DXFGeoData) => void;
+  onEquipmentDetected?: (counts: EquipmentCounts) => void;
   // Digital Twin
   digitalTwinActive?: boolean;
 }
@@ -73,6 +80,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   highlightedElementKey,
   onBadgeClick,
   onGeoDataExtracted,
+  onEquipmentDetected,
   digitalTwinActive = false,
 }, ref) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
@@ -150,6 +158,19 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
       onGeoDataExtracted(parsedData.geoData);
     }
   }, [parsedData?.geoData, gpsCoordinates, onGeoDataExtracted]);
+
+  // Notify parent of equipment counts from parsed DXF (for Digital Twin simulation)
+  useEffect(() => {
+    if (parsedData && onEquipmentDetected) {
+      const inverterCount = parsedData.electrical.filter(e => e.type === 'inverter').length;
+      const transformerCount = parsedData.electrical.filter(e => e.type === 'transformer').length;
+      onEquipmentDetected({
+        inverterCount: inverterCount || 1, // At least 1 for simulation
+        transformerCount: transformerCount || 1,
+        panelCount: parsedData.panels.length || 100,
+      });
+    }
+  }, [parsedData, onEquipmentDetected]);
 
   // Handle panel selection (for non-comment mode)
   const handlePanelClick = (index: number, panel: PanelGeometry) => {

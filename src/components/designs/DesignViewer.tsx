@@ -9,7 +9,7 @@ import { DesignWorkflowActions } from './DesignWorkflowActions';
 import { DesignStatusBadge } from './DesignStatusBadge';
 import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
-import type { PV3DCanvasRef } from './viewer3d/PV3DCanvas';
+import type { PV3DCanvasRef, EquipmentCounts } from './viewer3d/PV3DCanvas';
 import { ImageGenerationModal } from './ImageGenerationModal';
 import { DesignYieldModal } from './DesignYieldModal';
 import { BOQModal } from '@/components/boq';
@@ -48,6 +48,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const [boqModalOpen, setBOQModalOpen] = useState(false);
     const [yieldModalOpen, setYieldModalOpen] = useState(false);
     const [digitalTwinActive, setDigitalTwinActive] = useState(false);
+    const [equipmentCounts, setEquipmentCounts] = useState<EquipmentCounts | null>(null);
 
     // State
     const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
@@ -367,6 +368,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                                 highlightedElementKey={highlightedElementKey}
                                 onBadgeClick={handleBadgeClick}
                                 onGeoDataExtracted={handleGeoDataExtracted}
+                                onEquipmentDetected={setEquipmentCounts}
                                 digitalTwinActive={digitalTwinActive}
                             />
                         </div>
@@ -398,6 +400,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                     <DigitalTwinPanel
                         designId={designId}
                         onActiveChange={setDigitalTwinActive}
+                        equipmentCounts={equipmentCounts}
                     />
                 )}
             </div>

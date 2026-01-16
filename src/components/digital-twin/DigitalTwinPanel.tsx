@@ -24,13 +24,21 @@ import { EquipmentStatusGrid } from './EquipmentStatusGrid';
 import { AlertLog } from './AlertLog';
 import type { SimulationConfig } from '@/lib/digitaltwin/types';
 
+interface EquipmentCounts {
+  inverterCount: number;
+  transformerCount: number;
+  panelCount: number;
+}
+
 interface DigitalTwinPanelProps {
   designId: string;
   /** Callback when simulation starts/stops */
   onActiveChange?: (active: boolean) => void;
+  /** Equipment counts from parsed DXF */
+  equipmentCounts?: EquipmentCounts | null;
 }
 
-export function DigitalTwinPanel({ designId, onActiveChange }: DigitalTwinPanelProps) {
+export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts }: DigitalTwinPanelProps) {
   const {
     isActive,
     isLoading,
@@ -58,18 +66,24 @@ export function DigitalTwinPanel({ designId, onActiveChange }: DigitalTwinPanelP
     const lat = design.gpsCoordinates?.latitude || 40.0; // Default to mid-latitude
     const lon = design.gpsCoordinates?.longitude || -74.0;
 
-    // Estimate capacity and equipment from design (these would come from actual DXF parsing)
-    // For now, use reasonable defaults
+    // Use actual equipment counts from DXF parsing, or fallback to defaults
+    const inverterCount = equipmentCounts?.inverterCount || 5;
+    const transformerCount = equipmentCounts?.transformerCount || 1;
+    const panelCount = equipmentCounts?.panelCount || 12000;
+
+    // Estimate capacity from panel count (assuming ~500W per panel)
+    const estimatedCapacityKwp = panelCount * 0.5;
+
     return {
       designId,
-      capacityKwp: 5000, // 5 MW default
+      capacityKwp: estimatedCapacityKwp,
       latitude: lat,
       longitude: lon,
-      inverterCount: 5,
-      transformerCount: 1,
-      panelCount: 12000,
+      inverterCount,
+      transformerCount,
+      panelCount,
     };
-  }, [design, designId]);
+  }, [design, designId, equipmentCounts]);
 
   // Toggle simulation
   const handleToggle = async (enabled: boolean) => {
