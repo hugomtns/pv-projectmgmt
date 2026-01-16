@@ -45,8 +45,11 @@ import { calculatePerformanceRatio } from './performanceRatio';
 export async function calculateYield(
   input: YieldCalculationInput
 ): Promise<YieldCalculationResult> {
+  console.log('[YieldCalc] calculateYield called', input);
+
   // Validate coordinates
   if (!isValidCoordinates(input.latitude, input.longitude)) {
+    console.log('[YieldCalc] Invalid coordinates');
     return {
       success: false,
       source: 'manual',
@@ -56,6 +59,7 @@ export async function calculateYield(
 
   // Validate capacity
   if (!input.capacityKwp || input.capacityKwp <= 0) {
+    console.log('[YieldCalc] Invalid capacity');
     return {
       success: false,
       source: 'manual',
@@ -67,6 +71,7 @@ export async function calculateYield(
   const tiltAngle = input.tiltAngle ?? getOptimalTilt(input.latitude);
   const azimuth = input.azimuth ?? getOptimalAzimuth(input.latitude);
   const systemLosses = input.systemLosses ?? DEFAULT_SYSTEM_CONFIG.systemLosses;
+  console.log('[YieldCalc] Config:', { tiltAngle, azimuth, systemLosses });
 
   // Calculate performance ratio from component specs
   const prResult = calculatePerformanceRatio({
@@ -77,9 +82,12 @@ export async function calculateYield(
     soilingLoss: input.soilingLoss,
     shadingLoss: input.shadingLoss,
   });
+  console.log('[YieldCalc] PR result:', prResult);
 
   // Try PVGIS API first
+  console.log('[YieldCalc] Trying PVGIS...');
   const pvgisResult = await tryPVGIS(input, tiltAngle, azimuth, systemLosses);
+  console.log('[YieldCalc] PVGIS result:', pvgisResult);
 
   if (pvgisResult.success && pvgisResult.estimate) {
     // Enhance PVGIS result with our PR calculation details
@@ -95,6 +103,7 @@ export async function calculateYield(
   }
 
   // Fall back to lookup table
+  console.log('[YieldCalc] Trying lookup table...');
   const lookupResult = tryLookupTable(
     input,
     tiltAngle,
@@ -103,6 +112,7 @@ export async function calculateYield(
     prResult.performanceRatio,
     prResult.losses
   );
+  console.log('[YieldCalc] Lookup result:', lookupResult);
 
   if (lookupResult.success) {
     return lookupResult;

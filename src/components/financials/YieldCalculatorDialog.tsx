@@ -48,11 +48,11 @@ import type { YieldEstimate } from '@/lib/yield/types';
 import {
   getOptimalTilt,
   getOptimalAzimuth,
-  formatYield,
   getSourceDescription,
   formatLossBreakdown,
 } from '@/lib/yield';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface YieldCalculatorDialogProps {
   open: boolean;
@@ -91,6 +91,13 @@ export function YieldCalculatorDialog({
   const [result, setResult] = useState<YieldEstimate | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug: log when result changes
+  useEffect(() => {
+    console.log('[YieldCalc] Result state changed to:', result ? `${result.annualYield} kWh` : 'null');
+  }, [result]);
+
+  console.log('[YieldCalc] Render - result is:', result ? 'SET' : 'NULL');
+
   // Get project's designs and sites
   const projectDesigns = designs.filter((d) => d.projectId === projectId);
   const projectSites = sites.filter((s) => s.projectId === projectId);
@@ -99,9 +106,13 @@ export function YieldCalculatorDialog({
   // Get modules from component library for PR calculation
   const modules = components.filter((c) => c.type === 'module');
 
-  // Reset form when dialog opens
+  // Track if we've initialized for this dialog open
+  const [initialized, setInitialized] = useState(false);
+
+  // Reset form when dialog opens (only once per open)
   useEffect(() => {
-    if (open) {
+    if (open && !initialized) {
+      setInitialized(true);
       setResult(null);
       setError(null);
 
@@ -139,8 +150,11 @@ export function YieldCalculatorDialog({
 
       setSystemLosses('14');
       setSelectedComponentId('');
+    } else if (!open) {
+      // Reset initialized flag when dialog closes
+      setInitialized(false);
     }
-  }, [open, projectDesigns, projectSites]);
+  }, [open, initialized, projectDesigns, projectSites]);
 
   // Update optimal tilt/azimuth when latitude changes
   useEffect(() => {
@@ -156,12 +170,14 @@ export function YieldCalculatorDialog({
   }, [latitude]);
 
   const handleCalculate = async () => {
+    console.log('[YieldCalc] Starting calculation...');
     setIsCalculating(true);
     setError(null);
     setResult(null);
 
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
+    console.log('[YieldCalc] Coordinates:', { lat, lon });
 
     if (isNaN(lat) || isNaN(lon)) {
       setError('Please enter valid coordinates');
@@ -182,24 +198,38 @@ export function YieldCalculatorDialog({
       };
     }
 
+    const inputParams = {
+      latitude: lat,
+      longitude: lon,
+      tiltAngle: tiltAngle ? parseFloat(tiltAngle) : undefined,
+      azimuth: azimuth ? parseFloat(azimuth) : undefined,
+      systemLosses: systemLosses ? parseFloat(systemLosses) : undefined,
+      moduleSpecs,
+    };
+    console.log('[YieldCalc] Input params:', inputParams);
+    console.log('[YieldCalc] Model ID:', modelId);
+
     try {
-      const estimate = await calculateYieldForModel(modelId, {
-        latitude: lat,
-        longitude: lon,
-        tiltAngle: tiltAngle ? parseFloat(tiltAngle) : undefined,
-        azimuth: azimuth ? parseFloat(azimuth) : undefined,
-        systemLosses: systemLosses ? parseFloat(systemLosses) : undefined,
-        moduleSpecs,
-      });
+      const estimate = await calculateYieldForModel(modelId, inputParams);
+      console.log('[YieldCalc] Result from store:', estimate);
 
       if (estimate) {
+        console.log('[YieldCalc] About to set result state with:', estimate.annualYield);
         setResult(estimate);
+        setError(null); // Clear any previous error
+        console.log('[YieldCalc] setResult called');
+        toast.success('Yield calculation complete', {
+          description: `Annual yield: ${(estimate.annualYield / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })} MWh`,
+        });
       } else {
+        console.log('[YieldCalc] No estimate returned');
         setError('Failed to calculate yield. Please check your inputs.');
       }
     } catch (err) {
+      console.error('[YieldCalc] Error:', err);
       setError('An error occurred during calculation');
     } finally {
+      console.log('[YieldCalc] Setting isCalculating to false');
       setIsCalculating(false);
     }
   };
@@ -507,7 +537,7 @@ export function YieldCalculatorDialog({
                     Annual Yield
                   </div>
                   <div className="text-2xl font-bold">
-                    {formatYield(result.annualYield)}
+                    {(result.annualYield / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })} MWh
                   </div>
                 </div>
                 <div className="space-y-1">

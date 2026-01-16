@@ -266,19 +266,23 @@ export const useFinancialStore = create<FinancialState>()(
 
       // Yield calculation actions
       calculateYieldForModel: async (id, input) => {
+        console.log('[Store] calculateYieldForModel called', { id, input });
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
 
         if (!currentUser) {
+          console.log('[Store] No current user');
           toast.error('You must be logged in to calculate yield');
           return null;
         }
 
         const model = get().financialModels.find((m) => m.id === id);
         if (!model) {
+          console.log('[Store] Model not found');
           toast.error('Financial model not found');
           return null;
         }
+        console.log('[Store] Found model:', model.name);
 
         const permissions = resolvePermissions(
           currentUser,
@@ -292,18 +296,22 @@ export const useFinancialStore = create<FinancialState>()(
         const isCreator = model.creatorId === currentUser.id;
 
         if (!permissions.update || (!isAdmin && !isCreator)) {
+          console.log('[Store] Permission denied', { permissions, isAdmin, isCreator });
           toast.error('Permission denied');
           return null;
         }
 
         // Get capacity from model (convert MW to kWp)
         const capacityKwp = model.inputs.capacity * 1000;
+        console.log('[Store] Capacity:', capacityKwp, 'kWp');
 
         try {
+          console.log('[Store] Calling calculateYield...');
           const result = await calculateYield({
             ...input,
             capacityKwp,
           });
+          console.log('[Store] calculateYield result:', result);
 
           if (result.success && result.estimate) {
             return result.estimate;
@@ -312,6 +320,7 @@ export const useFinancialStore = create<FinancialState>()(
             return null;
           }
         } catch (error) {
+          console.error('[Store] Error calculating yield:', error);
           toast.error('Failed to calculate yield');
           return null;
         }
