@@ -157,6 +157,7 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
             onAcknowledge={acknowledgeAlert}
             onClear={clearAlert}
             onClearAll={clearAllAlerts}
+            onAlertClick={onEquipmentClick}
           />
 
           {/* Settings */}

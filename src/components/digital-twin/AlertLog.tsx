@@ -16,6 +16,8 @@ interface AlertLogProps {
   onAcknowledge: (alertId: string) => void;
   onClear: (alertId: string) => void;
   onClearAll: () => void;
+  /** Called when alert is clicked to focus on equipment */
+  onAlertClick?: (type: 'inverter' | 'transformer', index: number) => void;
 }
 
 const severityConfig: Record<AlertSeverity, { icon: typeof AlertTriangle; color: string; badge: string }> = {
@@ -41,6 +43,7 @@ export function AlertLog({
   onAcknowledge,
   onClear,
   onClearAll,
+  onAlertClick,
 }: AlertLogProps) {
   const activeAlerts = alerts.filter((a) => !a.acknowledged);
   const acknowledgedAlerts = alerts.filter((a) => a.acknowledged);
@@ -86,6 +89,7 @@ export function AlertLog({
                   alert={alert}
                   onAcknowledge={onAcknowledge}
                   onClear={onClear}
+                  onAlertClick={onAlertClick}
                 />
               ))}
 
@@ -101,6 +105,7 @@ export function AlertLog({
                   alert={alert}
                   onAcknowledge={onAcknowledge}
                   onClear={onClear}
+                  onAlertClick={onAlertClick}
                 />
               ))}
             </div>
@@ -111,14 +116,29 @@ export function AlertLog({
   );
 }
 
+/**
+ * Parse equipmentId like "inv-1" or "xfr-2" to get type and 0-based index
+ */
+function parseEquipmentId(equipmentId: string): { type: 'inverter' | 'transformer'; index: number } | null {
+  const match = equipmentId.match(/^(inv|xfr)-(\d+)$/);
+  if (!match) return null;
+
+  const type = match[1] === 'inv' ? 'inverter' : 'transformer';
+  const index = parseInt(match[2], 10) - 1; // Convert 1-based to 0-based
+
+  return { type, index };
+}
+
 function AlertItem({
   alert,
   onAcknowledge,
   onClear,
+  onAlertClick,
 }: {
   alert: DigitalTwinAlert;
   onAcknowledge: (id: string) => void;
   onClear: (id: string) => void;
+  onAlertClick?: (type: 'inverter' | 'transformer', index: number) => void;
 }) {
   const config = severityConfig[alert.severity];
   const SeverityIcon = config.icon;
@@ -127,12 +147,27 @@ function AlertItem({
     addSuffix: true,
   });
 
+  // Check if this alert has equipment that can be focused
+  const parsedEquipment = alert.equipmentId ? parseEquipmentId(alert.equipmentId) : null;
+  const isClickable = parsedEquipment && onAlertClick;
+
+  const handleClick = () => {
+    if (isClickable && parsedEquipment) {
+      onAlertClick(parsedEquipment.type, parsedEquipment.index);
+    }
+  };
+
   return (
     <div
       className={cn(
         'p-2 rounded-md text-xs border',
-        alert.acknowledged && 'opacity-60'
+        alert.acknowledged && 'opacity-60',
+        isClickable && 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow'
       )}
+      onClick={isClickable ? handleClick : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? (e) => e.key === 'Enter' && handleClick() : undefined}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 flex-1 min-w-0">
@@ -152,12 +187,13 @@ function AlertItem({
             {alert.equipmentId && (
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 Equipment: {alert.equipmentId}
+                {isClickable && <span className="ml-1 text-primary">(click to focus)</span>}
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
           {!alert.acknowledged && (
             <Button
               variant="ghost"
