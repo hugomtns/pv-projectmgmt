@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useInspectionStore } from '@/stores/inspectionStore';
 import { useUserStore } from '@/stores/userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
@@ -24,8 +24,11 @@ function groupInspections(inspections: Inspection[]) {
 export function InspectionList({ projectId }: InspectionListProps) {
   const [_isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const inspections = useInspectionStore((state) =>
-    state.getInspectionsByProject(projectId)
+  // Get all inspections and filter in useMemo to avoid infinite re-renders
+  const allInspections = useInspectionStore((state) => state.inspections);
+  const inspections = useMemo(
+    () => allInspections.filter((i) => i.projectId === projectId),
+    [allInspections, projectId]
   );
 
   const currentUser = useUserStore((state) => state.currentUser);
