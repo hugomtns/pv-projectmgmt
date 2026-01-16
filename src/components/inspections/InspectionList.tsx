@@ -4,9 +4,10 @@ import { useUserStore } from '@/stores/userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { InspectionCard } from './InspectionCard';
 import { CreateInspectionDialog } from './CreateInspectionDialog';
+import { InspectionDetail } from './InspectionDetail';
 import { Button } from '@/components/ui/button';
 import { Plus, ClipboardList } from 'lucide-react';
-import type { Inspection } from '@/lib/types';
+import type { Inspection } from '@/lib/types/inspection';
 
 interface InspectionListProps {
   projectId: string;
@@ -24,6 +25,7 @@ function groupInspections(inspections: Inspection[]) {
 
 export function InspectionList({ projectId }: InspectionListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
 
   // Get all inspections and filter in useMemo to avoid infinite re-renders
   const allInspections = useInspectionStore((state) => state.inspections);
@@ -52,9 +54,13 @@ export function InspectionList({ projectId }: InspectionListProps) {
     ).length;
   }, 0);
 
-  const handleInspectionClick = (_inspection: Inspection) => {
-    // TODO: Navigate to inspection detail view in Story 4
-    console.log('Inspection clicked - detail view coming in Story 4');
+  // Get the selected inspection from filtered list (ensures reactivity)
+  const selectedInspection = selectedInspectionId
+    ? inspections.find((i) => i.id === selectedInspectionId) || null
+    : null;
+
+  const handleInspectionClick = (inspection: Inspection) => {
+    setSelectedInspectionId(inspection.id);
   };
 
   return (
@@ -181,6 +187,12 @@ export function InspectionList({ projectId }: InspectionListProps) {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         projectId={projectId}
+      />
+
+      <InspectionDetail
+        inspection={selectedInspection}
+        open={!!selectedInspectionId}
+        onOpenChange={(open) => !open && setSelectedInspectionId(null)}
       />
     </div>
   );
