@@ -198,9 +198,9 @@ function AlertItem({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0"
+              className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
               onClick={() => onAcknowledge(alert.id)}
-              title="Acknowledge"
+              title="Fix issue and clear alert"
             >
               <Check className="h-3 w-3" />
             </Button>

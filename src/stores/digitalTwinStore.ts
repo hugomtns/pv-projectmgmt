@@ -187,10 +187,19 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
   },
 
   acknowledgeAlert: (alertId) => {
+    const { _simulator, alerts } = get();
+
+    // Find the alert to get its equipment ID
+    const alert = alerts.find((a) => a.id === alertId);
+
+    // If alert has equipment, clear the fault from the simulator
+    if (alert?.equipmentId && _simulator) {
+      _simulator.clearFault(alert.equipmentId);
+    }
+
+    // Remove the alert (fixing it clears it entirely)
     set((state) => ({
-      alerts: state.alerts.map((alert) =>
-        alert.id === alertId ? { ...alert, acknowledged: true } : alert
-      ),
+      alerts: state.alerts.filter((a) => a.id !== alertId),
     }));
   },
 
