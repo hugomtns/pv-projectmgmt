@@ -502,12 +502,12 @@ function migrateRolesForMaintenanceSchedules() {
   const userState = useUserStore.getState();
   const roles = userState.roles;
 
-  // Check if any role is missing 'maintenanceSchedules' permission
-  const needsMigration = roles.some((role: any) => !role.permissions.maintenanceSchedules);
+  // Check if any role is missing 'maintenance_schedules' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.maintenance_schedules);
 
   if (needsMigration) {
     const updatedRoles = roles.map((role: any) => {
-      if (role.permissions.maintenanceSchedules) return role;
+      if (role.permissions.maintenance_schedules) return role;
 
       // Determine permissions based on role type
       let maintenanceSchedulesPermissions;
@@ -524,13 +524,13 @@ function migrateRolesForMaintenanceSchedules() {
         ...role,
         permissions: {
           ...role.permissions,
-          maintenanceSchedules: maintenanceSchedulesPermissions,
+          maintenance_schedules: maintenanceSchedulesPermissions,
         },
       };
     });
 
     useUserStore.setState({ roles: updatedRoles });
-    console.log('✓ Migrated roles to include maintenanceSchedules permissions');
+    console.log('✓ Migrated roles to include maintenance_schedules permissions');
   }
 }
 
@@ -541,12 +541,12 @@ function migrateRolesForWorkOrders() {
   const userState = useUserStore.getState();
   const roles = userState.roles;
 
-  // Check if any role is missing 'workOrders' permission
-  const needsMigration = roles.some((role: any) => !role.permissions.workOrders);
+  // Check if any role is missing 'work_orders' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.work_orders);
 
   if (needsMigration) {
     const updatedRoles = roles.map((role: any) => {
-      if (role.permissions.workOrders) return role;
+      if (role.permissions.work_orders) return role;
 
       // Determine permissions based on role type
       let workOrdersPermissions;
@@ -563,13 +563,13 @@ function migrateRolesForWorkOrders() {
         ...role,
         permissions: {
           ...role.permissions,
-          workOrders: workOrdersPermissions,
+          work_orders: workOrdersPermissions,
         },
       };
     });
 
     useUserStore.setState({ roles: updatedRoles });
-    console.log('✓ Migrated roles to include workOrders permissions');
+    console.log('✓ Migrated roles to include work_orders permissions');
   }
 }
 
@@ -580,12 +580,12 @@ function migrateRolesForPerformanceLogs() {
   const userState = useUserStore.getState();
   const roles = userState.roles;
 
-  // Check if any role is missing 'performanceLogs' permission
-  const needsMigration = roles.some((role: any) => !role.permissions.performanceLogs);
+  // Check if any role is missing 'performance_logs' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.performance_logs);
 
   if (needsMigration) {
     const updatedRoles = roles.map((role: any) => {
-      if (role.permissions.performanceLogs) return role;
+      if (role.permissions.performance_logs) return role;
 
       // Determine permissions based on role type
       let performanceLogsPermissions;
@@ -602,13 +602,13 @@ function migrateRolesForPerformanceLogs() {
         ...role,
         permissions: {
           ...role.permissions,
-          performanceLogs: performanceLogsPermissions,
+          performance_logs: performanceLogsPermissions,
         },
       };
     });
 
     useUserStore.setState({ roles: updatedRoles });
-    console.log('✓ Migrated roles to include performanceLogs permissions');
+    console.log('✓ Migrated roles to include performance_logs permissions');
   }
 }
 
