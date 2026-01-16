@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { ProjectContextSidebar } from '@/components/layout/ProjectContextSidebar';
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
+import { useProjectStore } from '@/stores/projectStore';
 import logoDark from '@/assets/fakehub.png';
 import logoLight from '@/assets/fakehub-white.png';
 import { MessageSquare, Moon, Sun, Building2 } from 'lucide-react';
@@ -29,6 +31,20 @@ export function RootLayout() {
   const styleMode = useThemeStore((state) => state.styleMode);
   const setStyleMode = useThemeStore((state) => state.setStyleMode);
   const logoUrl = styleMode === 'dark' ? logoDark : logoLight;
+
+  // Detect if we're on a project detail page
+  const projects = useProjectStore((state) => state.projects);
+  const projectRouteMatch = useMemo(() => {
+    const match = location.pathname.match(/^\/projects\/([^/]+)$/);
+    if (match) {
+      const projectId = match[1];
+      const project = projects.find((p) => p.id === projectId);
+      return { projectId, projectName: project?.name || 'Project' };
+    }
+    return null;
+  }, [location.pathname, projects]);
+
+  const isProjectDetailRoute = !!projectRouteMatch;
 
   const themes: { value: StyleMode; label: string; icon: React.ReactNode }[] = [
     { value: 'dark', label: 'Dark', icon: <Moon className="h-5 w-5" /> },
@@ -100,10 +116,18 @@ export function RootLayout() {
 
         {/* Sidebar navigation */}
         <div className="flex-1 overflow-y-auto p-4">
-          <Sidebar
-            isOpen={sidebarOpen}
-            currentPath={location.pathname}
-          />
+          {isProjectDetailRoute && projectRouteMatch ? (
+            <ProjectContextSidebar
+              projectId={projectRouteMatch.projectId}
+              projectName={projectRouteMatch.projectName}
+              isOpen={sidebarOpen}
+            />
+          ) : (
+            <Sidebar
+              isOpen={sidebarOpen}
+              currentPath={location.pathname}
+            />
+          )}
         </div>
 
         {/* Theme switcher and Feedback button at bottom */}
