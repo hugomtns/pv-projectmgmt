@@ -33,6 +33,7 @@ import { DesignList } from '@/components/designs/DesignList';
 import { SiteList } from '@/components/sites/SiteList';
 import { MilestoneSection } from '@/components/projects/milestones/MilestoneSection';
 import { NtpChecklistSection } from '@/components/ntp-checklist';
+import { InspectionList } from '@/components/inspections';
 import { Upload } from 'lucide-react';
 import NotFound from './NotFound';
 import type { Priority } from '@/lib/types';
@@ -206,6 +207,7 @@ export default function ProjectDetailPage() {
     tasks: 'Tasks',
     milestones: 'Milestones',
     'ntp-checklist': 'NTP Checklist',
+    inspections: 'Inspections',
     sites: 'Sites',
     designs: 'Designs',
     documents: 'Documents',
@@ -375,6 +377,11 @@ export default function ProjectDetailPage() {
           {/* NTP Checklist Section */}
           {activeSection === 'ntp-checklist' && (
             <NtpChecklistSection projectId={projectId || ''} />
+          )}
+
+          {/* Inspections Section */}
+          {activeSection === 'inspections' && (
+            <InspectionList projectId={projectId || ''} />
           )}
 
           {/* Sites Section */}

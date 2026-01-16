@@ -115,6 +115,7 @@ export const PROJECT_SECTION_GROUPS = [
       { id: 'tasks', label: 'Tasks', icon: 'ListTodo' },
       { id: 'milestones', label: 'Milestones', icon: 'Flag' },
       { id: 'ntp-checklist', label: 'NTP Checklist', icon: 'ClipboardCheck' },
+      { id: 'inspections', label: 'Inspections', icon: 'ClipboardList' },
     ],
   },
   {
