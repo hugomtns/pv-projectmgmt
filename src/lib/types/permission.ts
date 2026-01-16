@@ -11,7 +11,8 @@ export type EntityType =
   | 'components'
   | 'boqs'
   | 'admin_logs'
-  | 'sites';
+  | 'sites'
+  | 'inspections';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 

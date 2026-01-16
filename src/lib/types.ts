@@ -244,3 +244,24 @@ export interface DesignWorkflowEvent {
   toStatus?: Design['status'];
   note?: string;
 }
+
+// On-Site Inspections
+export type {
+  InspectionType,
+  InspectionStatus,
+  InspectionItemResult,
+  InspectionCategory,
+  InspectionItemPhoto,
+  InspectionItem,
+  InspectorSignature,
+  Inspection,
+  InspectionItemTemplate,
+} from './types/inspection';
+export {
+  INSPECTION_TYPE_LABELS,
+  INSPECTION_STATUS_LABELS,
+  INSPECTION_RESULT_LABELS,
+  INSPECTION_CATEGORY_LABELS,
+  INSPECTION_CATEGORY_ORDER,
+  INSPECTION_SIGNATURE_ROLE_LABELS,
+} from './types/inspection';
