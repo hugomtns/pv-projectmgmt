@@ -16,8 +16,9 @@ import { Label } from '@/components/ui/label';
 import { InspectionProgress } from './InspectionProgress';
 import { InspectionCategory } from './InspectionCategory';
 import { InspectionItemDialog } from './InspectionItemDialog';
+import { SignaturePanel } from './SignaturePanel';
 import { format } from 'date-fns';
-import { Calendar, MapPin, User, Building2, Play, XCircle } from 'lucide-react';
+import { Calendar, MapPin, User, Building2, Play, XCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import {
   INSPECTION_TYPE_LABELS,
   INSPECTION_STATUS_LABELS,
@@ -208,13 +209,19 @@ export function InspectionDetail({
           />
         </div>
 
-        {/* Completion section - placeholder for Story 8 */}
-        {inspection.status === 'in_progress' && canEdit && (
+        {/* Signatures section */}
+        {(inspection.status === 'in_progress' || inspection.status === 'completed') && (
           <div className="mt-6 pt-6 border-t">
-            <p className="text-sm text-muted-foreground">
-              Complete all required items and add signatures to finalize this inspection.
-            </p>
+            <SignaturePanel
+              inspection={inspection}
+              disabled={!isEditable}
+            />
           </div>
+        )}
+
+        {/* Completion section */}
+        {inspection.status === 'in_progress' && canEdit && (
+          <CompletionSection inspection={inspection} />
         )}
 
         {/* Item detail dialog */}
@@ -227,5 +234,86 @@ export function InspectionDetail({
         />
       </SheetContent>
     </Sheet>
+  );
+}
+
+// Completion section component
+function CompletionSection({ inspection }: { inspection: Inspection }) {
+  const updateInspection = useInspectionStore((state) => state.updateInspection);
+
+  // Calculate completion requirements
+  const requiredItems = inspection.items.filter((i) => i.required);
+  const incompleteRequired = requiredItems.filter((i) => i.result === 'pending');
+  const hasSignature = inspection.signatures.length > 0;
+  const openPunchListItems = inspection.items.filter(
+    (i) => i.isPunchListItem && !i.punchListResolvedAt
+  );
+
+  const canComplete = incompleteRequired.length === 0 && hasSignature;
+
+  const handleComplete = () => {
+    updateInspection(inspection.id, {
+      status: 'completed',
+      completedDate: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  return (
+    <div className="mt-6 pt-6 border-t space-y-4">
+      <Label>Complete Inspection</Label>
+
+      {/* Requirements checklist */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm">
+          {incompleteRequired.length === 0 ? (
+            <CheckCircle className="w-4 h-4 text-green-500" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-orange-500" />
+          )}
+          <span className={incompleteRequired.length === 0 ? 'text-green-600' : 'text-orange-600'}>
+            {incompleteRequired.length === 0
+              ? 'All required items completed'
+              : `${incompleteRequired.length} required item${incompleteRequired.length !== 1 ? 's' : ''} pending`}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          {hasSignature ? (
+            <CheckCircle className="w-4 h-4 text-green-500" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-orange-500" />
+          )}
+          <span className={hasSignature ? 'text-green-600' : 'text-orange-600'}>
+            {hasSignature
+              ? `${inspection.signatures.length} signature${inspection.signatures.length !== 1 ? 's' : ''} added`
+              : 'At least one signature required'}
+          </span>
+        </div>
+
+        {openPunchListItems.length > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4 text-yellow-500" />
+            <span className="text-yellow-600">
+              {openPunchListItems.length} open punch list item{openPunchListItems.length !== 1 ? 's' : ''} (optional to resolve)
+            </span>
+          </div>
+        )}
+      </div>
+
+      <Button
+        className="w-full gap-2"
+        onClick={handleComplete}
+        disabled={!canComplete}
+      >
+        <CheckCircle className="w-4 h-4" />
+        Mark Inspection Complete
+      </Button>
+
+      {!canComplete && (
+        <p className="text-xs text-muted-foreground text-center">
+          Complete all required items and add at least one signature to finalize.
+        </p>
+      )}
+    </div>
   );
 }

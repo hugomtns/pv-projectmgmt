@@ -8,3 +8,4 @@ export { InspectionItem } from './InspectionItem';
 export { InspectionItemDialog } from './InspectionItemDialog';
 export { InspectionPhotoGallery } from './InspectionPhotoGallery';
 export { PunchListView } from './PunchListView';
+export { SignaturePanel } from './SignaturePanel';
