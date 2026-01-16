@@ -135,12 +135,14 @@ export function Financials() {
               <p className="text-muted-foreground mb-4">
                 Financial models are created from the project's financial analysis page.
               </p>
-              {projects.length > 0 ? (
-                <Button asChild>
-                  <Link to={`/financials/${projects[0].id}`}>
-                    Create First Model
-                  </Link>
+              {projectsWithoutModels.length > 0 ? (
+                <Button onClick={() => setCreateDialogOpen(true)}>
+                  Create First Model
                 </Button>
+              ) : projects.length > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  All projects already have financial models.
+                </p>
               ) : (
                 <Button asChild>
                   <Link to="/projects">Go to Projects</Link>
