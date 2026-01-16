@@ -113,27 +113,25 @@ export function EquipmentDetail({ equipment, open, onOpenChange }: EquipmentDeta
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="sm:max-w-[480px] overflow-y-auto">
           <SheetHeader>
-            <div className="flex items-start justify-between">
-              <div>
-                <SheetTitle>{equipment.name}</SheetTitle>
-                <SheetDescription>
-                  {EQUIPMENT_TYPE_LABELS[equipment.type]}
-                </SheetDescription>
-              </div>
-              <Badge
-                variant="outline"
-                className="mr-6"
-                style={{
-                  borderColor: statusColor,
-                  color: statusColor,
-                }}
-              >
-                {EQUIPMENT_STATUS_LABELS[equipment.status]}
-              </Badge>
-            </div>
+            <SheetTitle>{equipment.name}</SheetTitle>
+            <SheetDescription>
+              {EQUIPMENT_TYPE_LABELS[equipment.type]}
+            </SheetDescription>
           </SheetHeader>
 
-          <div className="mt-6 space-y-6">
+          <div className="mt-4">
+            <Badge
+              variant="outline"
+              style={{
+                borderColor: statusColor,
+                color: statusColor,
+              }}
+            >
+              {EQUIPMENT_STATUS_LABELS[equipment.status]}
+            </Badge>
+          </div>
+
+          <div className="mt-4 space-y-6">
             {/* Edit Mode */}
             {isEditing ? (
               <div className="space-y-4">
