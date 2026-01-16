@@ -114,24 +114,28 @@ export function ViewportToolbar({
           <DropdownMenuCheckboxItem
             checked={visibility.panels}
             onCheckedChange={() => toggleLayer('panels')}
+            onSelect={(e) => e.preventDefault()}
           >
             Solar Panels
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={visibility.electrical}
             onCheckedChange={() => toggleLayer('electrical')}
+            onSelect={(e) => e.preventDefault()}
           >
             Electrical Equipment
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={visibility.boundaries}
             onCheckedChange={() => toggleLayer('boundaries')}
+            onSelect={(e) => e.preventDefault()}
           >
             Boundaries
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={visibility.trees}
             onCheckedChange={() => toggleLayer('trees')}
+            onSelect={(e) => e.preventDefault()}
           >
             Trees
           </DropdownMenuCheckboxItem>
@@ -146,12 +150,14 @@ export function ViewportToolbar({
               <DropdownMenuCheckboxItem
                 checked={visibility.digitalTwinMetrics}
                 onCheckedChange={() => toggleLayer('digitalTwinMetrics')}
+                onSelect={(e) => e.preventDefault()}
               >
                 Equipment Metrics
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem
                 checked={visibility.performanceHeatmap}
                 onCheckedChange={() => toggleLayer('performanceHeatmap')}
+                onSelect={(e) => e.preventDefault()}
               >
                 Performance Heatmap
               </DropdownMenuCheckboxItem>
