@@ -357,8 +357,8 @@ export const useFinancialStore = create<FinancialState>()(
           return;
         }
 
-        // Convert annual yield from kWh to MWh for p50_year_0_yield
-        const p50YieldMwh = estimate.annualYield / 1000;
+        // Convert annual yield from kWh to MWh for p50_year_0_yield (round to whole number)
+        const p50YieldMwh = Math.round(estimate.annualYield / 1000);
 
         set((state) => ({
           financialModels: state.financialModels.map((m) =>
