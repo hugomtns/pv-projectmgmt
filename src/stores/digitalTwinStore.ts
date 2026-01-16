@@ -128,6 +128,7 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
       currentSnapshot: null,
       snapshotHistory: [],
       currentConfig: null,
+      alerts: [], // Clear alerts when stopping
     });
 
     toast.success('Digital Twin simulation stopped');
@@ -189,12 +190,17 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
   acknowledgeAlert: (alertId) => {
     const { _simulator, alerts } = get();
 
-    // Find the alert to get its equipment ID
+    // Find the alert to get its equipment ID or title
     const alert = alerts.find((a) => a.id === alertId);
 
-    // If alert has equipment, clear the fault from the simulator
-    if (alert?.equipmentId && _simulator) {
-      _simulator.clearFault(alert.equipmentId);
+    if (alert && _simulator) {
+      if (alert.equipmentId) {
+        // Equipment-level fault - clear by equipment ID
+        _simulator.clearFault(alert.equipmentId);
+      } else {
+        // System-level alert - clear by title
+        _simulator.clearSystemAlert(alert.title);
+      }
     }
 
     // Remove the alert (fixing it clears it entirely)

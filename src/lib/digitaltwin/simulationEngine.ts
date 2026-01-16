@@ -39,6 +39,7 @@ export class DigitalTwinSimulator {
   private energyAccumulator: number = 0;
   private lastUpdateTime: Date | null = null;
   private activeFaults: Map<string, DigitalTwinAlert> = new Map();
+  private activeSystemAlerts: Set<string> = new Set(); // Track system-level alerts by title
   private pendingAlerts: DigitalTwinAlert[] = [];
   private dayStartTime: Date | null = null;
 
@@ -81,8 +82,13 @@ export class DigitalTwinSimulator {
    * Add an alert to pending queue
    */
   private addAlert(alert: DigitalTwinAlert): void {
-    // Don't duplicate active faults
+    // Don't duplicate active faults (equipment-level)
     if (alert.equipmentId && this.activeFaults.has(alert.equipmentId)) {
+      return;
+    }
+
+    // Don't duplicate system-level alerts (by title)
+    if (!alert.equipmentId && this.activeSystemAlerts.has(alert.title)) {
       return;
     }
 
@@ -97,6 +103,16 @@ export class DigitalTwinSimulator {
           this.activeFaults.delete(alert.equipmentId!);
         }, alert.autoClearMs);
       }
+    } else {
+      // System-level alert - track by title
+      this.activeSystemAlerts.add(alert.title);
+
+      // Schedule auto-clear if applicable
+      if (alert.autoClearMs && alert.autoClearMs > 0) {
+        setTimeout(() => {
+          this.activeSystemAlerts.delete(alert.title);
+        }, alert.autoClearMs);
+      }
     }
   }
 
@@ -105,6 +121,13 @@ export class DigitalTwinSimulator {
    */
   clearFault(equipmentId: string): void {
     this.activeFaults.delete(equipmentId);
+  }
+
+  /**
+   * Clear a system-level alert by title
+   */
+  clearSystemAlert(title: string): void {
+    this.activeSystemAlerts.delete(title);
   }
 
   /**
