@@ -19,7 +19,7 @@ import { Equipment3D } from './Equipment3D';
 import { Tree3D } from './Tree3D';
 import { ElementCommentMarkers } from './ElementCommentMarkers';
 import { EquipmentStatusOverlay } from './EquipmentStatusOverlay';
-import { PanelHeatmap } from './PanelHeatmap';
+// PanelHeatmap is no longer needed - performance colors are applied directly to panel instances
 
 interface PVLayoutRendererProps {
   parsedData: DXFParsedData;
@@ -82,6 +82,8 @@ export function PVLayoutRenderer({
           onPanelClick={onPanelClick}
           elementCommentMode={elementCommentMode}
           onElementSelected={onElementSelected}
+          panelZones={telemetry?.panelZones}
+          showPerformanceColors={showPerformanceHeatmap}
         />
       )}
 
@@ -131,14 +133,10 @@ export function PVLayoutRenderer({
         />
       )}
 
-      {/* Digital Twin: Panel Performance Heatmap */}
-      {telemetry && showPerformanceHeatmap && (
-        <PanelHeatmap
-          panels={parsedData.panels}
-          panelZones={telemetry.panelZones}
-          enabled={true}
-        />
-      )}
+      {/* Digital Twin: Panel Performance Heatmap
+          Note: Performance colors are now applied directly to panel instances
+          via the showPerformanceColors prop, replacing the separate overlay.
+          The PanelHeatmap component is kept for reference but no longer rendered. */}
     </group>
   );
 }
