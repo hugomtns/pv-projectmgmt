@@ -555,11 +555,11 @@ export function YieldCalculatorDialog({
               <div className="grid grid-cols-3 gap-3 pt-2 border-t">
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">GHI</div>
-                  <div className="font-medium">{result.annualGHI.toFixed(0)} kWh/m²</div>
+                  <div className="font-medium">{result.annualGHI?.toFixed(0) ?? '-'} kWh/m²</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">PR</div>
-                  <div className="font-medium">{(result.performanceRatio * 100).toFixed(1)}%</div>
+                  <div className="font-medium">{result.performanceRatio ? (result.performanceRatio * 100).toFixed(1) : '-'}%</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">Source</div>

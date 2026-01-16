@@ -20,6 +20,9 @@ import { CACHE_CONFIG } from './types';
 /** PVGIS API base URL */
 const PVGIS_API_BASE = 'https://re.jrc.ec.europa.eu/api/v5_2';
 
+/** CORS proxy for browser requests (PVGIS doesn't support CORS) */
+const CORS_PROXY = 'https://corsproxy.io/?';
+
 /** PVGIS API timeout in milliseconds */
 const API_TIMEOUT = 30000; // 30 seconds
 
@@ -190,8 +193,9 @@ export async function fetchPVGIS(
     }
   }
 
-  // Build URL and fetch
-  const url = buildPVGISUrl(params);
+  // Build URL and fetch via CORS proxy
+  const pvgisUrl = buildPVGISUrl(params);
+  const url = CORS_PROXY + encodeURIComponent(pvgisUrl);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT);
@@ -200,9 +204,6 @@ export async function fetchPVGIS(
     const response = await fetch(url, {
       method: 'GET',
       signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-      },
     });
 
     clearTimeout(timeoutId);
@@ -220,7 +221,9 @@ export async function fetchPVGIS(
     }
 
     const data = await response.json();
+    console.log('[PVGIS] Raw response:', data);
     const pvgisResponse = parsePVGISResponse(data);
+    console.log('[PVGIS] Parsed response:', pvgisResponse);
 
     // Cache the response
     if (useCache) {
@@ -299,10 +302,13 @@ export function extractYieldData(response: PVGISResponse): {
   monthlyIrradiance: number[];
   location: { latitude: number; longitude: number; elevation: number };
 } {
+  console.log('[PVGIS] Extracting data from:', response);
   const totals = response.outputs.totals.fixed;
   const monthly = response.outputs.monthly.fixed;
+  console.log('[PVGIS] Totals:', totals);
+  console.log('[PVGIS] Monthly:', monthly);
 
-  return {
+  const result = {
     annualYield: totals.E_y,
     monthlyYield: monthly.map(m => m.E_m),
     annualIrradiance: totals.H_i_y,
@@ -313,6 +319,8 @@ export function extractYieldData(response: PVGISResponse): {
       elevation: response.inputs.location.elevation,
     },
   };
+  console.log('[PVGIS] Extracted data:', result);
+  return result;
 }
 
 /**
