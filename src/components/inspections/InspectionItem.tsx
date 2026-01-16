@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Minus, Circle, Camera, MessageSquare } from 'lucide-react';
+import { Check, X, Minus, Circle, Camera, MessageSquare, CheckCircle } from 'lucide-react';
 import type { InspectionItem as InspectionItemType, InspectionItemResult } from '@/lib/types/inspection';
 
 interface InspectionItemProps {
@@ -20,12 +20,15 @@ const RESULT_BUTTONS: { result: InspectionItemResult; icon: typeof Check; label:
 export function InspectionItem({ item, onResultChange, onClick, disabled }: InspectionItemProps) {
   const hasNotes = item.notes.trim().length > 0;
   const hasPhotos = item.photos.length > 0;
+  const isPunchListOpen = item.isPunchListItem && !item.punchListResolvedAt;
+  const isPunchListResolved = item.isPunchListItem && !!item.punchListResolvedAt;
 
   return (
     <div
       className={cn(
         'flex items-start gap-3 p-3 rounded-lg border bg-card',
-        item.isPunchListItem && 'border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20',
+        isPunchListOpen && 'border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/20',
+        isPunchListResolved && 'border-green-500/30 bg-green-50/30 dark:bg-green-950/10',
         onClick && 'cursor-pointer hover:bg-accent/50'
       )}
       onClick={onClick}
@@ -61,9 +64,15 @@ export function InspectionItem({ item, onResultChange, onClick, disabled }: Insp
               Required
             </Badge>
           )}
-          {item.isPunchListItem && (
+          {isPunchListOpen && (
             <Badge variant="outline" className="text-xs shrink-0 border-orange-500 text-orange-600">
               Punch List
+            </Badge>
+          )}
+          {isPunchListResolved && (
+            <Badge variant="outline" className="text-xs shrink-0 border-green-500 text-green-600 gap-1">
+              <CheckCircle className="w-3 h-3" />
+              Resolved
             </Badge>
           )}
         </div>

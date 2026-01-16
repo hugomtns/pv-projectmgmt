@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { InspectionPhotoGallery } from './InspectionPhotoGallery';
-import { Check, X, Minus, Camera, Loader2 } from 'lucide-react';
+import { Check, X, Minus, Camera, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   INSPECTION_CATEGORY_LABELS,
@@ -44,6 +44,7 @@ export function InspectionItemDialog({
   const updateInspectionItem = useInspectionStore((state) => state.updateInspectionItem);
   const addItemPhoto = useInspectionStore((state) => state.addItemPhoto);
   const deleteItemPhoto = useInspectionStore((state) => state.deleteItemPhoto);
+  const markPunchListResolved = useInspectionStore((state) => state.markPunchListResolved);
 
   const [result, setResult] = useState<InspectionItemResult>('pending');
   const [notes, setNotes] = useState('');
@@ -91,6 +92,14 @@ export function InspectionItemDialog({
 
   const handleDeletePhoto = async (photoId: string) => {
     await deleteItemPhoto(inspectionId, item.id, photoId);
+  };
+
+  const handleTogglePunchList = () => {
+    updateInspectionItem(inspectionId, item.id, { isPunchListItem: !item.isPunchListItem });
+  };
+
+  const handleResolvePunchList = () => {
+    markPunchListResolved(inspectionId, item.id);
   };
 
   const hasChanges = notes !== item.notes;
@@ -219,17 +228,65 @@ export function InspectionItemDialog({
             )}
           </div>
 
-          {/* Punch list indicator */}
-          {item.isPunchListItem && (
-            <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md">
-              <Badge variant="outline" className="border-orange-500 text-orange-600">
-                Punch List
-              </Badge>
-              <span className="text-sm text-orange-700 dark:text-orange-300">
-                This item requires follow-up
-              </span>
-            </div>
-          )}
+          {/* Punch list section */}
+          <div className="space-y-2">
+            <Label>Punch List</Label>
+            {!item.isPunchListItem ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2 text-orange-600 border-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                onClick={handleTogglePunchList}
+                disabled={disabled}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                Flag for Follow-up
+              </Button>
+            ) : item.punchListResolvedAt ? (
+              <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                    Resolved
+                  </span>
+                </div>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                  by {item.punchListResolvedBy}
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                    Flagged for follow-up
+                  </span>
+                </div>
+                {!disabled && (
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="gap-1 bg-green-600 hover:bg-green-700"
+                      onClick={handleResolvePunchList}
+                    >
+                      <CheckCircle className="w-3 h-3" />
+                      Mark Resolved
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={handleTogglePunchList}
+                    >
+                      Remove Flag
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <DialogFooter>

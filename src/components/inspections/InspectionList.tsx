@@ -5,9 +5,12 @@ import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { InspectionCard } from './InspectionCard';
 import { CreateInspectionDialog } from './CreateInspectionDialog';
 import { InspectionDetail } from './InspectionDetail';
+import { PunchListView } from './PunchListView';
+import { InspectionItemDialog } from './InspectionItemDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, ClipboardList } from 'lucide-react';
-import type { Inspection } from '@/lib/types/inspection';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, ClipboardList, AlertTriangle } from 'lucide-react';
+import type { Inspection, InspectionItem } from '@/lib/types/inspection';
 
 interface InspectionListProps {
   projectId: string;
@@ -26,6 +29,11 @@ function groupInspections(inspections: Inspection[]) {
 export function InspectionList({ projectId }: InspectionListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'inspections' | 'punchlist'>('inspections');
+  const [selectedPunchListItem, setSelectedPunchListItem] = useState<{
+    inspection: Inspection;
+    item: InspectionItem;
+  } | null>(null);
 
   // Get all inspections and filter in useMemo to avoid infinite re-renders
   const allInspections = useInspectionStore((state) => state.inspections);
@@ -63,21 +71,32 @@ export function InspectionList({ projectId }: InspectionListProps) {
     setSelectedInspectionId(inspection.id);
   };
 
+  const handlePunchListItemClick = (inspection: Inspection, item: InspectionItem) => {
+    setSelectedPunchListItem({ inspection, item });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header with stats and actions */}
+      {/* Header with tabs and actions */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h3 className="text-sm font-medium">
-            Inspections {hasInspections && `(${inspections.length})`}
-          </h3>
-          {punchListCount > 0 && (
-            <span className="text-xs text-orange-600 dark:text-orange-400">
-              {punchListCount} open punch list item{punchListCount !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-        {canCreate && (
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'inspections' | 'punchlist')}>
+          <TabsList>
+            <TabsTrigger value="inspections" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Inspections {hasInspections && `(${inspections.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="punchlist" className="gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              Punch List
+              {punchListCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-orange-500 text-white rounded-full">
+                  {punchListCount}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {canCreate && activeTab === 'inspections' && (
           <Button
             size="sm"
             onClick={() => setIsDialogOpen(true)}
@@ -89,98 +108,111 @@ export function InspectionList({ projectId }: InspectionListProps) {
         )}
       </div>
 
-      {/* Empty state */}
-      {!hasInspections && (
-        <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-lg">
-          <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-1">No inspections yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Create an inspection to track site visits and quality checks.
-          </p>
-          {canCreate && (
-            <Button onClick={() => setIsDialogOpen(true)} className="gap-1">
-              <Plus className="h-4 w-4" />
-              Create First Inspection
-            </Button>
+      {/* Inspections Tab Content */}
+      {activeTab === 'inspections' && (
+        <>
+          {/* Empty state */}
+          {!hasInspections && (
+            <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-lg">
+              <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-1">No inspections yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Create an inspection to track site visits and quality checks.
+              </p>
+              {canCreate && (
+                <Button onClick={() => setIsDialogOpen(true)} className="gap-1">
+                  <Plus className="h-4 w-4" />
+                  Create First Inspection
+                </Button>
+              )}
+            </div>
           )}
-        </div>
+
+          {/* Inspection groups */}
+          {hasInspections && (
+            <div className="space-y-6">
+              {/* In Progress */}
+              {grouped.inProgress.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                    In Progress ({grouped.inProgress.length})
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {grouped.inProgress.map((inspection) => (
+                      <InspectionCard
+                        key={inspection.id}
+                        inspection={inspection}
+                        onClick={() => handleInspectionClick(inspection)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Scheduled */}
+              {grouped.scheduled.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                    Scheduled ({grouped.scheduled.length})
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {grouped.scheduled.map((inspection) => (
+                      <InspectionCard
+                        key={inspection.id}
+                        inspection={inspection}
+                        onClick={() => handleInspectionClick(inspection)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Completed */}
+              {grouped.completed.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                    Completed ({grouped.completed.length})
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {grouped.completed.map((inspection) => (
+                      <InspectionCard
+                        key={inspection.id}
+                        inspection={inspection}
+                        onClick={() => handleInspectionClick(inspection)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Cancelled (collapsed by default, show only if there are any) */}
+              {grouped.cancelled.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                    Cancelled ({grouped.cancelled.length})
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {grouped.cancelled.map((inspection) => (
+                      <InspectionCard
+                        key={inspection.id}
+                        inspection={inspection}
+                        onClick={() => handleInspectionClick(inspection)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Inspection groups */}
-      {hasInspections && (
-        <div className="space-y-6">
-          {/* In Progress */}
-          {grouped.inProgress.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                In Progress ({grouped.inProgress.length})
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {grouped.inProgress.map((inspection) => (
-                  <InspectionCard
-                    key={inspection.id}
-                    inspection={inspection}
-                    onClick={() => handleInspectionClick(inspection)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Scheduled */}
-          {grouped.scheduled.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                Scheduled ({grouped.scheduled.length})
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {grouped.scheduled.map((inspection) => (
-                  <InspectionCard
-                    key={inspection.id}
-                    inspection={inspection}
-                    onClick={() => handleInspectionClick(inspection)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Completed */}
-          {grouped.completed.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                Completed ({grouped.completed.length})
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {grouped.completed.map((inspection) => (
-                  <InspectionCard
-                    key={inspection.id}
-                    inspection={inspection}
-                    onClick={() => handleInspectionClick(inspection)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Cancelled (collapsed by default, show only if there are any) */}
-          {grouped.cancelled.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-muted-foreground mb-3">
-                Cancelled ({grouped.cancelled.length})
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {grouped.cancelled.map((inspection) => (
-                  <InspectionCard
-                    key={inspection.id}
-                    inspection={inspection}
-                    onClick={() => handleInspectionClick(inspection)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Punch List Tab Content */}
+      {activeTab === 'punchlist' && (
+        <PunchListView
+          projectId={projectId}
+          onItemClick={handlePunchListItemClick}
+        />
       )}
 
       <CreateInspectionDialog
@@ -194,6 +226,16 @@ export function InspectionList({ projectId }: InspectionListProps) {
         open={!!selectedInspectionId}
         onOpenChange={(open) => !open && setSelectedInspectionId(null)}
       />
+
+      {/* Punch list item dialog */}
+      {selectedPunchListItem && (
+        <InspectionItemDialog
+          inspectionId={selectedPunchListItem.inspection.id}
+          item={selectedPunchListItem.item}
+          open={!!selectedPunchListItem}
+          onOpenChange={(open) => !open && setSelectedPunchListItem(null)}
+        />
+      )}
     </div>
   );
 }
