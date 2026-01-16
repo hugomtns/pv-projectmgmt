@@ -6,17 +6,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { HelpCircle, RotateCcw } from 'lucide-react';
+import { HelpCircle, RotateCcw, MapPin, X } from 'lucide-react';
 import { LineItemsManager } from './LineItemsManager';
+import { YieldCalculatorDialog } from './YieldCalculatorDialog';
+import { formatYield } from '@/lib/yield';
 
 interface FinancialInputFormProps {
   modelId: string;
+  projectId: string;
   inputs: FinancialInputs;
   onCalculate?: () => void;
   isCalculating?: boolean;
@@ -69,13 +73,17 @@ function FormField({ label, hint, tooltip, value, onChange, step = '1', min, max
   );
 }
 
-export function FinancialInputForm({ modelId, inputs, onCalculate, isCalculating }: FinancialInputFormProps) {
+export function FinancialInputForm({ modelId, projectId, inputs, onCalculate, isCalculating }: FinancialInputFormProps) {
   const updateInputs = useFinancialStore((state) => state.updateInputs);
+  const clearYieldEstimate = useFinancialStore((state) => state.clearYieldEstimate);
 
   // Determine if line items mode is enabled based on whether there are items
   const [lineItemsEnabled, setLineItemsEnabled] = useState(
     inputs.capex_items.length > 0 || inputs.opex_items.length > 0
   );
+
+  // Yield calculator dialog state
+  const [yieldDialogOpen, setYieldDialogOpen] = useState(false);
 
   const handleChange = (field: keyof FinancialInputs, value: number) => {
     updateInputs(modelId, { [field]: value });
@@ -128,15 +136,73 @@ export function FinancialInputForm({ modelId, inputs, onCalculate, isCalculating
             step="0.01"
             min={0}
           />
-          <FormField
-            label="P50 Year 0 Yield"
-            hint="MWh"
-            tooltip="The expected first-year energy production in MWh before degradation. This is the median (P50) projection."
-            value={inputs.p50_year_0_yield}
-            onChange={(v) => handleChange('p50_year_0_yield', v)}
-            step="1"
-            min={0}
-          />
+          {/* P50 Yield with Calculate from Location */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">P50 Year 0 Yield</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">The expected first-year energy production in MWh before degradation. This is the median (P50) projection.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  type="number"
+                  step="1"
+                  min={0}
+                  value={inputs.p50_year_0_yield}
+                  onChange={(e) => handleChange('p50_year_0_yield', parseFloat(e.target.value) || 0)}
+                  className="pr-16"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  MWh
+                </span>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setYieldDialogOpen(true)}
+                    >
+                      <MapPin className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-sm">Calculate from location</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            {/* Show yield estimate source if present */}
+            {inputs.yieldEstimate && (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {inputs.yieldEstimate.source === 'pvgis' ? 'PVGIS' : 'Estimated'}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {formatYield(inputs.yieldEstimate.annualYield)} • PR {(inputs.yieldEstimate.performanceRatio * 100).toFixed(0)}%
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5"
+                  onClick={() => clearYieldEstimate(modelId)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
           <FormField
             label="PPA Price"
             hint="/MWh"
@@ -336,6 +402,14 @@ export function FinancialInputForm({ modelId, inputs, onCalculate, isCalculating
           Reset to Defaults
         </Button>
       </div>
+
+      {/* Yield Calculator Dialog */}
+      <YieldCalculatorDialog
+        open={yieldDialogOpen}
+        onOpenChange={setYieldDialogOpen}
+        modelId={modelId}
+        projectId={projectId}
+      />
     </div>
   );
 }

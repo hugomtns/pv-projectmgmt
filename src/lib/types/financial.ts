@@ -1,3 +1,5 @@
+import type { YieldEstimate } from '@/lib/yield/types';
+
 // Cost line item types (adapted from pvfinance)
 export interface CostLineItem {
   id: string; // Added for editing in UI
@@ -45,6 +47,13 @@ export interface FinancialInputs {
   // Tax and discount
   tax_rate: number;
   discount_rate: number;
+
+  // Yield estimation (optional - calculated from location)
+  yieldEstimate?: YieldEstimate;
+
+  // Links to design/site for location data (optional)
+  designId?: string;
+  siteId?: string;
 }
 
 // Project results types
