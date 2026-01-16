@@ -455,6 +455,162 @@ function migrateRolesForInspections() {
 }
 
 /**
+ * Add 'equipment' permissions to existing roles
+ */
+function migrateRolesForEquipment() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'equipment' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.equipment);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.equipment) return role;
+
+      // Determine permissions based on role type
+      let equipmentPermissions;
+      if (role.id === 'role-admin') {
+        equipmentPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        equipmentPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        equipmentPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          equipment: equipmentPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include equipment permissions');
+  }
+}
+
+/**
+ * Add 'maintenanceSchedules' permissions to existing roles
+ */
+function migrateRolesForMaintenanceSchedules() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'maintenanceSchedules' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.maintenanceSchedules);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.maintenanceSchedules) return role;
+
+      // Determine permissions based on role type
+      let maintenanceSchedulesPermissions;
+      if (role.id === 'role-admin') {
+        maintenanceSchedulesPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        maintenanceSchedulesPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        maintenanceSchedulesPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          maintenanceSchedules: maintenanceSchedulesPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include maintenanceSchedules permissions');
+  }
+}
+
+/**
+ * Add 'workOrders' permissions to existing roles
+ */
+function migrateRolesForWorkOrders() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'workOrders' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.workOrders);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.workOrders) return role;
+
+      // Determine permissions based on role type
+      let workOrdersPermissions;
+      if (role.id === 'role-admin') {
+        workOrdersPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        workOrdersPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        workOrdersPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          workOrders: workOrdersPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include workOrders permissions');
+  }
+}
+
+/**
+ * Add 'performanceLogs' permissions to existing roles
+ */
+function migrateRolesForPerformanceLogs() {
+  const userState = useUserStore.getState();
+  const roles = userState.roles;
+
+  // Check if any role is missing 'performanceLogs' permission
+  const needsMigration = roles.some((role: any) => !role.permissions.performanceLogs);
+
+  if (needsMigration) {
+    const updatedRoles = roles.map((role: any) => {
+      if (role.permissions.performanceLogs) return role;
+
+      // Determine permissions based on role type
+      let performanceLogsPermissions;
+      if (role.id === 'role-admin') {
+        performanceLogsPermissions = { create: true, read: true, update: true, delete: true };
+      } else if (role.id === 'role-user') {
+        performanceLogsPermissions = { create: true, read: true, update: true, delete: true };
+      } else {
+        // Guest and other roles: read-only
+        performanceLogsPermissions = { create: false, read: true, update: false, delete: false };
+      }
+
+      return {
+        ...role,
+        permissions: {
+          ...role.permissions,
+          performanceLogs: performanceLogsPermissions,
+        },
+      };
+    });
+
+    useUserStore.setState({ roles: updatedRoles });
+    console.log('✓ Migrated roles to include performanceLogs permissions');
+  }
+}
+
+/**
  * Initialize stores with seed data on first load.
  * Checks if workflow store is empty and seeds both workflow and projects if needed.
  * Also checks data version and forces refresh if version has changed.
@@ -532,6 +688,10 @@ export function initializeStores() {
       migrateRolesForAdminLogs();
       migrateRolesForSites();
       migrateRolesForInspections();
+      migrateRolesForEquipment();
+      migrateRolesForMaintenanceSchedules();
+      migrateRolesForWorkOrders();
+      migrateRolesForPerformanceLogs();
       migrateSitesUsableArea();
     }
 

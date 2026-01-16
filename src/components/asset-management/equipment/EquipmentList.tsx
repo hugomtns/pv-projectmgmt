@@ -4,10 +4,11 @@ import { useUserStore } from '@/stores/userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { EquipmentCard } from './EquipmentCard';
 import { CreateEquipmentDialog } from './CreateEquipmentDialog';
+import { ImportEquipmentFromDesignDialog } from './ImportEquipmentFromDesignDialog';
 import { EquipmentDetail } from './EquipmentDetail';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Cpu, AlertCircle } from 'lucide-react';
+import { Plus, Cpu, AlertCircle, FileBox } from 'lucide-react';
 import type { Equipment, EquipmentType } from '@/lib/types/equipment';
 import { EQUIPMENT_TYPE_ORDER, EQUIPMENT_TYPE_LABELS } from '@/lib/types/equipment';
 
@@ -17,6 +18,7 @@ interface EquipmentListProps {
 
 export function EquipmentList({ projectId }: EquipmentListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'warranty'>('all');
   const [filterType, setFilterType] = useState<EquipmentType | 'all'>('all');
@@ -107,14 +109,25 @@ export function EquipmentList({ projectId }: EquipmentListProps) {
           </TabsList>
         </Tabs>
         {canCreate && activeTab === 'all' && (
-          <Button
-            size="sm"
-            onClick={() => setIsDialogOpen(true)}
-            className="gap-1"
-          >
-            <Plus className="h-4 w-4" />
-            Add Equipment
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsImportDialogOpen(true)}
+              className="gap-1"
+            >
+              <FileBox className="h-4 w-4" />
+              Import from Design
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsDialogOpen(true)}
+              className="gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Add Equipment
+            </Button>
+          </div>
         )}
       </div>
 
@@ -157,10 +170,20 @@ export function EquipmentList({ projectId }: EquipmentListProps) {
                 Add equipment to track installed assets and warranties.
               </p>
               {canCreate && (
-                <Button onClick={() => setIsDialogOpen(true)} className="gap-1">
-                  <Plus className="h-4 w-4" />
-                  Add First Equipment
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsImportDialogOpen(true)}
+                    className="gap-1"
+                  >
+                    <FileBox className="h-4 w-4" />
+                    Import from Design
+                  </Button>
+                  <Button onClick={() => setIsDialogOpen(true)} className="gap-1">
+                    <Plus className="h-4 w-4" />
+                    Add Equipment
+                  </Button>
+                </div>
               )}
             </div>
           )}
@@ -238,6 +261,12 @@ export function EquipmentList({ projectId }: EquipmentListProps) {
       <CreateEquipmentDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        projectId={projectId}
+      />
+
+      <ImportEquipmentFromDesignDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
         projectId={projectId}
       />
 
