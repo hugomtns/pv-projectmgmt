@@ -5,7 +5,7 @@
  * Faults are randomly triggered based on configurable probability.
  */
 
-import type { AlertCategory, AlertSeverity, DigitalTwinAlert, FaultScenario } from './types';
+import type { AlertCategory, AlertSeverity, DigitalTwinAlert, FaultScenario, PanelZoneFault, PanelZoneFaultType } from './types';
 
 /**
  * Predefined fault scenarios for different equipment types
@@ -112,6 +112,95 @@ export const PERFORMANCE_FAULTS: FaultScenario[] = [
     autoClearMs: 0,
   },
 ];
+
+/**
+ * Panel zone fault definitions
+ */
+export interface PanelZoneFaultDefinition {
+  type: PanelZoneFaultType;
+  code: string;
+  message: string;
+  severity: AlertSeverity;
+  /** Performance impact (0-1, lower = worse) */
+  performanceImpact: number;
+  /** Auto-clear duration in ms (0 = manual) */
+  autoClearMs: number;
+}
+
+export const PANEL_ZONE_FAULTS: PanelZoneFaultDefinition[] = [
+  {
+    type: 'hot_spot',
+    code: 'PNL_001',
+    message: 'Hot spot detected - cell overheating',
+    severity: 'warning',
+    performanceImpact: 0.6,
+    autoClearMs: 120000, // 2 minutes
+  },
+  {
+    type: 'shading',
+    code: 'PNL_002',
+    message: 'Partial shading detected on panel zone',
+    severity: 'warning',
+    performanceImpact: 0.7,
+    autoClearMs: 60000, // 1 minute
+  },
+  {
+    type: 'soiling_heavy',
+    code: 'PNL_003',
+    message: 'Heavy soiling detected - cleaning required',
+    severity: 'warning',
+    performanceImpact: 0.75,
+    autoClearMs: 300000, // 5 minutes
+  },
+  {
+    type: 'module_degradation',
+    code: 'PNL_004',
+    message: 'Module degradation - reduced output',
+    severity: 'critical',
+    performanceImpact: 0.5,
+    autoClearMs: 0, // Manual clear
+  },
+];
+
+/**
+ * Get a random panel zone fault definition
+ */
+export function getRandomPanelZoneFault(): PanelZoneFaultDefinition {
+  return PANEL_ZONE_FAULTS[Math.floor(Math.random() * PANEL_ZONE_FAULTS.length)];
+}
+
+/**
+ * Generate a panel zone fault with probability check
+ */
+export function maybeGeneratePanelZoneFault(
+  zoneId: string,
+  probability: number
+): { fault: PanelZoneFault; alert: DigitalTwinAlert } | null {
+  if (!shouldTriggerFault(probability)) return null;
+
+  const faultDef = getRandomPanelZoneFault();
+
+  const fault: PanelZoneFault = {
+    zoneId,
+    faultType: faultDef.type,
+    startTime: new Date().toISOString(),
+    performanceImpact: faultDef.performanceImpact,
+  };
+
+  const alert: DigitalTwinAlert = {
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    severity: faultDef.severity,
+    category: 'panel',
+    equipmentId: zoneId,
+    title: faultDef.code,
+    message: `${faultDef.message} (Zone ${zoneId.replace('zone-', '')})`,
+    acknowledged: false,
+    autoClearMs: faultDef.autoClearMs,
+  };
+
+  return { fault, alert };
+}
 
 /**
  * All fault scenarios combined

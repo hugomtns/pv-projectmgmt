@@ -53,6 +53,9 @@ interface DigitalTwinState {
   // Configuration
   setUpdateInterval: (ms: number) => void;
   setFaultProbability: (probability: number) => void;
+  setSoilingLoss: (loss: number) => void;
+  setMismatchLoss: (loss: number) => void;
+  setEnableRandomFaults: (enabled: boolean) => void;
 
   // Helpers
   getActiveAlerts: () => DigitalTwinAlert[];
@@ -194,7 +197,10 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
     const alert = alerts.find((a) => a.id === alertId);
 
     if (alert && _simulator) {
-      if (alert.equipmentId) {
+      if (alert.category === 'panel' && alert.equipmentId) {
+        // Panel zone fault - clear by zone ID
+        _simulator.clearPanelZoneFault(alert.equipmentId);
+      } else if (alert.equipmentId) {
         // Equipment-level fault - clear by equipment ID
         _simulator.clearFault(alert.equipmentId);
       } else {
@@ -244,6 +250,39 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
       _simulator.updateConfig({ faultProbability: probability });
       set({
         currentConfig: { ...currentConfig, faultProbability: probability },
+      });
+    }
+  },
+
+  setSoilingLoss: (loss) => {
+    const { _simulator, currentConfig } = get();
+
+    if (_simulator && currentConfig) {
+      _simulator.updateConfig({ soilingLoss: loss });
+      set({
+        currentConfig: { ...currentConfig, soilingLoss: loss },
+      });
+    }
+  },
+
+  setMismatchLoss: (loss) => {
+    const { _simulator, currentConfig } = get();
+
+    if (_simulator && currentConfig) {
+      _simulator.updateConfig({ mismatchLoss: loss });
+      set({
+        currentConfig: { ...currentConfig, mismatchLoss: loss },
+      });
+    }
+  },
+
+  setEnableRandomFaults: (enabled) => {
+    const { _simulator, currentConfig } = get();
+
+    if (_simulator && currentConfig) {
+      _simulator.updateConfig({ enableRandomFaults: enabled });
+      set({
+        currentConfig: { ...currentConfig, enableRandomFaults: enabled },
       });
     }
   },

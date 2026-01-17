@@ -15,6 +15,7 @@ import type {
   PanelZonePerformance,
   DigitalTwinAlert,
   EquipmentStatus,
+  PanelZoneFault,
 } from './types';
 import {
   calculateCellTemperature,
@@ -26,6 +27,7 @@ import {
   maybeGenerateInverterFault,
   maybeGenerateTransformerFault,
   checkPerformanceThreshold,
+  maybeGeneratePanelZoneFault,
 } from './faultSimulator';
 
 /**
@@ -40,6 +42,7 @@ export class DigitalTwinSimulator {
   private lastUpdateTime: Date | null = null;
   private activeFaults: Map<string, DigitalTwinAlert> = new Map();
   private activeSystemAlerts: Set<string> = new Set(); // Track system-level alerts by title
+  private activePanelZoneFaults: Map<string, PanelZoneFault> = new Map(); // Track panel zone faults
   private pendingAlerts: DigitalTwinAlert[] = [];
   private dayStartTime: Date | null = null;
 
@@ -131,10 +134,24 @@ export class DigitalTwinSimulator {
   }
 
   /**
+   * Clear a panel zone fault
+   */
+  clearPanelZoneFault(zoneId: string): void {
+    this.activePanelZoneFaults.delete(zoneId);
+  }
+
+  /**
    * Check if equipment has an active fault
    */
   private hasActiveFault(equipmentId: string): boolean {
     return this.activeFaults.has(equipmentId);
+  }
+
+  /**
+   * Check if a panel zone has an active fault
+   */
+  private hasActivePanelZoneFault(zoneId: string): boolean {
+    return this.activePanelZoneFaults.has(zoneId);
   }
 
   /**
@@ -365,6 +382,7 @@ export class DigitalTwinSimulator {
     const panelsPerZone = Math.ceil(this.config.panelCount / this.config.zoneCount);
 
     for (let i = 0; i < this.config.zoneCount; i++) {
+      const zoneId = `zone-${String.fromCharCode(65 + i)}`; // zone-A, zone-B, etc.
       const startIndex = i * panelsPerZone;
       const endIndex = Math.min(startIndex + panelsPerZone, this.config.panelCount);
       const panelIndices = Array.from(
@@ -372,19 +390,50 @@ export class DigitalTwinSimulator {
         (_, j) => startIndex + j
       );
 
+      // Check for new panel zone faults
+      if (this.config.enableRandomFaults && !this.hasActivePanelZoneFault(zoneId)) {
+        // Lower probability for panel faults (they affect larger areas)
+        const result = maybeGeneratePanelZoneFault(
+          zoneId,
+          this.config.faultProbability * 0.3
+        );
+        if (result) {
+          this.activePanelZoneFaults.set(zoneId, result.fault);
+          this.addAlert(result.alert);
+
+          // Schedule auto-clear if applicable
+          if (result.alert.autoClearMs && result.alert.autoClearMs > 0) {
+            setTimeout(() => {
+              this.activePanelZoneFaults.delete(zoneId);
+            }, result.alert.autoClearMs);
+          }
+        }
+      }
+
       // Add variation between zones (+/- 10%)
-      const zoneVariation = 0.9 + Math.random() * 0.2;
+      let zoneVariation = 0.9 + Math.random() * 0.2;
 
       // Soiling varies by zone
       const zoneSoiling = this.config.soilingLoss * (0.8 + Math.random() * 0.4);
 
+      // Apply fault effects if zone has an active fault
+      const activeFault = this.activePanelZoneFaults.get(zoneId);
+      let faultType = activeFault?.faultType;
+      if (activeFault) {
+        // Apply performance impact from fault
+        zoneVariation *= activeFault.performanceImpact;
+      }
+
       zones.push({
-        zoneId: `zone-${String.fromCharCode(65 + i)}`, // zone-A, zone-B, etc.
+        zoneId,
         panelIndices,
         avgIrradiance: weather.irradiance * zoneVariation,
-        avgTemperature: cellTemp + (Math.random() - 0.5) * 5,
+        avgTemperature: activeFault?.faultType === 'hot_spot'
+          ? cellTemp + 20 + Math.random() * 15 // Hot spot: significantly elevated temperature
+          : cellTemp + (Math.random() - 0.5) * 5,
         performanceIndex: zoneVariation * (1 - zoneSoiling),
         soilingFactor: 1 - zoneSoiling,
+        faultType,
       });
     }
 

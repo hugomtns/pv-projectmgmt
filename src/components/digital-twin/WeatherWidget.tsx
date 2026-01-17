@@ -2,14 +2,18 @@
  * WeatherWidget - Current weather conditions display
  */
 
-import { Sun, Cloud, CloudRain, Moon, Wind, Droplets, Thermometer } from 'lucide-react';
+import { Sun, Cloud, CloudRain, Moon, Wind, Droplets, Thermometer, MapPin } from 'lucide-react';
 import type { WeatherData } from '@/lib/digitaltwin/types';
 
 interface WeatherWidgetProps {
   weather: WeatherData | undefined;
+  /** Latitude for location display */
+  latitude?: number;
+  /** Longitude for location display */
+  longitude?: number;
 }
 
-export function WeatherWidget({ weather }: WeatherWidgetProps) {
+export function WeatherWidget({ weather, latitude, longitude }: WeatherWidgetProps) {
   if (!weather) {
     return (
       <div className="p-3 border-b text-center text-muted-foreground text-sm">
@@ -21,8 +25,26 @@ export function WeatherWidget({ weather }: WeatherWidgetProps) {
   // Choose weather icon based on conditions
   const WeatherIcon = getWeatherIcon(weather);
 
+  // Format coordinates for display
+  const formatCoord = (value: number, isLat: boolean) => {
+    const abs = Math.abs(value).toFixed(4);
+    if (isLat) {
+      return `${abs}°${value >= 0 ? 'N' : 'S'}`;
+    }
+    return `${abs}°${value >= 0 ? 'E' : 'W'}`;
+  };
+
   return (
     <div className="p-3 border-b bg-muted/30">
+      {/* Location header */}
+      {latitude !== undefined && longitude !== undefined && (
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2 pb-2 border-b">
+          <MapPin className="h-3 w-3" />
+          <span>{formatCoord(latitude, true)}, {formatCoord(longitude, false)}</span>
+          <span className="text-muted-foreground/60 ml-1">(from DXF)</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         {/* Left: Icon and temperature */}
         <div className="flex items-center gap-3">

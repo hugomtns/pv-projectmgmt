@@ -119,6 +119,8 @@ export interface PanelZonePerformance {
   performanceIndex: number;
   /** Soiling factor (0-1, 1 = clean) */
   soilingFactor: number;
+  /** Active fault type if zone has a fault */
+  faultType?: PanelZoneFaultType;
 }
 
 // ============================================================================
@@ -147,7 +149,24 @@ export interface TelemetrySnapshot {
 // ============================================================================
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
-export type AlertCategory = 'inverter' | 'transformer' | 'performance' | 'communication' | 'weather';
+export type AlertCategory = 'inverter' | 'transformer' | 'performance' | 'communication' | 'weather' | 'panel';
+
+// ============================================================================
+// Panel Zone Faults
+// ============================================================================
+
+export type PanelZoneFaultType = 'hot_spot' | 'shading' | 'soiling_heavy' | 'module_degradation';
+
+export interface PanelZoneFault {
+  /** Zone ID affected */
+  zoneId: string;
+  /** Type of fault */
+  faultType: PanelZoneFaultType;
+  /** When the fault started (ISO string) */
+  startTime: string;
+  /** Performance impact multiplier (0-1, e.g., 0.5 = 50% of normal) */
+  performanceImpact: number;
+}
 
 export interface DigitalTwinAlert {
   /** Unique alert ID */

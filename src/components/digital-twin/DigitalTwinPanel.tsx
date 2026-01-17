@@ -5,23 +5,19 @@
  * and alert log into a cohesive monitoring interface.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 import { Activity, Settings2 } from 'lucide-react';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import { useDigitalTwinStore } from '@/stores/digitalTwinStore';
 import { useDesignStore } from '@/stores/designStore';
 import { WeatherWidget } from './WeatherWidget';
 import { TelemetryGauges } from './TelemetryGauges';
 import { EquipmentStatusGrid } from './EquipmentStatusGrid';
 import { AlertLog } from './AlertLog';
+import { SimulationSettingsDialog } from './SimulationSettingsDialog';
 import type { SimulationConfig } from '@/lib/digitaltwin/types';
 
 interface EquipmentCounts {
@@ -41,6 +37,8 @@ interface DigitalTwinPanelProps {
 }
 
 export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, onEquipmentClick }: DigitalTwinPanelProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   const {
     isActive,
     isLoading,
@@ -52,7 +50,6 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
     acknowledgeAlert,
     clearAlert,
     clearAllAlerts,
-    setFaultProbability,
   } = useDigitalTwinStore();
 
   // Get design data for simulation config
@@ -112,7 +109,7 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
   }, []);
 
   return (
-    <div className="w-80 border-l flex flex-col h-full bg-background">
+    <div className="w-[640px] border-l flex flex-col h-full bg-background">
       {/* Header */}
       <div className="p-4 border-b flex items-center justify-between shrink-0">
         <h3 className="font-semibold flex items-center gap-2">
@@ -136,7 +133,11 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
       {isActive && currentSnapshot ? (
         <ScrollArea className="flex-1">
           {/* Weather */}
-          <WeatherWidget weather={currentSnapshot.weather} />
+          <WeatherWidget
+            weather={currentSnapshot.weather}
+            latitude={currentConfig?.latitude}
+            longitude={currentConfig?.longitude}
+          />
 
           {/* Telemetry Gauges */}
           <TelemetryGauges
@@ -160,28 +161,18 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
             onAlertClick={onEquipmentClick}
           />
 
-          {/* Settings */}
-          <Collapsible className="mx-3 mb-3">
-            <CollapsibleTrigger className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground w-full py-2">
-              <Settings2 className="h-3 w-3" />
+          {/* Settings Button */}
+          <div className="mx-3 mb-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings2 className="h-4 w-4" />
               Simulation Settings
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-2 space-y-3">
-              <div className="space-y-2">
-                <Label className="text-xs">
-                  Fault Probability: {((currentConfig?.faultProbability || 0.01) * 100).toFixed(1)}%
-                </Label>
-                <Slider
-                  value={[(currentConfig?.faultProbability || 0.01) * 100]}
-                  onValueChange={([value]) => setFaultProbability(value / 100)}
-                  min={0}
-                  max={10}
-                  step={0.1}
-                  className="w-full"
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+            </Button>
+          </div>
         </ScrollArea>
       ) : (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -195,6 +186,12 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
           </div>
         </div>
       )}
+
+      {/* Settings Dialog */}
+      <SimulationSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+      />
     </div>
   );
 }
