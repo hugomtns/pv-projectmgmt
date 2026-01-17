@@ -34,7 +34,7 @@ interface DigitalTwinPanelProps {
   /** Equipment counts from parsed DXF */
   equipmentCounts?: EquipmentCounts | null;
   /** Callback when equipment card is clicked - focuses camera on equipment */
-  onEquipmentClick?: (type: 'inverter' | 'transformer' | 'panel-zone', index: number) => void;
+  onEquipmentClick?: (type: 'inverter' | 'transformer' | 'panel', index: number) => void;
 }
 
 export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, onEquipmentClick }: DigitalTwinPanelProps) {
@@ -59,7 +59,7 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
   );
 
   // Build simulation config from design data
-  const simulationConfig = useMemo((): Omit<SimulationConfig, 'zoneCount' | 'enableRandomFaults' | 'faultProbability' | 'soilingLoss' | 'mismatchLoss'> | null => {
+  const simulationConfig = useMemo((): Omit<SimulationConfig, 'enableRandomFaults' | 'faultProbability' | 'soilingLoss' | 'mismatchLoss' | 'maxConcurrentPanelFaults'> | null => {
     if (!design) return null;
 
     // Extract coordinates from design
@@ -155,8 +155,8 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
 
           {/* Panel Frames Status */}
           <PanelZoneStatusGrid
-            panelZones={currentSnapshot.panelZones}
-            onZoneClick={(index) => onEquipmentClick?.('panel-zone', index)}
+            panelZones={currentSnapshot.panelFrames}
+            onZoneClick={(panelIndex) => onEquipmentClick?.('panel', panelIndex)}
           />
 
           {/* Alerts */}

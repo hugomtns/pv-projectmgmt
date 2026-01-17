@@ -82,7 +82,7 @@ export function PVLayoutRenderer({
           onPanelClick={onPanelClick}
           elementCommentMode={elementCommentMode}
           onElementSelected={onElementSelected}
-          panelZones={telemetry?.panelZones}
+          panelFrames={telemetry?.panelFrames}
           showPerformanceColors={showPerformanceHeatmap}
         />
       )}

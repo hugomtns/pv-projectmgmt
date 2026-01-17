@@ -10,7 +10,7 @@ import { InstancedMesh, Object3D, Color, DoubleSide } from 'three';
 import { Line } from '@react-three/drei';
 import type { PanelGeometry } from '@/lib/dxf/types';
 import type { ElementAnchor } from '@/lib/types';
-import type { PanelZonePerformance, PanelZoneFaultType } from '@/lib/digitaltwin/types';
+import type { PanelFramePerformance, PanelFaultType } from '@/lib/digitaltwin/types';
 
 interface PanelInstancesProps {
   panels: PanelGeometry[];
@@ -19,8 +19,8 @@ interface PanelInstancesProps {
   // Element comment mode
   elementCommentMode?: boolean;
   onElementSelected?: (element: ElementAnchor) => void;
-  // Digital Twin performance heatmap
-  panelZones?: PanelZonePerformance[];
+  // Digital Twin performance data (individual panel frames)
+  panelFrames?: PanelFramePerformance[];
   showPerformanceColors?: boolean;
 }
 
@@ -44,7 +44,7 @@ const PANEL_FRAME_COLOR = new Color('#e2e8f0'); // Light silver/white frame (lik
 const performanceColorCache = new Map<number, Color>();
 
 // Fault colors (cached)
-const faultColorCache = new Map<PanelZoneFaultType, Color>();
+const faultColorCache = new Map<PanelFaultType, Color>();
 
 /**
  * Get color based on performance index using HSL interpolation
@@ -72,10 +72,10 @@ function getPerformanceColor(performanceIndex: number): Color {
 }
 
 /**
- * Get color for a panel zone fault type
+ * Get color for a panel fault type
  * Returns distinct colors for different fault types
  */
-function getFaultColor(faultType: PanelZoneFaultType): Color {
+function getFaultColor(faultType: PanelFaultType): Color {
   const cached = faultColorCache.get(faultType);
   if (cached) return cached;
 
@@ -113,7 +113,7 @@ export function PanelInstances({
   onPanelClick: _onPanelClick, // Unused - interaction only in comment mode
   elementCommentMode = false,
   onElementSelected,
-  panelZones,
+  panelFrames,
   showPerformanceColors = false,
 }: PanelInstancesProps) {
   const moduleRef = useRef<InstancedMesh>(null);
@@ -146,24 +146,22 @@ export function PanelInstances({
   // Create a mapping from panel index to performance index and fault type
   const { panelToPerformance, panelToFault } = useMemo(() => {
     const perfMapping = new Map<number, number>();
-    const faultMapping = new Map<number, PanelZoneFaultType>();
+    const faultMapping = new Map<number, PanelFaultType>();
 
-    if (!panelZones || panelZones.length === 0) {
+    if (!panelFrames || panelFrames.length === 0) {
       return { panelToPerformance: perfMapping, panelToFault: faultMapping };
     }
 
-    // Each zone contains panelIndices - map those panels to the zone's performance and fault
-    panelZones.forEach((zone) => {
-      zone.panelIndices.forEach((panelIndex) => {
-        perfMapping.set(panelIndex, zone.performanceIndex);
-        if (zone.faultType) {
-          faultMapping.set(panelIndex, zone.faultType);
-        }
-      });
+    // Each panel frame has its own panelIndex - direct mapping
+    panelFrames.forEach((frame) => {
+      perfMapping.set(frame.panelIndex, frame.performanceIndex);
+      if (frame.faultType) {
+        faultMapping.set(frame.panelIndex, frame.faultType);
+      }
     });
 
     return { panelToPerformance: perfMapping, panelToFault: faultMapping };
-  }, [panelZones]);
+  }, [panelFrames]);
 
   // Trigger re-render after mount to ensure refs are available
   useEffect(() => {

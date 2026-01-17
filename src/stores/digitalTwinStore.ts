@@ -41,7 +41,7 @@ interface DigitalTwinState {
   _intervalId: ReturnType<typeof setInterval> | null;
 
   // Actions
-  startSimulation: (config: Omit<SimulationConfig, 'zoneCount' | 'enableRandomFaults' | 'faultProbability' | 'soilingLoss' | 'mismatchLoss'> & Partial<SimulationConfig>) => Promise<void>;
+  startSimulation: (config: Omit<SimulationConfig, 'enableRandomFaults' | 'faultProbability' | 'soilingLoss' | 'mismatchLoss' | 'maxConcurrentPanelFaults'> & Partial<SimulationConfig>) => Promise<void>;
   stopSimulation: () => void;
   triggerUpdate: () => Promise<void>;
 
@@ -56,6 +56,9 @@ interface DigitalTwinState {
   setSoilingLoss: (loss: number) => void;
   setMismatchLoss: (loss: number) => void;
   setEnableRandomFaults: (enabled: boolean) => void;
+
+  // Manual fault injection
+  triggerManualFault: (category: 'inverter' | 'transformer' | 'panel') => void;
 
   // Helpers
   getActiveAlerts: () => DigitalTwinAlert[];
@@ -283,6 +286,36 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
       _simulator.updateConfig({ enableRandomFaults: enabled });
       set({
         currentConfig: { ...currentConfig, enableRandomFaults: enabled },
+      });
+    }
+  },
+
+  triggerManualFault: (category) => {
+    const { _simulator, isActive } = get();
+
+    if (!_simulator || !isActive) {
+      toast.error('Simulation must be active to trigger faults');
+      return;
+    }
+
+    const alert = _simulator.injectFault(category);
+
+    if (alert) {
+      // Add the alert to the store
+      set((state) => ({
+        alerts: [alert, ...state.alerts].slice(0, 100),
+      }));
+
+      // Show toast notification
+      if (alert.severity === 'critical') {
+        toast.error(alert.title, { description: alert.message });
+      } else {
+        toast.warning?.(alert.title, { description: alert.message }) ||
+          toast(alert.title, { description: alert.message });
+      }
+    } else {
+      toast.info(`No available ${category} to fault`, {
+        description: 'All equipment of this type already has active faults',
       });
     }
   },

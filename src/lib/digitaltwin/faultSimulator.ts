@@ -5,7 +5,7 @@
  * Faults are randomly triggered based on configurable probability.
  */
 
-import type { AlertCategory, AlertSeverity, DigitalTwinAlert, FaultScenario, PanelZoneFault, PanelZoneFaultType } from './types';
+import type { AlertCategory, AlertSeverity, DigitalTwinAlert, FaultScenario, PanelFault, PanelFaultType } from './types';
 
 /**
  * Predefined fault scenarios for different equipment types
@@ -114,10 +114,10 @@ export const PERFORMANCE_FAULTS: FaultScenario[] = [
 ];
 
 /**
- * Panel zone fault definitions
+ * Panel fault definitions
  */
-export interface PanelZoneFaultDefinition {
-  type: PanelZoneFaultType;
+export interface PanelFaultDefinition {
+  type: PanelFaultType;
   code: string;
   message: string;
   severity: AlertSeverity;
@@ -127,7 +127,7 @@ export interface PanelZoneFaultDefinition {
   autoClearMs: number;
 }
 
-export const PANEL_ZONE_FAULTS: PanelZoneFaultDefinition[] = [
+export const PANEL_FAULTS: PanelFaultDefinition[] = [
   {
     type: 'hot_spot',
     code: 'PNL_001',
@@ -139,7 +139,7 @@ export const PANEL_ZONE_FAULTS: PanelZoneFaultDefinition[] = [
   {
     type: 'shading',
     code: 'PNL_002',
-    message: 'Partial shading detected on panel zone',
+    message: 'Partial shading detected on panel',
     severity: 'warning',
     performanceImpact: 0.7,
     autoClearMs: 60000, // 1 minute
@@ -162,26 +162,32 @@ export const PANEL_ZONE_FAULTS: PanelZoneFaultDefinition[] = [
   },
 ];
 
+// Legacy alias
+export const PANEL_ZONE_FAULTS = PANEL_FAULTS;
+
 /**
- * Get a random panel zone fault definition
+ * Get a random panel fault definition
  */
-export function getRandomPanelZoneFault(): PanelZoneFaultDefinition {
-  return PANEL_ZONE_FAULTS[Math.floor(Math.random() * PANEL_ZONE_FAULTS.length)];
+export function getRandomPanelFault(): PanelFaultDefinition {
+  return PANEL_FAULTS[Math.floor(Math.random() * PANEL_FAULTS.length)];
 }
 
+// Legacy alias
+export const getRandomPanelZoneFault = getRandomPanelFault;
+
 /**
- * Generate a panel zone fault with probability check
+ * Generate a panel fault with probability check
  */
-export function maybeGeneratePanelZoneFault(
-  zoneId: string,
+export function maybeGeneratePanelFault(
+  panelIndex: number,
   probability: number
-): { fault: PanelZoneFault; alert: DigitalTwinAlert } | null {
+): { fault: PanelFault; alert: DigitalTwinAlert } | null {
   if (!shouldTriggerFault(probability)) return null;
 
-  const faultDef = getRandomPanelZoneFault();
+  const faultDef = getRandomPanelFault();
 
-  const fault: PanelZoneFault = {
-    zoneId,
+  const fault: PanelFault = {
+    panelIndex,
     faultType: faultDef.type,
     startTime: new Date().toISOString(),
     performanceImpact: faultDef.performanceImpact,
@@ -192,15 +198,18 @@ export function maybeGeneratePanelZoneFault(
     timestamp: new Date().toISOString(),
     severity: faultDef.severity,
     category: 'panel',
-    equipmentId: zoneId,
+    equipmentId: `panel-${panelIndex}`,
     title: faultDef.code,
-    message: `${faultDef.message} (Zone ${zoneId.replace('zone-', '')})`,
+    message: `${faultDef.message} (Panel ${panelIndex + 1})`,
     acknowledged: false,
     autoClearMs: faultDef.autoClearMs,
   };
 
   return { fault, alert };
 }
+
+// Legacy alias
+export const maybeGeneratePanelZoneFault = maybeGeneratePanelFault;
 
 /**
  * All fault scenarios combined

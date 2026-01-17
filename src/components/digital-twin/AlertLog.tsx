@@ -17,7 +17,7 @@ interface AlertLogProps {
   onClear: (alertId: string) => void;
   onClearAll: () => void;
   /** Called when alert is clicked to focus on equipment */
-  onAlertClick?: (type: 'inverter' | 'transformer' | 'panel-zone', index: number) => void;
+  onAlertClick?: (type: 'inverter' | 'transformer' | 'panel', index: number) => void;
 }
 
 const severityConfig: Record<AlertSeverity, { icon: typeof AlertTriangle; color: string; badge: string }> = {
@@ -117,9 +117,9 @@ export function AlertLog({
 }
 
 /**
- * Parse equipmentId like "inv-1", "xfr-2", or "zone-A" to get type and 0-based index
+ * Parse equipmentId like "inv-1", "xfr-2", or "panel-0" to get type and 0-based index
  */
-function parseEquipmentId(equipmentId: string): { type: 'inverter' | 'transformer' | 'panel-zone'; index: number } | null {
+function parseEquipmentId(equipmentId: string): { type: 'inverter' | 'transformer' | 'panel'; index: number } | null {
   // Inverter/transformer format: "inv-1", "xfr-2"
   const invXfrMatch = equipmentId.match(/^(inv|xfr)-(\d+)$/);
   if (invXfrMatch) {
@@ -128,11 +128,11 @@ function parseEquipmentId(equipmentId: string): { type: 'inverter' | 'transforme
     return { type, index };
   }
 
-  // Panel zone format: "zone-A", "zone-B"
-  const zoneMatch = equipmentId.match(/^zone-([A-Z])$/);
-  if (zoneMatch) {
-    const index = zoneMatch[1].charCodeAt(0) - 'A'.charCodeAt(0);
-    return { type: 'panel-zone', index };
+  // Panel format: "panel-0", "panel-1", etc. (already 0-based)
+  const panelMatch = equipmentId.match(/^panel-(\d+)$/);
+  if (panelMatch) {
+    const index = parseInt(panelMatch[1], 10);
+    return { type: 'panel', index };
   }
 
   return null;
@@ -147,7 +147,7 @@ function AlertItem({
   alert: DigitalTwinAlert;
   onAcknowledge: (id: string) => void;
   onClear: (id: string) => void;
-  onAlertClick?: (type: 'inverter' | 'transformer' | 'panel-zone', index: number) => void;
+  onAlertClick?: (type: 'inverter' | 'transformer' | 'panel', index: number) => void;
 }) {
   const config = severityConfig[alert.severity];
   const SeverityIcon = config.icon;

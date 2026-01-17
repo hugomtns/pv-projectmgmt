@@ -12,10 +12,10 @@ import type {
   WeatherData,
   InverterTelemetry,
   TransformerTelemetry,
-  PanelZonePerformance,
+  PanelFramePerformance,
   DigitalTwinAlert,
   EquipmentStatus,
-  PanelZoneFault,
+  PanelFault,
 } from './types';
 import {
   calculateCellTemperature,
@@ -27,7 +27,9 @@ import {
   maybeGenerateInverterFault,
   maybeGenerateTransformerFault,
   checkPerformanceThreshold,
-  maybeGeneratePanelZoneFault,
+  maybeGeneratePanelFault,
+  generateRandomFault,
+  getRandomPanelFault,
 } from './faultSimulator';
 
 /**
@@ -42,7 +44,7 @@ export class DigitalTwinSimulator {
   private lastUpdateTime: Date | null = null;
   private activeFaults: Map<string, DigitalTwinAlert> = new Map();
   private activeSystemAlerts: Set<string> = new Set(); // Track system-level alerts by title
-  private activePanelZoneFaults: Map<string, PanelZoneFault> = new Map(); // Track panel zone faults
+  private activePanelFaults: Map<number, PanelFault> = new Map(); // Track individual panel faults by panel index
   private pendingAlerts: DigitalTwinAlert[] = [];
   private dayStartTime: Date | null = null;
 
@@ -134,10 +136,20 @@ export class DigitalTwinSimulator {
   }
 
   /**
-   * Clear a panel zone fault
+   * Clear a panel fault by panel index
    */
-  clearPanelZoneFault(zoneId: string): void {
-    this.activePanelZoneFaults.delete(zoneId);
+  clearPanelFault(panelIndex: number): void {
+    this.activePanelFaults.delete(panelIndex);
+  }
+
+  /**
+   * Legacy method - clear panel fault by equipment ID (e.g., "panel-0")
+   */
+  clearPanelZoneFault(equipmentId: string): void {
+    const match = equipmentId.match(/^panel-(\d+)$/);
+    if (match) {
+      this.activePanelFaults.delete(parseInt(match[1], 10));
+    }
   }
 
   /**
@@ -148,10 +160,10 @@ export class DigitalTwinSimulator {
   }
 
   /**
-   * Check if a panel zone has an active fault
+   * Check if a panel has an active fault
    */
-  private hasActivePanelZoneFault(zoneId: string): boolean {
-    return this.activePanelZoneFaults.has(zoneId);
+  private hasActivePanelFault(panelIndex: number): boolean {
+    return this.activePanelFaults.has(panelIndex);
   }
 
   /**
@@ -200,8 +212,8 @@ export class DigitalTwinSimulator {
     // Generate transformer telemetry
     const transformers = this.simulateTransformers(actualPower);
 
-    // Generate panel zone performance
-    const panelZones = this.simulatePanelZones(effectiveWeather, cellTemp);
+    // Generate individual panel frame performance
+    const panelFrames = this.simulatePanelFrames(effectiveWeather, cellTemp);
 
     // Update energy accumulator
     if (this.lastUpdateTime && actualPower > 0) {
@@ -237,7 +249,7 @@ export class DigitalTwinSimulator {
       },
       inverters,
       transformers,
-      panelZones,
+      panelFrames,
     };
   }
 
@@ -372,72 +384,147 @@ export class DigitalTwinSimulator {
   }
 
   /**
-   * Simulate panel zone performance
+   * Simulate individual panel frame performance
    */
-  private simulatePanelZones(
+  private simulatePanelFrames(
     weather: WeatherData,
     cellTemp: number
-  ): PanelZonePerformance[] {
-    const zones: PanelZonePerformance[] = [];
-    const panelsPerZone = Math.ceil(this.config.panelCount / this.config.zoneCount);
+  ): PanelFramePerformance[] {
+    const panels: PanelFramePerformance[] = [];
+    const maxFaults = this.config.maxConcurrentPanelFaults || 5;
 
-    for (let i = 0; i < this.config.zoneCount; i++) {
-      const zoneId = `zone-${String.fromCharCode(65 + i)}`; // zone-A, zone-B, etc.
-      const startIndex = i * panelsPerZone;
-      const endIndex = Math.min(startIndex + panelsPerZone, this.config.panelCount);
-      const panelIndices = Array.from(
-        { length: endIndex - startIndex },
-        (_, j) => startIndex + j
-      );
+    // Check if we can generate new faults (limit concurrent faults)
+    const canGenerateNewFault =
+      this.config.enableRandomFaults &&
+      this.activePanelFaults.size < maxFaults;
 
-      // Check for new panel zone faults
-      if (this.config.enableRandomFaults && !this.hasActivePanelZoneFault(zoneId)) {
-        // Lower probability for panel faults (they affect larger areas)
-        const result = maybeGeneratePanelZoneFault(
-          zoneId,
-          this.config.faultProbability * 0.3
-        );
+    // Calculate fault probability per panel (much lower since there are many panels)
+    // Scale by panel count to maintain similar overall fault rate
+    const faultProbabilityPerPanel = canGenerateNewFault
+      ? (this.config.faultProbability * 0.3) / Math.max(1, this.config.panelCount / 100)
+      : 0;
+
+    for (let i = 0; i < this.config.panelCount; i++) {
+      // Check for new faults on this panel
+      if (faultProbabilityPerPanel > 0 && !this.hasActivePanelFault(i)) {
+        const result = maybeGeneratePanelFault(i, faultProbabilityPerPanel);
         if (result) {
-          this.activePanelZoneFaults.set(zoneId, result.fault);
+          this.activePanelFaults.set(i, result.fault);
           this.addAlert(result.alert);
 
           // Schedule auto-clear if applicable
           if (result.alert.autoClearMs && result.alert.autoClearMs > 0) {
             setTimeout(() => {
-              this.activePanelZoneFaults.delete(zoneId);
+              this.activePanelFaults.delete(i);
             }, result.alert.autoClearMs);
           }
         }
       }
 
-      // Add variation between zones (+/- 10%)
-      let zoneVariation = 0.9 + Math.random() * 0.2;
+      // Add variation per panel (+/- 5%)
+      let variation = 0.95 + Math.random() * 0.1;
 
-      // Soiling varies by zone
-      const zoneSoiling = this.config.soilingLoss * (0.8 + Math.random() * 0.4);
-
-      // Apply fault effects if zone has an active fault
-      const activeFault = this.activePanelZoneFaults.get(zoneId);
-      let faultType = activeFault?.faultType;
+      // Apply fault effects if panel has an active fault
+      const activeFault = this.activePanelFaults.get(i);
+      const faultType = activeFault?.faultType;
       if (activeFault) {
-        // Apply performance impact from fault
-        zoneVariation *= activeFault.performanceImpact;
+        variation *= activeFault.performanceImpact;
       }
 
-      zones.push({
-        zoneId,
-        panelIndices,
-        avgIrradiance: weather.irradiance * zoneVariation,
-        avgTemperature: activeFault?.faultType === 'hot_spot'
-          ? cellTemp + 20 + Math.random() * 15 // Hot spot: significantly elevated temperature
-          : cellTemp + (Math.random() - 0.5) * 5,
-        performanceIndex: zoneVariation * (1 - zoneSoiling),
-        soilingFactor: 1 - zoneSoiling,
+      // Calculate temperature - elevated for hot spot faults
+      const temperature = activeFault?.faultType === 'hot_spot'
+        ? cellTemp + 20 + Math.random() * 15
+        : cellTemp + (Math.random() - 0.5) * 3;
+
+      panels.push({
+        panelIndex: i,
+        avgIrradiance: weather.irradiance * variation,
+        temperature,
+        performanceIndex: variation,
         faultType,
       });
     }
 
-    return zones;
+    return panels;
+  }
+
+  /**
+   * Inject a fault manually for testing
+   * @param category The category of equipment to fault
+   * @returns The generated alert, or null if no suitable equipment found
+   */
+  public injectFault(category: 'inverter' | 'transformer' | 'panel'): DigitalTwinAlert | null {
+    if (category === 'inverter') {
+      // Find an inverter without an active fault
+      for (let i = 0; i < this.config.inverterCount; i++) {
+        const equipmentId = `inv-${i + 1}`;
+        if (!this.hasActiveFault(equipmentId)) {
+          const alert = generateRandomFault('inverter', equipmentId);
+          if (alert) {
+            this.addAlert(alert);
+            return alert;
+          }
+        }
+      }
+    } else if (category === 'transformer') {
+      // Find a transformer without an active fault
+      for (let i = 0; i < this.config.transformerCount; i++) {
+        const equipmentId = `xfr-${i + 1}`;
+        if (!this.hasActiveFault(equipmentId)) {
+          const alert = generateRandomFault('transformer', equipmentId);
+          if (alert) {
+            this.addAlert(alert);
+            return alert;
+          }
+        }
+      }
+    } else if (category === 'panel') {
+      // Find a random panel without an active fault
+      const availablePanels: number[] = [];
+      for (let i = 0; i < this.config.panelCount; i++) {
+        if (!this.hasActivePanelFault(i)) {
+          availablePanels.push(i);
+        }
+      }
+
+      if (availablePanels.length > 0) {
+        const panelIndex = availablePanels[Math.floor(Math.random() * availablePanels.length)];
+        const faultDef = getRandomPanelFault();
+
+        const fault: PanelFault = {
+          panelIndex,
+          faultType: faultDef.type,
+          startTime: new Date().toISOString(),
+          performanceImpact: faultDef.performanceImpact,
+        };
+
+        const alert: DigitalTwinAlert = {
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          severity: faultDef.severity,
+          category: 'panel',
+          equipmentId: `panel-${panelIndex}`,
+          title: faultDef.code,
+          message: `${faultDef.message} (Panel ${panelIndex + 1})`,
+          acknowledged: false,
+          autoClearMs: faultDef.autoClearMs,
+        };
+
+        this.activePanelFaults.set(panelIndex, fault);
+        this.addAlert(alert);
+
+        // Schedule auto-clear if applicable
+        if (alert.autoClearMs && alert.autoClearMs > 0) {
+          setTimeout(() => {
+            this.activePanelFaults.delete(panelIndex);
+          }, alert.autoClearMs);
+        }
+
+        return alert;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -468,11 +555,11 @@ export function createSimulator(config: Partial<SimulationConfig> & {
     inverterCount: 1,
     transformerCount: 1,
     panelCount: 100,
-    zoneCount: 4,
     enableRandomFaults: true,
     faultProbability: 0.01,
     soilingLoss: 0.02,
     mismatchLoss: 0.02,
+    maxConcurrentPanelFaults: 5,
     ...config,
   };
 

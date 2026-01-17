@@ -103,25 +103,24 @@ export interface TransformerTelemetry {
 }
 
 // ============================================================================
-// Panel Zone Performance
+// Panel Frame Performance (Individual Panels)
 // ============================================================================
 
-export interface PanelZonePerformance {
-  /** Zone identifier */
-  zoneId: string;
-  /** Indices of panels in this zone */
-  panelIndices: number[];
-  /** Average irradiance for zone in W/m2 */
+export interface PanelFramePerformance {
+  /** Panel index (0-based, matches parsedData.panels array) */
+  panelIndex: number;
+  /** Average irradiance for panel in W/m² */
   avgIrradiance: number;
-  /** Average cell temperature in Celsius */
-  avgTemperature: number;
+  /** Cell temperature in Celsius */
+  temperature: number;
   /** Performance index (0-1, relative to expected) */
   performanceIndex: number;
-  /** Soiling factor (0-1, 1 = clean) */
-  soilingFactor: number;
-  /** Active fault type if zone has a fault */
-  faultType?: PanelZoneFaultType;
+  /** Active fault type if panel has a fault */
+  faultType?: PanelFaultType;
 }
+
+// Legacy type alias for backward compatibility
+export type PanelZonePerformance = PanelFramePerformance;
 
 // ============================================================================
 // Telemetry Snapshot
@@ -140,8 +139,8 @@ export interface TelemetrySnapshot {
   inverters: InverterTelemetry[];
   /** Transformer telemetry array */
   transformers: TransformerTelemetry[];
-  /** Panel zone performance data */
-  panelZones: PanelZonePerformance[];
+  /** Individual panel frame performance data */
+  panelFrames: PanelFramePerformance[];
 }
 
 // ============================================================================
@@ -152,21 +151,27 @@ export type AlertSeverity = 'info' | 'warning' | 'critical';
 export type AlertCategory = 'inverter' | 'transformer' | 'performance' | 'communication' | 'weather' | 'panel';
 
 // ============================================================================
-// Panel Zone Faults
+// Panel Faults
 // ============================================================================
 
-export type PanelZoneFaultType = 'hot_spot' | 'shading' | 'soiling_heavy' | 'module_degradation';
+export type PanelFaultType = 'hot_spot' | 'shading' | 'soiling_heavy' | 'module_degradation';
 
-export interface PanelZoneFault {
-  /** Zone ID affected */
-  zoneId: string;
+// Legacy type alias for backward compatibility
+export type PanelZoneFaultType = PanelFaultType;
+
+export interface PanelFault {
+  /** Panel index affected (0-based) */
+  panelIndex: number;
   /** Type of fault */
-  faultType: PanelZoneFaultType;
+  faultType: PanelFaultType;
   /** When the fault started (ISO string) */
   startTime: string;
   /** Performance impact multiplier (0-1, e.g., 0.5 = 50% of normal) */
   performanceImpact: number;
 }
+
+// Legacy type alias for backward compatibility
+export type PanelZoneFault = PanelFault;
 
 export interface DigitalTwinAlert {
   /** Unique alert ID */
@@ -225,8 +230,6 @@ export interface SimulationConfig {
   transformerCount: number;
   /** Total panel count */
   panelCount: number;
-  /** Number of panel zones for heatmap */
-  zoneCount: number;
   /** Enable random fault generation */
   enableRandomFaults: boolean;
   /** Fault probability per update cycle (0-1) */
@@ -235,12 +238,14 @@ export interface SimulationConfig {
   soilingLoss: number;
   /** Mismatch loss (0-1, default 0.02) */
   mismatchLoss: number;
+  /** Maximum concurrent panel faults (default 5) */
+  maxConcurrentPanelFaults: number;
 }
 
 export const DEFAULT_SIMULATION_CONFIG: Partial<SimulationConfig> = {
-  zoneCount: 4,
   enableRandomFaults: true,
   faultProbability: 0.01,
   soilingLoss: 0.02,
   mismatchLoss: 0.02,
+  maxConcurrentPanelFaults: 5,
 };

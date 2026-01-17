@@ -1,10 +1,15 @@
 /**
- * PanelZoneStatusGrid - Grid display of panel zone status
+ * PanelZoneStatusGrid - Grid display of individual panel frame status
+ *
+ * Shows each panel's performance status with fault indicators.
+ * Supports clicking to focus camera on specific panels.
  */
 
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import {
   LayoutGrid,
   CheckCircle2,
@@ -14,19 +19,20 @@ import {
   Cloud,
   Droplets,
   Activity,
+  Search,
 } from 'lucide-react';
-import type { PanelZonePerformance, PanelZoneFaultType } from '@/lib/digitaltwin/types';
+import type { PanelFramePerformance, PanelFaultType } from '@/lib/digitaltwin/types';
 import { cn } from '@/lib/utils';
 
 interface PanelZoneStatusGridProps {
-  panelZones: PanelZonePerformance[] | undefined;
-  /** Called when zone card is clicked - index is 0-based */
-  onZoneClick?: (zoneIndex: number) => void;
+  panelZones: PanelFramePerformance[] | undefined;
+  /** Called when panel card is clicked - index is the panel index */
+  onZoneClick?: (panelIndex: number) => void;
 }
 
-type ZoneStatus = 'healthy' | 'warning' | 'fault';
+type PanelStatus = 'healthy' | 'warning' | 'fault';
 
-const statusConfig: Record<ZoneStatus, { icon: typeof CheckCircle2; color: string; bg: string }> = {
+const statusConfig: Record<PanelStatus, { icon: typeof CheckCircle2; color: string; bg: string }> = {
   healthy: {
     icon: CheckCircle2,
     color: 'text-green-600 dark:text-green-400',
@@ -44,7 +50,7 @@ const statusConfig: Record<ZoneStatus, { icon: typeof CheckCircle2; color: strin
   },
 };
 
-const faultConfig: Record<PanelZoneFaultType, { icon: typeof Flame; label: string; color: string }> = {
+const faultConfig: Record<PanelFaultType, { icon: typeof Flame; label: string; color: string }> = {
   hot_spot: {
     icon: Flame,
     label: 'Hot Spot',
@@ -67,28 +73,62 @@ const faultConfig: Record<PanelZoneFaultType, { icon: typeof Flame; label: strin
   },
 };
 
-function getZoneStatus(zone: PanelZonePerformance): ZoneStatus {
-  if (zone.faultType) return 'fault';
-  if (zone.performanceIndex < 0.8) return 'warning';
+function getPanelStatus(panel: PanelFramePerformance): PanelStatus {
+  if (panel.faultType) return 'fault';
+  if (panel.performanceIndex < 0.8) return 'warning';
   return 'healthy';
 }
 
-function getZoneName(index: number): string {
-  return `Zone ${String.fromCharCode(65 + index)}`;
-}
-
 export function PanelZoneStatusGrid({
-  panelZones,
-  onZoneClick,
+  panelZones: panelFrames,
+  onZoneClick: onPanelClick,
 }: PanelZoneStatusGridProps) {
-  const hasZones = panelZones && panelZones.length > 0;
+  const [searchFilter, setSearchFilter] = useState('');
 
-  if (!hasZones) {
+  const hasPanels = panelFrames && panelFrames.length > 0;
+
+  // Count statuses
+  const counts = useMemo(() => {
+    if (!hasPanels) return { healthy: 0, warning: 0, fault: 0 };
+    return countStatuses(panelFrames);
+  }, [panelFrames, hasPanels]);
+
+  // Filter panels with faults first, then by search term
+  const displayPanels = useMemo(() => {
+    if (!hasPanels) return [];
+
+    // Separate faulted panels from healthy ones
+    const faultedPanels = panelFrames.filter((p) => p.faultType);
+    const nonFaultedPanels = panelFrames.filter((p) => !p.faultType);
+
+    // If there are faults, show faulted panels first
+    const sorted = [...faultedPanels, ...nonFaultedPanels];
+
+    // Apply search filter
+    if (searchFilter) {
+      const searchNum = parseInt(searchFilter, 10);
+      if (!isNaN(searchNum)) {
+        // Filter by panel number (1-based in search)
+        return sorted.filter((p) => (p.panelIndex + 1).toString().includes(searchFilter));
+      }
+    }
+
+    // For large panel counts, limit display to first 100 + all faulted panels
+    if (sorted.length > 100) {
+      const faultedCount = faultedPanels.length;
+      return sorted.slice(0, Math.max(100, faultedCount));
+    }
+
+    return sorted;
+  }, [panelFrames, hasPanels, searchFilter]);
+
+  if (!hasPanels) {
     return null;
   }
 
-  // Count statuses
-  const counts = countStatuses(panelZones);
+  const showSearch = panelFrames.length > 20;
+  const totalPanels = panelFrames.length;
+  const displayedPanels = displayPanels.length;
 
   return (
     <div className="p-3">
@@ -97,23 +137,40 @@ export function PanelZoneStatusGrid({
           <CardTitle className="text-sm flex items-center justify-between">
             <span className="flex items-center gap-2">
               <LayoutGrid className="h-4 w-4" />
-              Panel Frames ({panelZones.length})
+              Panel Frames ({totalPanels})
             </span>
             <StatusSummary counts={counts} />
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-3 pt-0">
-          <ScrollArea className="h-[160px]">
-            <div className="grid grid-cols-2 gap-2">
-              {panelZones.map((zone, index) => (
-                <ZoneCard
-                  key={zone.zoneId}
-                  zone={zone}
-                  index={index}
-                  onClick={onZoneClick ? () => onZoneClick(index) : undefined}
+        <CardContent className="p-3 pt-0 space-y-2">
+          {/* Search filter for large panel counts */}
+          {showSearch && (
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <Input
+                placeholder="Search panel #..."
+                value={searchFilter}
+                onChange={(e) => setSearchFilter(e.target.value)}
+                className="h-7 text-xs pl-7"
+              />
+            </div>
+          )}
+
+          <ScrollArea className="h-[200px]">
+            <div className="grid grid-cols-3 gap-1.5">
+              {displayPanels.map((panel) => (
+                <PanelCard
+                  key={panel.panelIndex}
+                  panel={panel}
+                  onClick={onPanelClick ? () => onPanelClick(panel.panelIndex) : undefined}
                 />
               ))}
             </div>
+            {displayedPanels < totalPanels && !searchFilter && (
+              <p className="text-[10px] text-muted-foreground text-center mt-2">
+                Showing {displayedPanels} of {totalPanels} panels (faulted panels shown first)
+              </p>
+            )}
           </ScrollArea>
         </CardContent>
       </Card>
@@ -122,22 +179,22 @@ export function PanelZoneStatusGrid({
 }
 
 function countStatuses(
-  zones: PanelZonePerformance[]
-): Record<ZoneStatus, number> {
-  const counts: Record<ZoneStatus, number> = {
+  panels: PanelFramePerformance[]
+): Record<PanelStatus, number> {
+  const counts: Record<PanelStatus, number> = {
     healthy: 0,
     warning: 0,
     fault: 0,
   };
 
-  zones.forEach((z) => {
-    counts[getZoneStatus(z)]++;
+  panels.forEach((p) => {
+    counts[getPanelStatus(p)]++;
   });
 
   return counts;
 }
 
-function StatusSummary({ counts }: { counts: Record<ZoneStatus, number> }) {
+function StatusSummary({ counts }: { counts: Record<PanelStatus, number> }) {
   return (
     <div className="flex gap-1">
       {counts.healthy > 0 && (
@@ -159,17 +216,17 @@ function StatusSummary({ counts }: { counts: Record<ZoneStatus, number> }) {
   );
 }
 
-function ZoneCard({ zone, index, onClick }: { zone: PanelZonePerformance; index: number; onClick?: () => void }) {
-  const status = getZoneStatus(zone);
+function PanelCard({ panel, onClick }: { panel: PanelFramePerformance; onClick?: () => void }) {
+  const status = getPanelStatus(panel);
   const config = statusConfig[status];
   const StatusIcon = config.icon;
-  const fault = zone.faultType ? faultConfig[zone.faultType] : null;
+  const fault = panel.faultType ? faultConfig[panel.faultType] : null;
   const FaultIcon = fault?.icon;
 
   return (
     <div
       className={cn(
-        'p-2 rounded-md text-xs',
+        'p-1.5 rounded-md text-[10px]',
         config.bg,
         onClick && 'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow'
       )}
@@ -178,21 +235,19 @@ function ZoneCard({ zone, index, onClick }: { zone: PanelZonePerformance; index:
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
     >
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-medium">{getZoneName(index)}</span>
-        <StatusIcon className={cn('h-3.5 w-3.5', config.color)} />
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="font-medium">#{panel.panelIndex + 1}</span>
+        <StatusIcon className={cn('h-3 w-3', config.color)} />
       </div>
-      <div className="text-muted-foreground">
+      <div className="text-muted-foreground truncate">
         {fault && FaultIcon ? (
-          <span className={cn('flex items-center gap-1', fault.color)}>
-            <FaultIcon className="h-3 w-3" />
+          <span className={cn('flex items-center gap-0.5', fault.color)}>
+            <FaultIcon className="h-2.5 w-2.5" />
             {fault.label}
           </span>
         ) : (
           <>
-            {zone.avgTemperature.toFixed(0)}°C
-            <span className="mx-1">|</span>
-            {(zone.performanceIndex * 100).toFixed(0)}%
+            {panel.temperature.toFixed(0)}°C | {(panel.performanceIndex * 100).toFixed(0)}%
           </>
         )}
       </div>

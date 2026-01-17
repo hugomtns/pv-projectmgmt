@@ -2,8 +2,10 @@
  * SimulationSettingsDialog - Configuration dialog for Digital Twin simulation
  *
  * Allows users to configure fault probability, losses, and other simulation parameters.
+ * Also provides manual fault triggering for testing.
  */
 
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -22,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Settings2, Zap, CloudRain, AlertTriangle, Timer } from 'lucide-react';
+import { Settings2, Zap, CloudRain, AlertTriangle, Timer, FlaskConical } from 'lucide-react';
 import { useDigitalTwinStore } from '@/stores/digitalTwinStore';
 
 interface SimulationSettingsDialogProps {
@@ -34,7 +37,10 @@ export function SimulationSettingsDialog({
   open,
   onOpenChange,
 }: SimulationSettingsDialogProps) {
+  const [faultTarget, setFaultTarget] = useState<'inverter' | 'transformer' | 'panel'>('inverter');
+
   const {
+    isActive,
     currentConfig,
     updateIntervalMs,
     setFaultProbability,
@@ -42,11 +48,16 @@ export function SimulationSettingsDialog({
     setMismatchLoss,
     setEnableRandomFaults,
     setUpdateInterval,
+    triggerManualFault,
   } = useDigitalTwinStore();
 
   if (!currentConfig) {
     return null;
   }
+
+  const handleTriggerFault = () => {
+    triggerManualFault(faultTarget);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -132,6 +143,41 @@ export function SimulationSettingsDialog({
                 </p>
               </div>
             )}
+
+            {/* Manual Fault Trigger */}
+            <div className="space-y-3 pt-3 border-t">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <FlaskConical className="h-4 w-4" />
+                Trigger Test Fault
+              </div>
+              <div className="flex gap-2">
+                <Select
+                  value={faultTarget}
+                  onValueChange={(value) => setFaultTarget(value as 'inverter' | 'transformer' | 'panel')}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select equipment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="inverter">Inverter</SelectItem>
+                    <SelectItem value="transformer">Transformer</SelectItem>
+                    <SelectItem value="panel">Panel Frame</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleTriggerFault}
+                  disabled={!isActive}
+                >
+                  <Zap className="h-4 w-4 mr-1" />
+                  Trigger
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Manually inject a random fault for testing. Simulation must be active.
+              </p>
+            </div>
           </div>
 
           <Separator />
