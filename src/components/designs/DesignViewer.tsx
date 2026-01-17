@@ -14,6 +14,7 @@ import { ImageGenerationModal } from './ImageGenerationModal';
 import { DesignYieldModal } from './DesignYieldModal';
 import { BOQModal } from '@/components/boq';
 import { DigitalTwinPanel } from '@/components/digital-twin';
+import { useDigitalTwinStore } from '@/stores/digitalTwinStore';
 import { toast } from 'sonner';
 import type { DesignContext } from '@/lib/gemini';
 import type { DXFGeoData } from '@/lib/dxf/types';
@@ -80,16 +81,28 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     }, []);
 
     // Handle equipment click from Digital Twin panel → focus camera on equipment
-    const handleEquipmentClick = useCallback((type: 'inverter' | 'transformer', index: number) => {
+    const handleEquipmentClick = useCallback((type: 'inverter' | 'transformer' | 'panel-zone', index: number) => {
         const parsedData = pv3DCanvasRef.current?.parsedData;
         if (!parsedData) return;
 
-        // Filter to get equipment of the specified type
-        const equipmentOfType = parsedData.electrical.filter(e => e.type === type);
-        const equipment = equipmentOfType[index];
+        if (type === 'panel-zone') {
+            // Get the zone's panel indices from telemetry
+            const telemetry = useDigitalTwinStore.getState().currentSnapshot;
+            if (!telemetry?.panelZones?.[index]) return;
 
-        if (equipment) {
-            pv3DCanvasRef.current?.focusOnElement(type, equipment.id);
+            const zone = telemetry.panelZones[index];
+            // Focus on the center panel of the zone
+            const middleIdx = Math.floor(zone.panelIndices.length / 2);
+            const targetPanelIndex = zone.panelIndices[middleIdx];
+            pv3DCanvasRef.current?.focusOnElement('panel', String(targetPanelIndex));
+        } else {
+            // Filter to get equipment of the specified type
+            const equipmentOfType = parsedData.electrical.filter(e => e.type === type);
+            const equipment = equipmentOfType[index];
+
+            if (equipment) {
+                pv3DCanvasRef.current?.focusOnElement(type, equipment.id);
+            }
         }
     }, []);
 

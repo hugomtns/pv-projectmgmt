@@ -17,7 +17,7 @@ interface AlertLogProps {
   onClear: (alertId: string) => void;
   onClearAll: () => void;
   /** Called when alert is clicked to focus on equipment */
-  onAlertClick?: (type: 'inverter' | 'transformer', index: number) => void;
+  onAlertClick?: (type: 'inverter' | 'transformer' | 'panel-zone', index: number) => void;
 }
 
 const severityConfig: Record<AlertSeverity, { icon: typeof AlertTriangle; color: string; badge: string }> = {
@@ -117,16 +117,25 @@ export function AlertLog({
 }
 
 /**
- * Parse equipmentId like "inv-1" or "xfr-2" to get type and 0-based index
+ * Parse equipmentId like "inv-1", "xfr-2", or "zone-A" to get type and 0-based index
  */
-function parseEquipmentId(equipmentId: string): { type: 'inverter' | 'transformer'; index: number } | null {
-  const match = equipmentId.match(/^(inv|xfr)-(\d+)$/);
-  if (!match) return null;
+function parseEquipmentId(equipmentId: string): { type: 'inverter' | 'transformer' | 'panel-zone'; index: number } | null {
+  // Inverter/transformer format: "inv-1", "xfr-2"
+  const invXfrMatch = equipmentId.match(/^(inv|xfr)-(\d+)$/);
+  if (invXfrMatch) {
+    const type = invXfrMatch[1] === 'inv' ? 'inverter' : 'transformer';
+    const index = parseInt(invXfrMatch[2], 10) - 1; // Convert 1-based to 0-based
+    return { type, index };
+  }
 
-  const type = match[1] === 'inv' ? 'inverter' : 'transformer';
-  const index = parseInt(match[2], 10) - 1; // Convert 1-based to 0-based
+  // Panel zone format: "zone-A", "zone-B"
+  const zoneMatch = equipmentId.match(/^zone-([A-Z])$/);
+  if (zoneMatch) {
+    const index = zoneMatch[1].charCodeAt(0) - 'A'.charCodeAt(0);
+    return { type: 'panel-zone', index };
+  }
 
-  return { type, index };
+  return null;
 }
 
 function AlertItem({
@@ -138,7 +147,7 @@ function AlertItem({
   alert: DigitalTwinAlert;
   onAcknowledge: (id: string) => void;
   onClear: (id: string) => void;
-  onAlertClick?: (type: 'inverter' | 'transformer', index: number) => void;
+  onAlertClick?: (type: 'inverter' | 'transformer' | 'panel-zone', index: number) => void;
 }) {
   const config = severityConfig[alert.severity];
   const SeverityIcon = config.icon;

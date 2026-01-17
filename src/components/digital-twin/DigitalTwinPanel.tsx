@@ -16,6 +16,7 @@ import { useDesignStore } from '@/stores/designStore';
 import { WeatherWidget } from './WeatherWidget';
 import { TelemetryGauges } from './TelemetryGauges';
 import { EquipmentStatusGrid } from './EquipmentStatusGrid';
+import { PanelZoneStatusGrid } from './PanelZoneStatusGrid';
 import { AlertLog } from './AlertLog';
 import { SimulationSettingsDialog } from './SimulationSettingsDialog';
 import type { SimulationConfig } from '@/lib/digitaltwin/types';
@@ -33,7 +34,7 @@ interface DigitalTwinPanelProps {
   /** Equipment counts from parsed DXF */
   equipmentCounts?: EquipmentCounts | null;
   /** Callback when equipment card is clicked - focuses camera on equipment */
-  onEquipmentClick?: (type: 'inverter' | 'transformer', index: number) => void;
+  onEquipmentClick?: (type: 'inverter' | 'transformer' | 'panel-zone', index: number) => void;
 }
 
 export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, onEquipmentClick }: DigitalTwinPanelProps) {
@@ -150,6 +151,12 @@ export function DigitalTwinPanel({ designId, onActiveChange, equipmentCounts, on
             inverters={currentSnapshot.inverters}
             transformers={currentSnapshot.transformers}
             onEquipmentClick={onEquipmentClick}
+          />
+
+          {/* Panel Frames Status */}
+          <PanelZoneStatusGrid
+            panelZones={currentSnapshot.panelZones}
+            onZoneClick={(index) => onEquipmentClick?.('panel-zone', index)}
           />
 
           {/* Alerts */}
