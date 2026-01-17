@@ -11,6 +11,7 @@ import { parseDXFFromURL } from '@/lib/dxf/parser';
 import { getElementPosition } from './cameraUtils';
 import type { DXFParsedData, DXFGeoData, PanelGeometry } from '@/lib/dxf/types';
 import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
+import { useDigitalTwinStore } from '@/stores/digitalTwinStore';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -44,6 +45,12 @@ export interface PV3DCanvasRef {
   parsedData: DXFParsedData | null;
 }
 
+export interface EquipmentCounts {
+  inverterCount: number;
+  transformerCount: number;
+  panelCount: number;
+}
+
 interface PV3DCanvasProps {
   designId: string;
   versionId: string;
@@ -53,6 +60,9 @@ interface PV3DCanvasProps {
   highlightedElementKey?: string | null;
   onBadgeClick?: (elementType: string, elementId: string) => void;
   onGeoDataExtracted?: (geoData: DXFGeoData) => void;
+  onEquipmentDetected?: (counts: EquipmentCounts) => void;
+  // Digital Twin
+  digitalTwinActive?: boolean;
 }
 
 type CameraMode = '3d' | '2d';
@@ -70,6 +80,8 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   highlightedElementKey,
   onBadgeClick,
   onGeoDataExtracted,
+  onEquipmentDetected,
+  digitalTwinActive = false,
 }, ref) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
@@ -96,7 +108,12 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
     boundaries: true,
     electrical: true,
     trees: true,
+    digitalTwinMetrics: true,
+    performanceHeatmap: true,
   });
+
+  // Digital Twin telemetry
+  const telemetry = useDigitalTwinStore((state) => state.currentSnapshot);
 
   // Load and parse DXF file when URL changes
   useEffect(() => {
@@ -141,6 +158,19 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
       onGeoDataExtracted(parsedData.geoData);
     }
   }, [parsedData?.geoData, gpsCoordinates, onGeoDataExtracted]);
+
+  // Notify parent of equipment counts from parsed DXF (for Digital Twin simulation)
+  useEffect(() => {
+    if (parsedData && onEquipmentDetected) {
+      const inverterCount = parsedData.electrical.filter(e => e.type === 'inverter').length;
+      const transformerCount = parsedData.electrical.filter(e => e.type === 'transformer').length;
+      onEquipmentDetected({
+        inverterCount: inverterCount || 1, // At least 1 for simulation
+        transformerCount: transformerCount || 1,
+        panelCount: parsedData.panels.length || 100,
+      });
+    }
+  }, [parsedData, onEquipmentDetected]);
 
   // Handle panel selection (for non-comment mode)
   const handlePanelClick = (index: number, panel: PanelGeometry) => {
@@ -223,6 +253,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         onShowPinsChange={setShowPins}
         visibility={visibility}
         onVisibilityChange={setVisibility}
+        digitalTwinActive={digitalTwinActive}
       />
 
       {/* Loading overlay */}
@@ -285,6 +316,10 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
             onBadgeClick={onBadgeClick}
             highlightedElementKey={highlightedElementKey}
             showPins={showPins}
+            telemetry={digitalTwinActive ? telemetry : null}
+            showDigitalTwinMetrics={digitalTwinActive && visibility.digitalTwinMetrics}
+            showPerformanceHeatmap={digitalTwinActive && visibility.performanceHeatmap}
+            cameraMode={cameraMode}
           />
         )}
 

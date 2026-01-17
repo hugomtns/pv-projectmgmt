@@ -13,10 +13,13 @@ import { useMemo } from 'react';
 import { Line } from '@react-three/drei';
 import type { DXFParsedData, PanelGeometry, BoundaryGeometry, ElectricalComponent } from '@/lib/dxf/types';
 import type { ElementAnchor } from '@/lib/types';
+import type { TelemetrySnapshot } from '@/lib/digitaltwin/types';
 import { PanelInstances } from './PanelInstances';
 import { Equipment3D } from './Equipment3D';
 import { Tree3D } from './Tree3D';
 import { ElementCommentMarkers } from './ElementCommentMarkers';
+import { EquipmentStatusOverlay } from './EquipmentStatusOverlay';
+// PanelHeatmap is no longer needed - performance colors are applied directly to panel instances
 
 interface PVLayoutRendererProps {
   parsedData: DXFParsedData;
@@ -35,6 +38,12 @@ interface PVLayoutRendererProps {
   onBadgeClick?: (elementType: string, elementId: string) => void;
   highlightedElementKey?: string | null;
   showPins?: boolean;
+  // Digital Twin
+  telemetry?: TelemetrySnapshot | null;
+  showDigitalTwinMetrics?: boolean;
+  showPerformanceHeatmap?: boolean;
+  // Camera mode (affects how overlays render)
+  cameraMode?: '3d' | '2d';
 }
 
 export function PVLayoutRenderer({
@@ -52,6 +61,10 @@ export function PVLayoutRenderer({
   onBadgeClick,
   highlightedElementKey,
   showPins = true,
+  telemetry,
+  showDigitalTwinMetrics = false,
+  showPerformanceHeatmap = false,
+  cameraMode = '3d',
 }: PVLayoutRendererProps) {
   // Center offset to position layout at origin
   const centerOffset = useMemo(() => ({
@@ -69,6 +82,8 @@ export function PVLayoutRenderer({
           onPanelClick={onPanelClick}
           elementCommentMode={elementCommentMode}
           onElementSelected={onElementSelected}
+          panelFrames={telemetry?.panelFrames}
+          showPerformanceColors={showPerformanceHeatmap}
         />
       )}
 
@@ -108,6 +123,20 @@ export function PVLayoutRenderer({
           showPins={showPins}
         />
       )}
+
+      {/* Digital Twin: Equipment Status Overlay */}
+      {telemetry && showDigitalTwinMetrics && (
+        <EquipmentStatusOverlay
+          equipment={parsedData.electrical}
+          telemetry={telemetry}
+          showMetrics={cameraMode === '3d'}
+        />
+      )}
+
+      {/* Digital Twin: Panel Performance Heatmap
+          Note: Performance colors are now applied directly to panel instances
+          via the showPerformanceColors prop, replacing the separate overlay.
+          The PanelHeatmap component is kept for reference but no longer rendered. */}
     </group>
   );
 }

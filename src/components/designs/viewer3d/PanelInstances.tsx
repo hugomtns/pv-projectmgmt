@@ -10,6 +10,7 @@ import { InstancedMesh, Object3D, Color, DoubleSide } from 'three';
 import { Line } from '@react-three/drei';
 import type { PanelGeometry } from '@/lib/dxf/types';
 import type { ElementAnchor } from '@/lib/types';
+import type { PanelFramePerformance, PanelFaultType } from '@/lib/digitaltwin/types';
 
 interface PanelInstancesProps {
   panels: PanelGeometry[];
@@ -18,6 +19,9 @@ interface PanelInstancesProps {
   // Element comment mode
   elementCommentMode?: boolean;
   onElementSelected?: (element: ElementAnchor) => void;
+  // Digital Twin performance data (individual panel frames)
+  panelFrames?: PanelFramePerformance[];
+  showPerformanceColors?: boolean;
 }
 
 // Default panel table dimensions (in meters) - fallback if not in extended data
@@ -36,12 +40,81 @@ const MODULE_FRAME_INSET = 0.015; // 15mm inset from module edge (makes silver f
 const PANEL_COLOR = new Color('#0a1628'); // Dark blue-black (like real monocrystalline cells)
 const PANEL_FRAME_COLOR = new Color('#e2e8f0'); // Light silver/white frame (like real aluminum)
 
+// Performance color cache
+const performanceColorCache = new Map<number, Color>();
+
+// Fault colors (cached)
+const faultColorCache = new Map<PanelFaultType, Color>();
+
+/**
+ * Get color based on performance index using HSL interpolation
+ * 1.0 = green (excellent), 0.7 = yellow (moderate), 0.5 = red (poor)
+ */
+function getPerformanceColor(performanceIndex: number): Color {
+  // Round to 2 decimal places for cache key
+  const cacheKey = Math.round(performanceIndex * 100);
+
+  const cached = performanceColorCache.get(cacheKey);
+  if (cached) return cached;
+
+  // Clamp to 0-1 range
+  const normalized = Math.max(0, Math.min(1, performanceIndex));
+
+  // HSL color mapping: green (120°) -> yellow (60°) -> red (0°)
+  // Performance 1.0 = 120° (green), Performance 0.5 = 0° (red)
+  const hue = normalized * 0.33; // 0.33 = 120°/360°
+
+  const color = new Color();
+  color.setHSL(hue, 0.7, 0.45); // Slightly muted saturation for better visual
+
+  performanceColorCache.set(cacheKey, color);
+  return color;
+}
+
+/**
+ * Get color for a panel fault type
+ * Returns distinct colors for different fault types
+ */
+function getFaultColor(faultType: PanelFaultType): Color {
+  const cached = faultColorCache.get(faultType);
+  if (cached) return cached;
+
+  const color = new Color();
+
+  switch (faultType) {
+    case 'hot_spot':
+      // Bright red-orange for overheating
+      color.setHSL(0.02, 0.9, 0.5); // ~7° hue
+      break;
+    case 'shading':
+      // Dark purple/blue for shading
+      color.setHSL(0.7, 0.6, 0.35); // ~252° hue
+      break;
+    case 'soiling_heavy':
+      // Brown/tan for heavy soiling
+      color.setHSL(0.08, 0.5, 0.4); // ~29° hue
+      break;
+    case 'module_degradation':
+      // Deep red for degradation (critical)
+      color.setHSL(0, 0.8, 0.4); // 0° hue (red)
+      break;
+    default:
+      // Fallback to orange
+      color.setHSL(0.05, 0.8, 0.5);
+  }
+
+  faultColorCache.set(faultType, color);
+  return color;
+}
+
 export function PanelInstances({
   panels,
   selectedIndex,
   onPanelClick: _onPanelClick, // Unused - interaction only in comment mode
   elementCommentMode = false,
   onElementSelected,
+  panelFrames,
+  showPerformanceColors = false,
 }: PanelInstancesProps) {
   const moduleRef = useRef<InstancedMesh>(null);
   const moduleFrameRef = useRef<InstancedMesh>(null);
@@ -69,6 +142,26 @@ export function PanelInstances({
 
     return { totalModules: total, moduleToPanel: mapping };
   }, [panels]);
+
+  // Create a mapping from panel index to performance index and fault type
+  const { panelToPerformance, panelToFault } = useMemo(() => {
+    const perfMapping = new Map<number, number>();
+    const faultMapping = new Map<number, PanelFaultType>();
+
+    if (!panelFrames || panelFrames.length === 0) {
+      return { panelToPerformance: perfMapping, panelToFault: faultMapping };
+    }
+
+    // Each panel frame has its own panelIndex - direct mapping
+    panelFrames.forEach((frame) => {
+      perfMapping.set(frame.panelIndex, frame.performanceIndex);
+      if (frame.faultType) {
+        faultMapping.set(frame.panelIndex, frame.faultType);
+      }
+    });
+
+    return { panelToPerformance: perfMapping, panelToFault: faultMapping };
+  }, [panelFrames]);
 
   // Trigger re-render after mount to ensure refs are available
   useEffect(() => {
@@ -177,6 +270,45 @@ export function PanelInstances({
     moduleFrames.computeBoundingSphere();
   }, [panels, tempObject, mounted, totalModules]);
 
+  // Apply colors to modules - using useLayoutEffect to ensure colors are set before paint
+  // This prevents the grey flash when toggling performance colors
+  useLayoutEffect(() => {
+    const modules = moduleRef.current;
+    if (!modules || !mounted || totalModules === 0) return;
+
+    if (showPerformanceColors) {
+      // Apply performance-based colors to each module
+      for (let moduleIndex = 0; moduleIndex < totalModules; moduleIndex++) {
+        const panelIndex = moduleToPanel[moduleIndex];
+        const faultType = panelToFault.get(panelIndex);
+        const performanceIndex = panelToPerformance.get(panelIndex);
+
+        if (faultType) {
+          // Panel has an active fault - show fault color
+          const faultColor = getFaultColor(faultType);
+          modules.setColorAt(moduleIndex, faultColor);
+        } else if (performanceIndex !== undefined) {
+          const performanceColor = getPerformanceColor(performanceIndex);
+          modules.setColorAt(moduleIndex, performanceColor);
+        } else {
+          // No telemetry for this panel yet - show default "good" performance (green-ish)
+          const defaultPerformanceColor = getPerformanceColor(0.85);
+          modules.setColorAt(moduleIndex, defaultPerformanceColor);
+        }
+      }
+    } else {
+      // Reset to default panel color (dark blue-black)
+      for (let moduleIndex = 0; moduleIndex < totalModules; moduleIndex++) {
+        modules.setColorAt(moduleIndex, PANEL_COLOR);
+      }
+    }
+
+    // Mark instance color buffer as needing update
+    if (modules.instanceColor) {
+      modules.instanceColor.needsUpdate = true;
+    }
+  }, [showPerformanceColors, panelToPerformance, panelToFault, moduleToPanel, totalModules, mounted]);
+
   // Handle click events - only active in comment mode
   const handleClick = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
     if (!elementCommentMode) return; // Only allow interaction in comment mode
@@ -234,7 +366,9 @@ export function PanelInstances({
         />
       </instancedMesh>
 
-      {/* Individual solar modules - shiny dark blue glass surface */}
+      {/* Individual solar modules - shiny dark blue glass surface
+          Material color is white to allow instance colors to show through.
+          Instance colors are always applied (either performance colors or default panel color). */}
       <instancedMesh
         key={`module-mesh-${totalModules}`}
         ref={moduleRef}
@@ -248,7 +382,7 @@ export function PanelInstances({
       >
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
-          color={PANEL_COLOR}
+          color="#ffffff"
           metalness={0}
           roughness={0.3}
           side={DoubleSide}

@@ -9,10 +9,11 @@ import { DesignWorkflowActions } from './DesignWorkflowActions';
 import { DesignStatusBadge } from './DesignStatusBadge';
 import { DesignWorkflowHistory } from './DesignWorkflowHistory';
 import { PV3DCanvas } from './viewer3d/PV3DCanvas';
-import type { PV3DCanvasRef } from './viewer3d/PV3DCanvas';
+import type { PV3DCanvasRef, EquipmentCounts } from './viewer3d/PV3DCanvas';
 import { ImageGenerationModal } from './ImageGenerationModal';
 import { DesignYieldModal } from './DesignYieldModal';
 import { BOQModal } from '@/components/boq';
+import { DigitalTwinPanel } from '@/components/digital-twin';
 import { toast } from 'sonner';
 import type { DesignContext } from '@/lib/gemini';
 import type { DXFGeoData } from '@/lib/dxf/types';
@@ -26,6 +27,7 @@ import {
     Sparkles,
     ClipboardList,
     Sun,
+    Radio,
 } from 'lucide-react';
 
 interface DesignViewerProps {
@@ -42,9 +44,11 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const versionId = design?.currentVersionId;
 
     // Sidebars
-    const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | null>('comments');
+    const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | 'digitaltwin' | null>('comments');
     const [boqModalOpen, setBOQModalOpen] = useState(false);
     const [yieldModalOpen, setYieldModalOpen] = useState(false);
+    const [digitalTwinActive, setDigitalTwinActive] = useState(false);
+    const [equipmentCounts, setEquipmentCounts] = useState<EquipmentCounts | null>(null);
 
     // State
     const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
@@ -73,6 +77,25 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const handleJumpToElement = useCallback((elementType: string, elementId: string) => {
         setHighlightedElementKey(`${elementType}:${elementId}`);
         pv3DCanvasRef.current?.focusOnElement(elementType, elementId);
+    }, []);
+
+    // Handle equipment click from Digital Twin panel → focus camera on equipment
+    const handleEquipmentClick = useCallback((type: 'inverter' | 'transformer' | 'panel', index: number) => {
+        const parsedData = pv3DCanvasRef.current?.parsedData;
+        if (!parsedData) return;
+
+        if (type === 'panel') {
+            // Focus directly on the specific panel by index
+            pv3DCanvasRef.current?.focusOnElement('panel', String(index));
+        } else {
+            // Filter to get equipment of the specified type
+            const equipmentOfType = parsedData.electrical.filter(e => e.type === type);
+            const equipment = equipmentOfType[index];
+
+            if (equipment) {
+                pv3DCanvasRef.current?.focusOnElement(type, equipment.id);
+            }
+        }
     }, []);
 
     // Handle geo data extracted from DXF - auto-update design with GPS coordinates
@@ -293,6 +316,15 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                             <Sun className="h-4 w-4" />
                             Yield
                         </Button>
+                        <Button
+                            variant={activeTab === 'digitaltwin' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => setActiveTab(activeTab === 'digitaltwin' ? null : 'digitaltwin')}
+                        >
+                            <Radio className="h-4 w-4" />
+                            Digital Twin
+                        </Button>
                     </div>
 
                     {/* Separator */}
@@ -355,6 +387,8 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                                 highlightedElementKey={highlightedElementKey}
                                 onBadgeClick={handleBadgeClick}
                                 onGeoDataExtracted={handleGeoDataExtracted}
+                                onEquipmentDetected={setEquipmentCounts}
+                                digitalTwinActive={digitalTwinActive}
                             />
                         </div>
                     )}
@@ -380,6 +414,14 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                 )}
                 {activeTab === 'workflow' && (
                     <DesignWorkflowHistory designId={designId} />
+                )}
+                {activeTab === 'digitaltwin' && (
+                    <DigitalTwinPanel
+                        designId={designId}
+                        onActiveChange={setDigitalTwinActive}
+                        equipmentCounts={equipmentCounts}
+                        onEquipmentClick={handleEquipmentClick}
+                    />
                 )}
             </div>
 
