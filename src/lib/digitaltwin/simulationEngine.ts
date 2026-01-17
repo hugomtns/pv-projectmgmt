@@ -461,7 +461,13 @@ export class DigitalTwinSimulator {
         if (!this.hasActiveFault(equipmentId)) {
           const alert = generateRandomFault('inverter', equipmentId);
           if (alert) {
-            this.addAlert(alert);
+            // Track fault but don't queue alert (caller handles it directly)
+            this.activeFaults.set(equipmentId, alert);
+            if (alert.autoClearMs && alert.autoClearMs > 0) {
+              setTimeout(() => {
+                this.activeFaults.delete(equipmentId);
+              }, alert.autoClearMs);
+            }
             return alert;
           }
         }
@@ -473,7 +479,13 @@ export class DigitalTwinSimulator {
         if (!this.hasActiveFault(equipmentId)) {
           const alert = generateRandomFault('transformer', equipmentId);
           if (alert) {
-            this.addAlert(alert);
+            // Track fault but don't queue alert (caller handles it directly)
+            this.activeFaults.set(equipmentId, alert);
+            if (alert.autoClearMs && alert.autoClearMs > 0) {
+              setTimeout(() => {
+                this.activeFaults.delete(equipmentId);
+              }, alert.autoClearMs);
+            }
             return alert;
           }
         }
@@ -510,8 +522,8 @@ export class DigitalTwinSimulator {
           autoClearMs: faultDef.autoClearMs,
         };
 
+        // Track fault but don't queue alert (caller handles it directly)
         this.activePanelFaults.set(panelIndex, fault);
-        this.addAlert(alert);
 
         // Schedule auto-clear if applicable
         if (alert.autoClearMs && alert.autoClearMs > 0) {
