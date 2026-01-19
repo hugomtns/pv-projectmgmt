@@ -14,6 +14,7 @@ import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CommentPanelBase } from '@/components/shared/CommentPanelBase';
+import { DocumentCommentToTaskDialog } from '@/components/comments/DocumentCommentToTaskDialog';
 import { MapPin, MessageSquare, Highlighter } from 'lucide-react';
 import type { DocumentComment } from '@/lib/types';
 import { isHighlightComment } from '@/lib/types/document';
@@ -45,14 +46,22 @@ export function CommentPanel({
 }: CommentPanelProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [selectedComment, setSelectedComment] = useState<DocumentComment | null>(null);
 
+  const documents = useDocumentStore((state) => state.documents);
   const addComment = useDocumentStore((state) => state.addComment);
+  const updateComment = useDocumentStore((state) => state.updateComment);
   const resolveComment = useDocumentStore((state) => state.resolveComment);
   const deleteComment = useDocumentStore((state) => state.deleteComment);
 
   const currentUser = useUserStore((state) => state.currentUser);
   const permissionOverrides = useUserStore((state) => state.permissionOverrides);
   const roles = useUserStore((state) => state.roles);
+
+  // Get document's project ID
+  const document = documents.find((d) => d.id === documentId);
+  const projectId = document?.projectId;
 
   // Get permissions
   const permissions = getDocumentPermissions(
@@ -145,6 +154,22 @@ export function CommentPanel({
     [onLocationCommentClick]
   );
 
+  // Handle creating task from comment
+  const handleCreateTask = useCallback((comment: DocumentComment) => {
+    setSelectedComment(comment);
+    setTaskDialogOpen(true);
+  }, []);
+
+  // Handle task created - link comment to task
+  const handleTaskCreated = useCallback(
+    async (taskId: string) => {
+      if (selectedComment) {
+        await updateComment(selectedComment.id, { linkedTaskId: taskId });
+      }
+    },
+    [selectedComment, updateComment]
+  );
+
   // Render location anchor header
   const renderAnchoredHeader = useCallback(
     (comment: DocumentComment) => {
@@ -217,12 +242,24 @@ export function CommentPanel({
         onResolve={handleResolve}
         onDelete={handleDeleteRequest}
         onAddComment={(text, mentions) => addComment(documentId, selectedVersionId, text, undefined, mentions)}
+        onCreateTask={handleCreateTask}
         highlightedCommentId={highlightedCommentId}
         canComment={permissions.update}
         canModify={() => permissions.update}
         canDelete={() => permissions.update}
         initialTab={initialTab === 'general' ? 'document' : initialTab}
       />
+
+      {/* Comment to Task Dialog */}
+      {selectedComment && (
+        <DocumentCommentToTaskDialog
+          open={taskDialogOpen}
+          onOpenChange={setTaskDialogOpen}
+          comment={selectedComment}
+          defaultProjectId={projectId}
+          onTaskCreated={handleTaskCreated}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

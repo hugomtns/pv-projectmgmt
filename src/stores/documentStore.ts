@@ -53,6 +53,8 @@ interface DocumentState {
     mentions?: string[]
   ) => Promise<string | null>; // Returns comment ID
 
+  updateComment: (commentId: string, updates: Partial<DocumentComment>) => Promise<boolean>;
+
   resolveComment: (commentId: string) => Promise<boolean>;
 
   deleteComment: (commentId: string) => Promise<boolean>;
@@ -583,6 +585,18 @@ export const useDocumentStore = create<DocumentState>()(
           console.error('Failed to add comment:', error);
           toast.error('Failed to add comment');
           return null;
+        }
+      },
+
+      // Update comment (e.g., link to task)
+      updateComment: async (commentId, updates) => {
+        try {
+          await db.documentComments.update(commentId, updates);
+          return true;
+        } catch (error) {
+          console.error('Failed to update comment:', error);
+          toast.error('Failed to update comment');
+          return false;
         }
       },
 

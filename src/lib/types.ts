@@ -242,6 +242,8 @@ export interface DesignComment {
   elementAnchor?: ElementAnchor;  // Only present when type === 'element'
   /** User IDs mentioned in the comment via @mentions */
   mentions?: string[];
+  /** If this comment was converted to a task, the task ID */
+  linkedTaskId?: string;
 }
 
 export interface DesignWorkflowEvent {

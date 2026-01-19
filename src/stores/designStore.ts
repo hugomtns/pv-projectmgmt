@@ -24,6 +24,7 @@ interface DesignState {
 
     // Comments
     addComment: (designId: string, versionId: string, text: string, elementAnchor?: ElementAnchor, mentions?: string[]) => Promise<string | null>;
+    updateComment: (commentId: string, updates: Partial<DesignComment>) => Promise<boolean>;
     resolveComment: (commentId: string) => Promise<boolean>;
     deleteComment: (commentId: string) => Promise<boolean>;
     getComments: (designId: string, versionId: string) => Promise<DesignComment[]>;
@@ -393,6 +394,16 @@ export const useDesignStore = create<DesignState>()(
                     console.error(e);
                     toast.error('Failed to add comment');
                     return null;
+                }
+            },
+
+            updateComment: async (commentId, updates) => {
+                try {
+                    await db.designComments.update(commentId, updates);
+                    return true;
+                } catch (e) {
+                    toast.error('Failed to update comment');
+                    return false;
                 }
             },
 

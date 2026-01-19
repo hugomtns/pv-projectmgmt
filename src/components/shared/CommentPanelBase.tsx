@@ -9,7 +9,12 @@ import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { MessageSquare, Check, X } from 'lucide-react';
+import { MessageSquare, Check, X, ListTodo } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { MentionInput } from '@/components/mentions/MentionInput';
 import { MentionText } from '@/components/mentions/MentionText';
@@ -21,6 +26,8 @@ export interface BaseComment {
   author: string;
   createdAt: string;
   resolved: boolean;
+  mentions?: string[];
+  linkedTaskId?: string;
 }
 
 export interface TabConfig {
@@ -49,6 +56,8 @@ export interface CommentPanelBaseProps<T extends BaseComment> {
   onResolve: (commentId: string, currentlyResolved: boolean) => void;
   onDelete: (commentId: string) => void;
   onAddComment: (text: string, mentions?: string[]) => Promise<unknown>;
+  /** Callback to create a task from a comment */
+  onCreateTask?: (comment: T) => void;
 
   // Highlighting
   isHighlighted?: (comment: T) => boolean;
@@ -78,6 +87,7 @@ export function CommentPanelBase<T extends BaseComment>({
   onResolve,
   onDelete,
   onAddComment,
+  onCreateTask,
   isHighlighted,
   highlightedCommentId,
   canComment,
@@ -194,11 +204,38 @@ export function CommentPanelBase<T extends BaseComment>({
           <MentionText text={comment.text} />
         </div>
 
+        {/* Task created indicator */}
+        {comment.linkedTaskId && (
+          <div className="text-xs text-primary flex items-center gap-1 mb-2">
+            <ListTodo className="h-3 w-3" />
+            Task created
+          </div>
+        )}
+
         {/* Timestamp and actions */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{new Date(comment.createdAt).toLocaleString()}</span>
 
           <div className="flex gap-1">
+            {/* Create Task button */}
+            {onCreateTask && !comment.linkedTaskId && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCreateTask(comment);
+                    }}
+                  >
+                    <ListTodo className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Create task from comment</TooltipContent>
+              </Tooltip>
+            )}
             {canModify(comment) && (
               <Button
                 variant="ghost"
