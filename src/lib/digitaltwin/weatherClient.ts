@@ -17,6 +17,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const weatherCache = new Map<string, { data: WeatherData; timestamp: number }>();
 
 interface OpenMeteoResponse {
+  utc_offset_seconds: number;
   current: {
     time: string;
     temperature_2m: number;
@@ -113,6 +114,7 @@ export async function fetchCurrentWeather(
       isDay: data.current.is_day === 1,
       sunrise: data.daily.sunrise[0],
       sunset: data.daily.sunset[0],
+      utcOffsetSeconds: data.utc_offset_seconds,
     };
 
     setCachedWeather(latitude, longitude, weather);

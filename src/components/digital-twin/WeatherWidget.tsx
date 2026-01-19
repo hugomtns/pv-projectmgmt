@@ -2,7 +2,7 @@
  * WeatherWidget - Current weather conditions display
  */
 
-import { Sun, Cloud, CloudRain, Moon, Wind, Droplets, Thermometer, MapPin } from 'lucide-react';
+import { Sun, Cloud, CloudRain, Moon, Wind, Droplets, Thermometer, MapPin, Clock } from 'lucide-react';
 import type { WeatherData } from '@/lib/digitaltwin/types';
 
 interface WeatherWidgetProps {
@@ -34,14 +34,37 @@ export function WeatherWidget({ weather, latitude, longitude }: WeatherWidgetPro
     return `${abs}°${value >= 0 ? 'E' : 'W'}`;
   };
 
+  // Calculate local time at site location
+  const getLocalTimeAtSite = () => {
+    if (weather.utcOffsetSeconds === undefined) {
+      return null;
+    }
+    const now = new Date();
+    // Get current UTC time in ms, then add the site's UTC offset
+    const utcMs = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
+    const siteMs = utcMs + weather.utcOffsetSeconds * 1000;
+    const siteDate = new Date(siteMs);
+    return siteDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const localTime = getLocalTimeAtSite();
+
   return (
     <div className="p-3 border-b bg-muted/30">
       {/* Location header */}
       {latitude !== undefined && longitude !== undefined && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2 pb-2 border-b">
-          <MapPin className="h-3 w-3" />
-          <span>{formatCoord(latitude, true)}, {formatCoord(longitude, false)}</span>
-          <span className="text-muted-foreground/60 ml-1">(from DXF)</span>
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-2 pb-2 border-b">
+          <div className="flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            <span>{formatCoord(latitude, true)}, {formatCoord(longitude, false)}</span>
+            <span className="text-muted-foreground/60 ml-1">(from DXF)</span>
+          </div>
+          {localTime && (
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{localTime} local</span>
+            </div>
+          )}
         </div>
       )}
 

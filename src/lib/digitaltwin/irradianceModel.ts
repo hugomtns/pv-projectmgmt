@@ -108,7 +108,8 @@ export function calculateClearSkyGHI(
   timestamp: Date
 ): number {
   const dayOfYear = getDayOfYear(timestamp);
-  const hour = timestamp.getHours() + timestamp.getMinutes() / 60;
+  // Use UTC time to match the default timezone=0 in calculateSolarNoon()
+  const hour = timestamp.getUTCHours() + timestamp.getUTCMinutes() / 60;
 
   // Solar geometry
   const declination = calculateSolarDeclination(dayOfYear);

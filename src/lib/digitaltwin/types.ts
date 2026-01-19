@@ -26,6 +26,8 @@ export interface WeatherData {
   sunrise: string;
   /** Sunset time (ISO string) */
   sunset: string;
+  /** UTC offset in seconds for the site location */
+  utcOffsetSeconds?: number;
 }
 
 // ============================================================================
