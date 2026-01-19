@@ -84,7 +84,9 @@ export function DocumentCommentToTaskDialog({
   useEffect(() => {
     if (open) {
       setProjectId(defaultProjectId || '');
-      setStageId('');
+      // Set stage to project's current stage if we have a default project
+      const defaultProject = defaultProjectId ? projects.find((p) => p.id === defaultProjectId) : null;
+      setStageId(defaultProject?.currentStageId || '');
       setTitle(defaultTitle);
       setDescription(defaultDescription);
       // Suggest first mentioned user as assignee
@@ -95,16 +97,18 @@ export function DocumentCommentToTaskDialog({
       }
       setDueDate(undefined);
     }
-  }, [open, comment, defaultProjectId, defaultTitle, defaultDescription]);
+  }, [open, comment, defaultProjectId, defaultTitle, defaultDescription, projects]);
 
-  // Auto-select current stage when project changes
-  useEffect(() => {
-    if (selectedProject) {
-      setStageId(selectedProject.currentStageId);
+  // Auto-select current stage when user changes project in dropdown
+  const handleProjectChange = (newProjectId: string) => {
+    setProjectId(newProjectId);
+    const newProject = projects.find((p) => p.id === newProjectId);
+    if (newProject) {
+      setStageId(newProject.currentStageId);
     } else {
       setStageId('');
     }
-  }, [selectedProject]);
+  };
 
   const handleCreate = () => {
     if (!title.trim()) {
@@ -159,7 +163,7 @@ export function DocumentCommentToTaskDialog({
           {/* Project Selection */}
           <div className="space-y-2">
             <Label>Project</Label>
-            <Select value={projectId} onValueChange={setProjectId}>
+            <Select value={projectId} onValueChange={handleProjectChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
               </SelectTrigger>
