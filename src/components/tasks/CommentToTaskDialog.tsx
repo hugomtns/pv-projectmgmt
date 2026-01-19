@@ -40,6 +40,7 @@ interface CommentToTaskDialogProps {
   comment: Comment;
   projectId: string;
   stageId: string;
+  taskId?: string;  // Source task ID (if comment is on a task)
 }
 
 export function CommentToTaskDialog({
@@ -48,9 +49,11 @@ export function CommentToTaskDialog({
   comment,
   projectId,
   stageId,
+  taskId: sourceTaskId,
 }: CommentToTaskDialogProps) {
   const users = useUserStore((state) => state.users);
   const addTask = useProjectStore((state) => state.addTask);
+  const updateComment = useProjectStore((state) => state.updateComment);
 
   // Extract first line as title, rest as description
   const lines = comment.text.split('\n');
@@ -83,7 +86,7 @@ export function CommentToTaskDialog({
       return;
     }
 
-    addTask(projectId, stageId, {
+    const newTaskId = addTask(projectId, stageId, {
       title: title.trim(),
       description: description.trim(),
       assignee: assignee || '',
@@ -93,11 +96,15 @@ export function CommentToTaskDialog({
       attachments: [],
     });
 
+    // Link the comment to the created task
+    if (newTaskId && sourceTaskId) {
+      updateComment(projectId, stageId, sourceTaskId, comment.id, {
+        linkedTaskId: newTaskId,
+      });
+    }
+
     toast.success('Task created from comment');
     onOpenChange(false);
-
-    // Note: We would update comment.linkedTaskId here, but that requires
-    // an updateComment action which we can add if needed
   };
 
   // Get suggested assignees (mentioned users first)

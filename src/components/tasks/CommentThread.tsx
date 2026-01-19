@@ -24,6 +24,7 @@ interface CommentThreadProps {
   onAddComment: (text: string, mentions?: string[]) => void;
   projectId?: string;
   stageId?: string;
+  taskId?: string;  // The task these comments belong to
 }
 
 export function CommentThread({
@@ -31,6 +32,7 @@ export function CommentThread({
   onAddComment,
   projectId,
   stageId,
+  taskId,
 }: CommentThreadProps) {
   const currentUser = useUserStore((state) => state.currentUser);
   const users = useUserStore((state) => state.users);
@@ -191,6 +193,7 @@ export function CommentThread({
           comment={selectedComment}
           projectId={projectId}
           stageId={stageId}
+          taskId={taskId}
         />
       )}
     </div>

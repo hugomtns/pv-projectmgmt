@@ -235,6 +235,7 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
               onAddComment={handleAddComment}
               projectId={projectId}
               stageId={stageId}
+              taskId={task.id}
             />
           </div>
 
