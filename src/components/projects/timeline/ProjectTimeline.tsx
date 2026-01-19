@@ -79,8 +79,8 @@ export function ProjectTimeline() {
   };
 
   const handleTaskClick = (projectId: string, _stageId: string, _task: Task) => {
-    // Navigate to project detail page - task detail will be accessible there
-    navigate(`/projects/${projectId}`);
+    // Navigate to project detail page Tasks tab
+    navigate(`/projects/${projectId}?tab=tasks`);
   };
 
   const handleMilestoneDialogClose = (open: boolean) => {
