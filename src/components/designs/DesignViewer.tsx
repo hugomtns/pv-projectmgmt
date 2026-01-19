@@ -35,9 +35,11 @@ interface DesignViewerProps {
     onClose: () => void;
     /** Optional comment ID to highlight on initial load (from notification navigation) */
     initialHighlightCommentId?: string;
+    /** Optional initial tab for comments panel ('element' or 'general') */
+    initialCommentTab?: 'element' | 'general';
 }
 
-export function DesignViewer({ designId, onClose, initialHighlightCommentId }: DesignViewerProps) {
+export function DesignViewer({ designId, onClose, initialHighlightCommentId, initialCommentTab }: DesignViewerProps) {
     const designs = useDesignStore((state) => state.designs);
     const addVersion = useDesignStore((state) => state.addVersion);
     const updateDesign = useDesignStore((state) => state.updateDesign);
@@ -406,6 +408,7 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId }: D
                         onJumpToElement={handleJumpToElement}
                         highlightedElementKey={highlightedElementKey}
                         explicitHighlightCommentId={highlightedCommentId}
+                        initialTab={initialCommentTab}
                     />
                 )}
                 {activeTab === 'history' && selectedVersionId && (

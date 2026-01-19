@@ -383,6 +383,7 @@ export const useDesignStore = create<DesignState>()(
                                 designId,
                                 designName: design?.name || 'Design',
                                 projectId: design?.projectId,
+                                commentType: elementAnchor ? 'element' : 'general',
                             },
                         });
                     }

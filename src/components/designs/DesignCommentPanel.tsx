@@ -24,6 +24,8 @@ interface DesignCommentPanelProps {
   highlightedElementKey?: string | null;
   /** Explicit comment ID to highlight (from notification navigation) - overrides element-based highlighting */
   explicitHighlightCommentId?: string | null;
+  /** Initial tab to show ('element' or 'general') - from notification navigation */
+  initialTab?: 'element' | 'general';
 }
 
 export function DesignCommentPanel({
@@ -32,6 +34,7 @@ export function DesignCommentPanel({
   onJumpToElement,
   highlightedElementKey,
   explicitHighlightCommentId,
+  initialTab,
 }: DesignCommentPanelProps) {
   const addComment = useDesignStore((state) => state.addComment);
   const resolveComment = useDesignStore((state) => state.resolveComment);
@@ -192,6 +195,7 @@ export function DesignCommentPanel({
       canComment={canComment}
       canModify={(comment) => permissions.update || isCreatorOf(comment)}
       canDelete={(comment) => permissions.delete || isCreatorOf(comment)}
+      initialTab={initialTab}
     />
   );
 }

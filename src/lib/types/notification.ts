@@ -13,6 +13,8 @@ export interface NotificationLink {
   designId?: string;
   /** Comment ID for navigating to a specific comment */
   commentId?: string;
+  /** Comment type for selecting the correct tab ('element' or 'general' for designs, 'location' or 'general' for documents) */
+  commentType?: 'element' | 'general' | 'location';
 }
 
 export interface Notification {

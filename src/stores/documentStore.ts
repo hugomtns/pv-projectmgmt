@@ -572,6 +572,7 @@ export const useDocumentStore = create<DocumentState>()(
                 type: 'document',
                 documentId,
                 documentName: doc?.name || 'Document',
+                commentType: location ? 'location' : 'general',
               },
             });
           }

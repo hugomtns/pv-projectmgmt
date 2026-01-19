@@ -62,6 +62,9 @@ export interface CommentPanelBaseProps<T extends BaseComment> {
   // Styling
   className?: string;
   showDeleteConfirm?: boolean;
+
+  // Initial tab (from notification navigation)
+  initialTab?: string;
 }
 
 export function CommentPanelBase<T extends BaseComment>({
@@ -81,34 +84,51 @@ export function CommentPanelBase<T extends BaseComment>({
   canModify,
   canDelete,
   className,
+  initialTab,
 }: CommentPanelBaseProps<T>) {
   const [newCommentText, setNewCommentText] = useState('');
   const [newCommentMentions, setNewCommentMentions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState(anchoredTab.value);
+  // Use initialTab if provided, otherwise default to anchored tab
+  const [activeTab, setActiveTab] = useState(initialTab ?? anchoredTab.value);
   const commentRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Track if we've successfully handled the initial highlight
+  const hasHandledHighlight = useRef(false);
 
   // Auto-switch tab and scroll to highlighted comment
   useEffect(() => {
-    if (!highlightedCommentId) return;
+    if (!highlightedCommentId) {
+      hasHandledHighlight.current = false;
+      return;
+    }
 
     // Check which tab the comment is in
     const inAnchored = anchoredComments.some(c => c.id === highlightedCommentId);
     const inGeneral = generalComments.some(c => c.id === highlightedCommentId);
 
+    // If comments haven't loaded yet (comment not found in either array), wait for next render
+    if (!inAnchored && !inGeneral) {
+      return;
+    }
+
+    // Switch to the correct tab
     if (inAnchored) {
       setActiveTab(anchoredTab.value);
     } else if (inGeneral) {
       setActiveTab(generalTab.value);
     }
 
-    // Scroll to comment after tab switch
-    setTimeout(() => {
-      const element = commentRefsMap.current.get(highlightedCommentId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
+    // Only scroll once we've found and switched to the correct tab
+    if (!hasHandledHighlight.current) {
+      hasHandledHighlight.current = true;
+      // Scroll to comment after tab switch (give time for tab content to render)
+      setTimeout(() => {
+        const element = commentRefsMap.current.get(highlightedCommentId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 150);
+    }
   }, [highlightedCommentId, anchoredComments, generalComments, anchoredTab.value, generalTab.value]);
 
   const handleAddComment = async () => {

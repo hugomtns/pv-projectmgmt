@@ -56,7 +56,9 @@ export function NotificationItem({ notification, onClose }: NotificationItemProp
           if (link.documentId) {
             // Navigate to document with optional comment highlighted
             navigate(`/documents/${link.documentId}`, {
-              state: link.commentId ? { highlightCommentId: link.commentId } : undefined,
+              state: link.commentId
+                ? { highlightCommentId: link.commentId, commentType: link.commentType }
+                : undefined,
             });
           }
           break;
@@ -64,7 +66,9 @@ export function NotificationItem({ notification, onClose }: NotificationItemProp
           if (link.designId) {
             // Navigate to design with optional comment highlighted
             navigate(`/designs/${link.designId}`, {
-              state: link.commentId ? { highlightCommentId: link.commentId } : undefined,
+              state: link.commentId
+                ? { highlightCommentId: link.commentId, commentType: link.commentType }
+                : undefined,
             });
           }
           break;

@@ -3,6 +3,7 @@ import { DesignViewer } from '@/components/designs/DesignViewer';
 
 interface LocationState {
     highlightCommentId?: string;
+    commentType?: 'element' | 'general';
 }
 
 export default function DesignDetailPage() {
@@ -20,6 +21,7 @@ export default function DesignDetailPage() {
         <DesignViewer
             designId={designId}
             initialHighlightCommentId={state?.highlightCommentId}
+            initialCommentTab={state?.commentType}
             onClose={() => {
                 navigate(-1);
             }}
