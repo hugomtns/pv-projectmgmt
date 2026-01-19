@@ -234,10 +234,14 @@ export interface DesignComment {
   versionId: string;
   text: string;
   author: string;
+  /** User ID of the comment author */
+  authorId?: string;
   createdAt: string;
   resolved: boolean;
   type: 'design' | 'element';  // Comment type: design-level or element-anchored
   elementAnchor?: ElementAnchor;  // Only present when type === 'element'
+  /** User IDs mentioned in the comment via @mentions */
+  mentions?: string[];
 }
 
 export interface DesignWorkflowEvent {

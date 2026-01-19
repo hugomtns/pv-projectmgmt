@@ -7,11 +7,12 @@
 
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { MessageSquare, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MentionInput } from '@/components/mentions/MentionInput';
+import { MentionText } from '@/components/mentions/MentionText';
 
 // Generic comment interface - minimum required fields
 export interface BaseComment {
@@ -47,7 +48,7 @@ export interface CommentPanelBaseProps<T extends BaseComment> {
   onCommentClick?: (comment: T) => void;
   onResolve: (commentId: string, currentlyResolved: boolean) => void;
   onDelete: (commentId: string) => void;
-  onAddComment: (text: string) => Promise<unknown>;
+  onAddComment: (text: string, mentions?: string[]) => Promise<unknown>;
 
   // Highlighting
   isHighlighted?: (comment: T) => boolean;
@@ -82,6 +83,7 @@ export function CommentPanelBase<T extends BaseComment>({
   className,
 }: CommentPanelBaseProps<T>) {
   const [newCommentText, setNewCommentText] = useState('');
+  const [newCommentMentions, setNewCommentMentions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState(anchoredTab.value);
   const commentRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -114,11 +116,17 @@ export function CommentPanelBase<T extends BaseComment>({
 
     setIsSubmitting(true);
     try {
-      await onAddComment(newCommentText.trim());
+      await onAddComment(newCommentText.trim(), newCommentMentions.length > 0 ? newCommentMentions : undefined);
       setNewCommentText('');
+      setNewCommentMentions([]);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleTextChange = (text: string, mentions: string[]) => {
+    setNewCommentText(text);
+    setNewCommentMentions(mentions);
   };
 
   const renderComment = (comment: T, isAnchored: boolean) => {
@@ -162,7 +170,9 @@ export function CommentPanelBase<T extends BaseComment>({
         </div>
 
         {/* Comment text */}
-        <p className="text-sm mb-2 whitespace-pre-wrap">{comment.text}</p>
+        <div className="text-sm mb-2">
+          <MentionText text={comment.text} />
+        </div>
 
         {/* Timestamp and actions */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -250,17 +260,20 @@ export function CommentPanelBase<T extends BaseComment>({
       {canComment && (
         <div className="p-4 border-t border-border bg-background">
           <div className="space-y-2">
-            <Textarea
-              placeholder="Add a comment..."
-              value={newCommentText}
-              onChange={(e) => setNewCommentText(e.target.value)}
+            <div
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
                   handleAddComment();
                 }
               }}
-              className="min-h-[80px] resize-none"
-            />
+            >
+              <MentionInput
+                value={newCommentText}
+                onChange={handleTextChange}
+                placeholder="Add a comment... (use @ to mention someone)"
+                minHeight="80px"
+              />
+            </div>
             <div className="flex justify-between items-center">
               <span className="text-xs text-muted-foreground">
                 Ctrl+Enter to submit

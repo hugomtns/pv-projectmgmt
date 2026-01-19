@@ -213,7 +213,7 @@ export function CommentPanel({
         onCommentClick={handleCommentClick}
         onResolve={handleResolve}
         onDelete={handleDeleteRequest}
-        onAddComment={(text) => addComment(documentId, selectedVersionId, text)}
+        onAddComment={(text, mentions) => addComment(documentId, selectedVersionId, text, undefined, mentions)}
         highlightedCommentId={highlightedCommentId}
         canComment={permissions.update}
         canModify={() => permissions.update}

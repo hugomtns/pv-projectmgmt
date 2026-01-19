@@ -219,7 +219,7 @@ export function DocumentViewer({
     setShowAddCommentDialog(true);
   };
 
-  const handleCommentSubmit = async (comment: string, highlightColor?: HighlightColor) => {
+  const handleCommentSubmit = async (comment: string, highlightColor?: HighlightColor, mentions?: string[]) => {
     if (pendingHighlight) {
       // Handle highlight comment
       const { x, y, width, height, page, color } = pendingHighlight;
@@ -230,7 +230,7 @@ export function DocumentViewer({
         width,
         height,
         highlightColor: highlightColor || color,
-      });
+      }, mentions);
 
       if (commentId) {
         setHighlightedCommentId(commentId);
@@ -241,7 +241,7 @@ export function DocumentViewer({
     } else if (pendingCommentLocation) {
       // Handle point comment
       const { x, y, page } = pendingCommentLocation;
-      const commentId = await addComment(documentId, selectedVersionId, comment, { x, y, page });
+      const commentId = await addComment(documentId, selectedVersionId, comment, { x, y, page }, mentions);
 
       if (commentId) {
         setHighlightedCommentId(commentId);

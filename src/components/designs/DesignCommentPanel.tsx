@@ -178,7 +178,7 @@ export function DesignCommentPanel({
       renderAnchoredHeader={renderAnchoredHeader}
       onResolve={(id) => resolveComment(id)}
       onDelete={(id) => deleteComment(id)}
-      onAddComment={(text) => addComment(designId, versionId, text)}
+      onAddComment={(text, mentions) => addComment(designId, versionId, text, undefined, mentions)}
       isHighlighted={isHighlighted}
       highlightedCommentId={highlightedCommentId}
       canComment={canComment}
