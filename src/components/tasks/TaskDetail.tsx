@@ -89,8 +89,12 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
     onClose();
   };
 
-  const handleAddComment = (author: string, text: string) => {
-    addComment(projectId, stageId, taskId, { author, text });
+  const handleAddComment = (text: string, _mentions?: string[]) => {
+    if (!currentUser) return;
+    addComment(projectId, stageId, taskId, {
+      author: `${currentUser.firstName} ${currentUser.lastName}`,
+      text,
+    });
   };
 
   const getStatusLabel = (status: TaskStatus) => {
@@ -229,6 +233,8 @@ export function TaskDetail({ projectId, stageId, taskId, onClose }: TaskDetailPr
             <CommentThread
               comments={task.comments}
               onAddComment={handleAddComment}
+              projectId={projectId}
+              stageId={stageId}
             />
           </div>
 

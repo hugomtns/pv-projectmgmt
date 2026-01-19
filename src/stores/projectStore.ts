@@ -7,6 +7,8 @@ import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
+import { extractMentions } from '@/lib/mentions/parser';
+import { notifyMention, notifyTaskAssigned } from '@/lib/notifications/notificationService';
 
 interface ProjectState {
   projects: Project[];
@@ -352,6 +354,11 @@ export const useProjectStore = create<ProjectState>()(
           }
         }
 
+        // Check for assignee change before update
+        const oldAssignee = task?.assignee;
+        const newAssignee = updates.assignee;
+        const assigneeChanged = newAssignee && newAssignee !== oldAssignee;
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -371,6 +378,21 @@ export const useProjectStore = create<ProjectState>()(
               : p
           )
         }));
+
+        // Notify new assignee if assignee changed
+        if (assigneeChanged && task && newAssignee) {
+          // Get the updated task
+          const updatedTask = { ...task, ...updates };
+          notifyTaskAssigned({
+            actorId: currentUser.id,
+            actorName: `${currentUser.firstName} ${currentUser.lastName}`,
+            assigneeId: newAssignee,
+            task: updatedTask,
+            projectId,
+            stageId,
+            projectName: project?.name,
+          });
+        }
 
         // Log the action only if there are actual changes
         if (Object.keys(actualChanges).length > 0) {
@@ -430,9 +452,11 @@ export const useProjectStore = create<ProjectState>()(
 
       addComment: (projectId, stageId, taskId, comment) => {
         // Permission check
-        const currentUser = useUserStore.getState().currentUser;
-        const roles = useUserStore.getState().roles;
-        const overrides = useUserStore.getState().permissionOverrides;
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+        const users = userState.users;
 
         if (!currentUser) {
           toast.error('You must be logged in to add comments');
@@ -454,6 +478,13 @@ export const useProjectStore = create<ProjectState>()(
 
         const commentId = crypto.randomUUID();
 
+        // Extract mentions from comment text
+        const mentionedUserIds = extractMentions(comment.text, users);
+
+        // Get task and project info for notification context
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const task = project?.stages[stageId]?.tasks.find(t => t.id === taskId);
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -473,6 +504,8 @@ export const useProjectStore = create<ProjectState>()(
                                 {
                                   ...comment,
                                   id: commentId,
+                                  authorId: currentUser.id,
+                                  mentions: mentionedUserIds.length > 0 ? mentionedUserIds : undefined,
                                   createdAt: new Date().toISOString()
                                 }
                               ]
@@ -485,6 +518,23 @@ export const useProjectStore = create<ProjectState>()(
               : p
           )
         }));
+
+        // Trigger mention notifications
+        if (mentionedUserIds.length > 0 && task) {
+          notifyMention({
+            actorId: currentUser.id,
+            actorName: `${currentUser.firstName} ${currentUser.lastName}`,
+            mentionedUserIds,
+            commentText: comment.text,
+            context: {
+              type: 'task',
+              projectId,
+              stageId,
+              taskId,
+              taskTitle: task.title,
+            },
+          });
+        }
 
         // Log the action
         logAdminAction('create', 'comments', commentId, undefined, { projectId, stageId, taskId });

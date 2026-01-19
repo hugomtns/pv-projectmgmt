@@ -10,8 +10,14 @@ export type TaskStatus = 'not_started' | 'in_progress' | 'complete';
 export interface Comment {
   id: string;
   author: string;
+  /** User ID of the comment author */
+  authorId?: string;
   text: string;
   createdAt: string; // ISO timestamp
+  /** User IDs mentioned in the comment via @mentions */
+  mentions?: string[];
+  /** If this comment was converted to a task, the task ID */
+  linkedTaskId?: string;
 }
 
 export interface Task {

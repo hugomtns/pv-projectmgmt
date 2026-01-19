@@ -1,3 +1,5 @@
+import type { NotificationPreferences } from './notification';
+
 export interface User {
   id: string;
   firstName: string;
@@ -8,6 +10,8 @@ export interface User {
   groupIds: string[];      // Array of group IDs
   createdAt: string;
   updatedAt: string;
+  /** User's notification preferences */
+  notificationPreferences?: NotificationPreferences;
 }
 
 export interface UserGroup {

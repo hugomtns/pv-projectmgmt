@@ -1,4 +1,5 @@
 import { UserSelector } from '@/components/users/UserSelector';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface HeaderProps {
   title: string;
@@ -11,6 +12,7 @@ export function Header({ title, children }: HeaderProps) {
       <h1 className="text-xl md:text-2xl font-semibold text-foreground">{title}</h1>
       <div className="flex items-center gap-2 md:gap-4 flex-wrap md:flex-nowrap w-full md:w-auto">
         {children}
+        <NotificationBell />
         <UserSelector />
       </div>
     </header>
