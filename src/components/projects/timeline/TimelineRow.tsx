@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { PriorityBadge } from '../PriorityBadge';
 import { MilestoneMarker } from './MilestoneMarker';
-import type { Project, Milestone } from '@/lib/types';
+import { TaskMarker } from './TaskMarker';
+import type { Project, Milestone, Task } from '@/lib/types';
 import { useWorkflowStore } from '@/stores/workflowStore';
 
 interface TimelineRowProps {
@@ -10,6 +11,7 @@ interface TimelineRowProps {
   rangeEnd: Date;
   showCompletedMilestones: boolean;
   onMilestoneClick: (projectId: string, milestone: Milestone) => void;
+  onTaskClick?: (projectId: string, stageId: string, task: Task) => void;
 }
 
 export function TimelineRow({
@@ -18,6 +20,7 @@ export function TimelineRow({
   rangeEnd,
   showCompletedMilestones,
   onMilestoneClick,
+  onTaskClick,
 }: TimelineRowProps) {
   const navigate = useNavigate();
   const workflow = useWorkflowStore((state) => state.workflow);
@@ -27,6 +30,21 @@ export function TimelineRow({
   const visibleMilestones = (project.milestones || []).filter((m) =>
     showCompletedMilestones || !m.completed
   );
+
+  // Gather tasks with due dates from all stages
+  const tasksWithDueDates: { task: Task; stageId: string; stageName: string }[] = [];
+  Object.entries(project.stages).forEach(([stageId, stageData]) => {
+    const workflowStage = workflow.stages.find((s) => s.id === stageId);
+    const stageName = workflowStage?.name || 'Unknown Stage';
+    stageData.tasks.forEach((task) => {
+      if (task.dueDate) {
+        // Filter based on same logic as milestones
+        if (showCompletedMilestones || task.status !== 'complete') {
+          tasksWithDueDates.push({ task, stageId, stageName });
+        }
+      }
+    });
+  });
 
   return (
     <div className="grid grid-cols-[300px_1fr] border-b hover:bg-muted/50 transition-colors">
@@ -56,6 +74,7 @@ export function TimelineRow({
 
       {/* Timeline area */}
       <div className="relative h-16 bg-card">
+        {/* Milestones (circles) */}
         {visibleMilestones.map((milestone) => (
           <MilestoneMarker
             key={milestone.id}
@@ -63,6 +82,17 @@ export function TimelineRow({
             rangeStart={rangeStart}
             rangeEnd={rangeEnd}
             onClick={(m) => onMilestoneClick(project.id, m)}
+          />
+        ))}
+        {/* Tasks with due dates (squares) */}
+        {tasksWithDueDates.map(({ task, stageId, stageName }) => (
+          <TaskMarker
+            key={task.id}
+            task={task}
+            stageName={stageName}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onClick={(t) => onTaskClick?.(project.id, stageId, t)}
           />
         ))}
       </div>
