@@ -28,6 +28,8 @@ interface CommentPanelProps {
   highlightedCommentId?: string;
   /** Callback when location comment is clicked */
   onLocationCommentClick: (commentId: string, page: number, versionId: string) => void;
+  /** Initial tab to show ('location' or 'general') - from notification navigation */
+  initialTab?: 'location' | 'general';
 }
 
 /**
@@ -39,6 +41,7 @@ export function CommentPanel({
   selectedVersionId,
   highlightedCommentId,
   onLocationCommentClick,
+  initialTab,
 }: CommentPanelProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
@@ -218,6 +221,7 @@ export function CommentPanel({
         canComment={permissions.update}
         canModify={() => permissions.update}
         canDelete={() => permissions.update}
+        initialTab={initialTab === 'general' ? 'document' : initialTab}
       />
 
       {/* Delete Confirmation Dialog */}

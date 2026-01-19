@@ -50,6 +50,10 @@ interface DocumentViewerProps {
   status: import('@/lib/types/document').DocumentStatus;
   fileUrl: string; // Blob URL or data URL
   onClose: () => void;
+  /** Optional comment ID to highlight on initial load (from notification navigation) */
+  initialHighlightCommentId?: string;
+  /** Optional initial tab for comments panel ('location' or 'general') */
+  initialCommentTab?: 'location' | 'general';
 }
 
 type ZoomLevel = 'fit-width' | 'fit-page' | number;
@@ -61,13 +65,15 @@ export function DocumentViewer({
   status,
   fileUrl,
   onClose,
+  initialHighlightCommentId,
+  initialCommentTab,
 }: DocumentViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [zoom, setZoom] = useState<ZoomLevel>('fit-width');
   const [containerWidth, setContainerWidth] = useState<number>(800);
   const [annotationMode, setAnnotationMode] = useState(false);
-  const [highlightedCommentId, setHighlightedCommentId] = useState<string>();
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | undefined>(initialHighlightCommentId);
   const [showComments, setShowComments] = useState(true);
   const [showPins, setShowPins] = useState(true);
   const [drawingMode, setDrawingMode] = useState(false);
@@ -644,6 +650,7 @@ export function DocumentViewer({
               selectedVersionId={activeVersionId}
               highlightedCommentId={highlightedCommentId}
               onLocationCommentClick={handleLocationCommentClick}
+              initialTab={initialCommentTab}
             />
           </div>
         )}
