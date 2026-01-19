@@ -54,12 +54,18 @@ export function NotificationItem({ notification, onClose }: NotificationItemProp
           break;
         case 'document':
           if (link.documentId) {
-            navigate(`/documents/${link.documentId}`);
+            // Navigate to document with optional comment highlighted
+            navigate(`/documents/${link.documentId}`, {
+              state: link.commentId ? { highlightCommentId: link.commentId } : undefined,
+            });
           }
           break;
         case 'design':
           if (link.designId) {
-            navigate(`/designs/${link.designId}`);
+            // Navigate to design with optional comment highlighted
+            navigate(`/designs/${link.designId}`, {
+              state: link.commentId ? { highlightCommentId: link.commentId } : undefined,
+            });
           }
           break;
       }

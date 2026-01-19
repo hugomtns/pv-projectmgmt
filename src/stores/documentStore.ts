@@ -567,6 +567,7 @@ export const useDocumentStore = create<DocumentState>()(
               actorName: userFullName,
               mentionedUserIds,
               commentText: text,
+              commentId,
               context: {
                 type: 'document',
                 documentId,

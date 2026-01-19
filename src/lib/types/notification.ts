@@ -11,6 +11,8 @@ export interface NotificationLink {
   taskId?: string;
   documentId?: string;
   designId?: string;
+  /** Comment ID for navigating to a specific comment */
+  commentId?: string;
 }
 
 export interface Notification {

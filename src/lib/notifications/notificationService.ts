@@ -40,12 +40,13 @@ export function notifyMention(params: {
   actorName: string;
   mentionedUserIds: string[];
   commentText: string;
+  commentId?: string;
   context:
     | { type: 'task'; projectId: string; stageId: string; taskId: string; taskTitle: string }
     | { type: 'document'; documentId: string; documentName: string }
     | { type: 'design'; designId: string; designName: string; projectId?: string };
 }): void {
-  const { actorId, actorName, mentionedUserIds, commentText, context } = params;
+  const { actorId, actorName, mentionedUserIds, commentText, commentId, context } = params;
   const { addNotification } = useNotificationStore.getState();
 
   // Truncate comment for message
@@ -73,11 +74,11 @@ export function notifyMention(params: {
         break;
       case 'document':
         title = `Mentioned in document: ${context.documentName}`;
-        link = createDocumentLink(context.documentId);
+        link = createDocumentLink(context.documentId, commentId);
         break;
       case 'design':
         title = `Mentioned in design: ${context.designName}`;
-        link = createDesignLink(context.designId, context.projectId);
+        link = createDesignLink(context.designId, context.projectId, commentId);
         break;
     }
 

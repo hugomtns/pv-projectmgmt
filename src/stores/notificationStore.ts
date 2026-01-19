@@ -104,20 +104,22 @@ export function createTaskLink(
 /**
  * Helper to create a notification link for a document
  */
-export function createDocumentLink(documentId: string): NotificationLink {
+export function createDocumentLink(documentId: string, commentId?: string): NotificationLink {
   return {
     type: 'document',
     documentId,
+    commentId,
   };
 }
 
 /**
  * Helper to create a notification link for a design
  */
-export function createDesignLink(designId: string, projectId?: string): NotificationLink {
+export function createDesignLink(designId: string, projectId?: string, commentId?: string): NotificationLink {
   return {
     type: 'design',
     designId,
     projectId,
+    commentId,
   };
 }

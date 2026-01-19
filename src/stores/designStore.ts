@@ -377,6 +377,7 @@ export const useDesignStore = create<DesignState>()(
                             actorName: userFullName,
                             mentionedUserIds,
                             commentText: text,
+                            commentId,
                             context: {
                                 type: 'design',
                                 designId,

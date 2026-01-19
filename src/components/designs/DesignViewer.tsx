@@ -33,9 +33,11 @@ import {
 interface DesignViewerProps {
     designId: string;
     onClose: () => void;
+    /** Optional comment ID to highlight on initial load (from notification navigation) */
+    initialHighlightCommentId?: string;
 }
 
-export function DesignViewer({ designId, onClose }: DesignViewerProps) {
+export function DesignViewer({ designId, onClose, initialHighlightCommentId }: DesignViewerProps) {
     const designs = useDesignStore((state) => state.designs);
     const addVersion = useDesignStore((state) => state.addVersion);
     const updateDesign = useDesignStore((state) => state.updateDesign);
@@ -43,7 +45,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
 
-    // Sidebars
+    // Sidebars - ensure comments tab is active if we have an initial highlight
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | 'digitaltwin' | null>('comments');
     const [boqModalOpen, setBOQModalOpen] = useState(false);
     const [yieldModalOpen, setYieldModalOpen] = useState(false);
@@ -59,6 +61,8 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
 
     // Bidirectional navigation between 3D badges and comment panel
     const [highlightedElementKey, setHighlightedElementKey] = useState<string | null>(null);
+    // Explicit comment highlighting (from notification navigation)
+    const [highlightedCommentId, _setHighlightedCommentId] = useState<string | null>(initialHighlightCommentId ?? null);
     const pv3DCanvasRef = useRef<PV3DCanvasRef>(null);
 
     // AI image generation modal
@@ -401,6 +405,7 @@ export function DesignViewer({ designId, onClose }: DesignViewerProps) {
                         versionId={selectedVersionId}
                         onJumpToElement={handleJumpToElement}
                         highlightedElementKey={highlightedElementKey}
+                        explicitHighlightCommentId={highlightedCommentId}
                     />
                 )}
                 {activeTab === 'history' && selectedVersionId && (

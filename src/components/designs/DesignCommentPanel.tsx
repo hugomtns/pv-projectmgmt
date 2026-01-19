@@ -22,6 +22,8 @@ interface DesignCommentPanelProps {
   versionId: string;
   onJumpToElement?: (elementType: string, elementId: string) => void;
   highlightedElementKey?: string | null;
+  /** Explicit comment ID to highlight (from notification navigation) - overrides element-based highlighting */
+  explicitHighlightCommentId?: string | null;
 }
 
 export function DesignCommentPanel({
@@ -29,6 +31,7 @@ export function DesignCommentPanel({
   versionId,
   onJumpToElement,
   highlightedElementKey,
+  explicitHighlightCommentId,
 }: DesignCommentPanelProps) {
   const addComment = useDesignStore((state) => state.addComment);
   const resolveComment = useDesignStore((state) => state.resolveComment);
@@ -112,7 +115,12 @@ export function DesignCommentPanel({
   );
 
   // Find highlighted comment ID for scroll
+  // Use explicit ID from notification if provided, otherwise compute from element key
   const highlightedCommentId = useMemo(() => {
+    // Explicit comment ID takes priority (from notification navigation)
+    if (explicitHighlightCommentId) return explicitHighlightCommentId;
+
+    // Otherwise, compute from element key (from 3D badge click)
     if (!highlightedElementKey) return null;
     const match = elementComments.find((c) => {
       if (!c.elementAnchor) return false;
@@ -120,7 +128,7 @@ export function DesignCommentPanel({
       return key === highlightedElementKey;
     });
     return match?.id ?? null;
-  }, [highlightedElementKey, elementComments]);
+  }, [explicitHighlightCommentId, highlightedElementKey, elementComments]);
 
   // Render element anchor header
   const renderAnchoredHeader = (comment: DesignComment) => {
