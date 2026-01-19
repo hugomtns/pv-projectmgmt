@@ -116,7 +116,7 @@ export function parseMentionPositions(text: string, users: User[]): MentionPosit
 export function filterUsersForMention(query: string, users: User[], excludeIds: string[] = []): User[] {
   const lowerQuery = query.toLowerCase();
 
-  return users
+  const filtered = users
     .filter((user) => !excludeIds.includes(user.id))
     .filter((user) => {
       const fullName = getUserDisplayName(user).toLowerCase();
@@ -128,8 +128,10 @@ export function filterUsersForMention(query: string, users: User[], excludeIds: 
         mentionName.includes(lowerQuery) ||
         email.includes(lowerQuery)
       );
-    })
-    .slice(0, 10); // Limit results
+    });
+
+  // Show all users when query is empty, limit to 15 when filtering
+  return query === '' ? filtered : filtered.slice(0, 15);
 }
 
 /**

@@ -224,7 +224,7 @@ export function MentionInput({
       {showDropdown && filteredUsers.length > 0 && (
         <div
           ref={dropdownRef}
-          className="absolute z-50 w-64 max-h-48 overflow-auto rounded-md border bg-popover p-1 shadow-md"
+          className="absolute z-50 w-64 max-h-64 overflow-auto rounded-md border bg-popover p-1 shadow-md"
           style={{
             top: dropdownPosition.top,
             left: dropdownPosition.left,
