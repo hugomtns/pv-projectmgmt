@@ -14,6 +14,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { MentionInput } from '@/components/mentions/MentionInput';
@@ -219,22 +220,24 @@ export function CommentPanelBase<T extends BaseComment>({
           <div className="flex gap-1">
             {/* Create Task button */}
             {onCreateTask && !comment.linkedTaskId && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCreateTask(comment);
-                    }}
-                  >
-                    <ListTodo className="h-3 w-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Create task from comment</TooltipContent>
-              </Tooltip>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateTask(comment);
+                      }}
+                    >
+                      <ListTodo className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Create task from comment</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             {canModify(comment) && (
               <Button
