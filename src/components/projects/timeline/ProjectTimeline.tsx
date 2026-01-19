@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useProjectStore } from '@/stores/projectStore';
 import { useFilterStore } from '@/stores/filterStore';
 import { useDisplayStore } from '@/stores/displayStore';
@@ -7,9 +8,10 @@ import { TimelineLegend } from './TimelineLegend';
 import { TimelineGrid } from './TimelineGrid';
 import { MilestoneDialog } from '../milestones/MilestoneDialog';
 import { differenceInDays } from 'date-fns';
-import type { Milestone } from '@/lib/types';
+import type { Milestone, Task } from '@/lib/types';
 
 export function ProjectTimeline() {
+  const navigate = useNavigate();
   const projects = useProjectStore((state) => state.projects);
   const filters = useFilterStore((state) => state.filters);
   const { settings } = useDisplayStore();
@@ -74,6 +76,11 @@ export function ProjectTimeline() {
 
   const handleMilestoneClick = (projectId: string, milestone: Milestone) => {
     setEditingMilestone({ projectId, milestone });
+  };
+
+  const handleTaskClick = (projectId: string, _stageId: string, _task: Task) => {
+    // Navigate to project detail page Tasks tab
+    navigate(`/projects/${projectId}?tab=tasks`);
   };
 
   const handleMilestoneDialogClose = (open: boolean) => {
@@ -156,6 +163,7 @@ export function ProjectTimeline() {
             groupBy={settings.timeline.groupBy}
             ordering={settings.timeline.ordering}
             onMilestoneClick={handleMilestoneClick}
+            onTaskClick={handleTaskClick}
           />
 
           {/* Full-height Today indicator */}

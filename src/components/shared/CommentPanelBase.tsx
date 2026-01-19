@@ -7,11 +7,18 @@
 
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { MessageSquare, Check, X } from 'lucide-react';
+import { MessageSquare, Check, X, ListTodo } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { MentionInput } from '@/components/mentions/MentionInput';
+import { MentionText } from '@/components/mentions/MentionText';
 
 // Generic comment interface - minimum required fields
 export interface BaseComment {
@@ -20,6 +27,8 @@ export interface BaseComment {
   author: string;
   createdAt: string;
   resolved: boolean;
+  mentions?: string[];
+  linkedTaskId?: string;
 }
 
 export interface TabConfig {
@@ -47,7 +56,9 @@ export interface CommentPanelBaseProps<T extends BaseComment> {
   onCommentClick?: (comment: T) => void;
   onResolve: (commentId: string, currentlyResolved: boolean) => void;
   onDelete: (commentId: string) => void;
-  onAddComment: (text: string) => Promise<unknown>;
+  onAddComment: (text: string, mentions?: string[]) => Promise<unknown>;
+  /** Callback to create a task from a comment */
+  onCreateTask?: (comment: T) => void;
 
   // Highlighting
   isHighlighted?: (comment: T) => boolean;
@@ -61,6 +72,9 @@ export interface CommentPanelBaseProps<T extends BaseComment> {
   // Styling
   className?: string;
   showDeleteConfirm?: boolean;
+
+  // Initial tab (from notification navigation)
+  initialTab?: string;
 }
 
 export function CommentPanelBase<T extends BaseComment>({
@@ -74,39 +88,58 @@ export function CommentPanelBase<T extends BaseComment>({
   onResolve,
   onDelete,
   onAddComment,
+  onCreateTask,
   isHighlighted,
   highlightedCommentId,
   canComment,
   canModify,
   canDelete,
   className,
+  initialTab,
 }: CommentPanelBaseProps<T>) {
   const [newCommentText, setNewCommentText] = useState('');
+  const [newCommentMentions, setNewCommentMentions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState(anchoredTab.value);
+  // Use initialTab if provided, otherwise default to anchored tab
+  const [activeTab, setActiveTab] = useState(initialTab ?? anchoredTab.value);
   const commentRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Track if we've successfully handled the initial highlight
+  const hasHandledHighlight = useRef(false);
 
   // Auto-switch tab and scroll to highlighted comment
   useEffect(() => {
-    if (!highlightedCommentId) return;
+    if (!highlightedCommentId) {
+      hasHandledHighlight.current = false;
+      return;
+    }
 
     // Check which tab the comment is in
     const inAnchored = anchoredComments.some(c => c.id === highlightedCommentId);
     const inGeneral = generalComments.some(c => c.id === highlightedCommentId);
 
+    // If comments haven't loaded yet (comment not found in either array), wait for next render
+    if (!inAnchored && !inGeneral) {
+      return;
+    }
+
+    // Switch to the correct tab
     if (inAnchored) {
       setActiveTab(anchoredTab.value);
     } else if (inGeneral) {
       setActiveTab(generalTab.value);
     }
 
-    // Scroll to comment after tab switch
-    setTimeout(() => {
-      const element = commentRefsMap.current.get(highlightedCommentId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
+    // Only scroll once we've found and switched to the correct tab
+    if (!hasHandledHighlight.current) {
+      hasHandledHighlight.current = true;
+      // Scroll to comment after tab switch (give time for tab content to render)
+      setTimeout(() => {
+        const element = commentRefsMap.current.get(highlightedCommentId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 150);
+    }
   }, [highlightedCommentId, anchoredComments, generalComments, anchoredTab.value, generalTab.value]);
 
   const handleAddComment = async () => {
@@ -114,11 +147,17 @@ export function CommentPanelBase<T extends BaseComment>({
 
     setIsSubmitting(true);
     try {
-      await onAddComment(newCommentText.trim());
+      await onAddComment(newCommentText.trim(), newCommentMentions.length > 0 ? newCommentMentions : undefined);
       setNewCommentText('');
+      setNewCommentMentions([]);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleTextChange = (text: string, mentions: string[]) => {
+    setNewCommentText(text);
+    setNewCommentMentions(mentions);
   };
 
   const renderComment = (comment: T, isAnchored: boolean) => {
@@ -162,13 +201,44 @@ export function CommentPanelBase<T extends BaseComment>({
         </div>
 
         {/* Comment text */}
-        <p className="text-sm mb-2 whitespace-pre-wrap">{comment.text}</p>
+        <div className="text-sm mb-2">
+          <MentionText text={comment.text} />
+        </div>
+
+        {/* Task created indicator */}
+        {comment.linkedTaskId && (
+          <div className="text-xs text-primary flex items-center gap-1 mb-2">
+            <ListTodo className="h-3 w-3" />
+            Task created
+          </div>
+        )}
 
         {/* Timestamp and actions */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{new Date(comment.createdAt).toLocaleString()}</span>
 
           <div className="flex gap-1">
+            {/* Create Task button */}
+            {onCreateTask && !comment.linkedTaskId && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateTask(comment);
+                      }}
+                    >
+                      <ListTodo className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Create task from comment</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             {canModify(comment) && (
               <Button
                 variant="ghost"
@@ -250,17 +320,20 @@ export function CommentPanelBase<T extends BaseComment>({
       {canComment && (
         <div className="p-4 border-t border-border bg-background">
           <div className="space-y-2">
-            <Textarea
-              placeholder="Add a comment..."
-              value={newCommentText}
-              onChange={(e) => setNewCommentText(e.target.value)}
+            <div
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.ctrlKey) {
                   handleAddComment();
                 }
               }}
-              className="min-h-[80px] resize-none"
-            />
+            >
+              <MentionInput
+                value={newCommentText}
+                onChange={handleTextChange}
+                placeholder="Add a comment... (use @ to mention someone)"
+                minHeight="80px"
+              />
+            </div>
             <div className="flex justify-between items-center">
               <span className="text-xs text-muted-foreground">
                 Ctrl+Enter to submit

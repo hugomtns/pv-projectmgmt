@@ -21,9 +21,15 @@ export interface DocumentComment {
   type: 'document' | 'location';
   text: string;
   author: string;
+  /** User ID of the comment author */
+  authorId?: string;
   createdAt: string; // ISO timestamp
   location?: LocationAnchor;
   resolved: boolean;
+  /** User IDs mentioned in the comment via @mentions */
+  mentions?: string[];
+  /** If this comment was converted to a task, the task ID */
+  linkedTaskId?: string;
 }
 
 export interface Drawing {

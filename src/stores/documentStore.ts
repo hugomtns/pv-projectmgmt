@@ -9,6 +9,8 @@ import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { getFileType, convertImageToPdf } from '@/components/documents/utils/fileConversion';
 import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
+import { extractMentions } from '@/lib/mentions/parser';
+import { notifyMention } from '@/lib/notifications/notificationService';
 
 // Helper to get user's full name
 function getUserFullName(user: { firstName: string; lastName: string }): string {
@@ -47,8 +49,11 @@ interface DocumentState {
     documentId: string,
     versionId: string,
     text: string,
-    location?: LocationAnchor
+    location?: LocationAnchor,
+    mentions?: string[]
   ) => Promise<string | null>; // Returns comment ID
+
+  updateComment: (commentId: string, updates: Partial<DocumentComment>) => Promise<boolean>;
 
   resolveComment: (commentId: string) => Promise<boolean>;
 
@@ -511,9 +516,10 @@ export const useDocumentStore = create<DocumentState>()(
       },
 
       // Add comment
-      addComment: async (documentId, versionId, text, location) => {
+      addComment: async (documentId, versionId, text, location, mentions) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
+        const users = userState.users;
 
         if (!currentUser) {
           toast.error('You must be logged in');
@@ -535,6 +541,10 @@ export const useDocumentStore = create<DocumentState>()(
         try {
           const commentId = crypto.randomUUID();
           const userFullName = getUserFullName(currentUser);
+
+          // Extract mentions from text if not provided
+          const mentionedUserIds = mentions ?? extractMentions(text, users);
+
           const comment: DocumentComment = {
             id: commentId,
             documentId,
@@ -542,12 +552,32 @@ export const useDocumentStore = create<DocumentState>()(
             type: location ? 'location' : 'document',
             text,
             author: userFullName,
+            authorId: currentUser.id,
             createdAt: new Date().toISOString(),
             location,
             resolved: false,
+            mentions: mentionedUserIds.length > 0 ? mentionedUserIds : undefined,
           };
 
           await db.documentComments.add(comment);
+
+          // Trigger mention notifications
+          if (mentionedUserIds.length > 0) {
+            const doc = get().documents.find((d) => d.id === documentId);
+            notifyMention({
+              actorId: currentUser.id,
+              actorName: userFullName,
+              mentionedUserIds,
+              commentText: text,
+              commentId,
+              context: {
+                type: 'document',
+                documentId,
+                documentName: doc?.name || 'Document',
+                commentType: location ? 'location' : 'general',
+              },
+            });
+          }
 
           toast.success('Comment added');
           return commentId;
@@ -555,6 +585,18 @@ export const useDocumentStore = create<DocumentState>()(
           console.error('Failed to add comment:', error);
           toast.error('Failed to add comment');
           return null;
+        }
+      },
+
+      // Update comment (e.g., link to task)
+      updateComment: async (commentId, updates) => {
+        try {
+          await db.documentComments.update(commentId, updates);
+          return true;
+        } catch (error) {
+          console.error('Failed to update comment:', error);
+          toast.error('Failed to update comment');
+          return false;
         }
       },
 

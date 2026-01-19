@@ -7,6 +7,8 @@ import { useUserStore } from './userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
+import { extractMentions } from '@/lib/mentions/parser';
+import { notifyMention, notifyTaskAssigned } from '@/lib/notifications/notificationService';
 
 interface ProjectState {
   projects: Project[];
@@ -17,10 +19,11 @@ interface ProjectState {
   deleteProject: (id: string) => void;
   moveProjectToStage: (projectId: string, stageId: string) => boolean; // returns false if gate blocks
   // Task actions
-  addTask: (projectId: string, stageId: string, task: Omit<Task, 'id'>) => void;
+  addTask: (projectId: string, stageId: string, task: Omit<Task, 'id'>) => string | undefined;
   updateTask: (projectId: string, stageId: string, taskId: string, updates: Partial<Task>) => void;
   deleteTask: (projectId: string, stageId: string, taskId: string) => void;
   addComment: (projectId: string, stageId: string, taskId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => void;
+  updateComment: (projectId: string, stageId: string, taskId: string, commentId: string, updates: Partial<Comment>) => void;
   // Milestone actions
   addMilestone: (projectId: string, milestoneData: Omit<Milestone, 'id' | 'completed' | 'completedAt' | 'createdAt' | 'updatedAt'>) => void;
   updateMilestone: (projectId: string, milestoneId: string, updates: Partial<Milestone>) => void;
@@ -256,12 +259,13 @@ export const useProjectStore = create<ProjectState>()(
       addTask: (projectId, stageId, task) => {
         // Permission check
         const currentUser = useUserStore.getState().currentUser;
+        const users = useUserStore.getState().users;
         const roles = useUserStore.getState().roles;
         const overrides = useUserStore.getState().permissionOverrides;
 
         if (!currentUser) {
           toast.error('You must be logged in to create tasks');
-          return;
+          return undefined;
         }
 
         const permissions = resolvePermissions(
@@ -274,7 +278,7 @@ export const useProjectStore = create<ProjectState>()(
 
         if (!permissions.create) {
           toast.error('Permission denied: You do not have permission to create tasks');
-          return;
+          return undefined;
         }
 
         const taskId = crypto.randomUUID();
@@ -302,6 +306,24 @@ export const useProjectStore = create<ProjectState>()(
 
         // Log the action
         logAdminAction('create', 'tasks', taskId, task.title, { projectId, stageId });
+
+        // Notify assignee if set and different from current user
+        if (task.assignee && task.assignee !== currentUser.id) {
+          const assigneeUser = users.find((u) => u.id === task.assignee);
+          if (assigneeUser) {
+            const actorName = `${currentUser.firstName} ${currentUser.lastName}`;
+            notifyTaskAssigned({
+              actorId: currentUser.id,
+              actorName,
+              assigneeId: task.assignee,
+              task: { ...task, id: taskId } as Task,
+              projectId,
+              stageId,
+            });
+          }
+        }
+
+        return taskId;
       },
 
       updateTask: (projectId, stageId, taskId, updates) => {
@@ -352,6 +374,11 @@ export const useProjectStore = create<ProjectState>()(
           }
         }
 
+        // Check for assignee change before update
+        const oldAssignee = task?.assignee;
+        const newAssignee = updates.assignee;
+        const assigneeChanged = newAssignee && newAssignee !== oldAssignee;
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -371,6 +398,21 @@ export const useProjectStore = create<ProjectState>()(
               : p
           )
         }));
+
+        // Notify new assignee if assignee changed
+        if (assigneeChanged && task && newAssignee) {
+          // Get the updated task
+          const updatedTask = { ...task, ...updates };
+          notifyTaskAssigned({
+            actorId: currentUser.id,
+            actorName: `${currentUser.firstName} ${currentUser.lastName}`,
+            assigneeId: newAssignee,
+            task: updatedTask,
+            projectId,
+            stageId,
+            projectName: project?.name,
+          });
+        }
 
         // Log the action only if there are actual changes
         if (Object.keys(actualChanges).length > 0) {
@@ -430,9 +472,11 @@ export const useProjectStore = create<ProjectState>()(
 
       addComment: (projectId, stageId, taskId, comment) => {
         // Permission check
-        const currentUser = useUserStore.getState().currentUser;
-        const roles = useUserStore.getState().roles;
-        const overrides = useUserStore.getState().permissionOverrides;
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+        const roles = userState.roles;
+        const overrides = userState.permissionOverrides;
+        const users = userState.users;
 
         if (!currentUser) {
           toast.error('You must be logged in to add comments');
@@ -454,6 +498,13 @@ export const useProjectStore = create<ProjectState>()(
 
         const commentId = crypto.randomUUID();
 
+        // Extract mentions from comment text
+        const mentionedUserIds = extractMentions(comment.text, users);
+
+        // Get task and project info for notification context
+        const project = useProjectStore.getState().projects.find(p => p.id === projectId);
+        const task = project?.stages[stageId]?.tasks.find(t => t.id === taskId);
+
         set((state) => ({
           projects: state.projects.map(p =>
             p.id === projectId
@@ -473,6 +524,8 @@ export const useProjectStore = create<ProjectState>()(
                                 {
                                   ...comment,
                                   id: commentId,
+                                  authorId: currentUser.id,
+                                  mentions: mentionedUserIds.length > 0 ? mentionedUserIds : undefined,
                                   createdAt: new Date().toISOString()
                                 }
                               ]
@@ -486,8 +539,81 @@ export const useProjectStore = create<ProjectState>()(
           )
         }));
 
+        // Trigger mention notifications
+        if (mentionedUserIds.length > 0 && task) {
+          notifyMention({
+            actorId: currentUser.id,
+            actorName: `${currentUser.firstName} ${currentUser.lastName}`,
+            mentionedUserIds,
+            commentText: comment.text,
+            context: {
+              type: 'task',
+              projectId,
+              stageId,
+              taskId,
+              taskTitle: task.title,
+            },
+          });
+        }
+
         // Log the action
         logAdminAction('create', 'comments', commentId, undefined, { projectId, stageId, taskId });
+      },
+
+      updateComment: (projectId, stageId, taskId, commentId, updates) => {
+        // Permission check
+        const currentUser = useUserStore.getState().currentUser;
+        const roles = useUserStore.getState().roles;
+        const overrides = useUserStore.getState().permissionOverrides;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to update comments');
+          return;
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'comments',
+          commentId,
+          overrides,
+          roles
+        );
+
+        if (!permissions.update) {
+          toast.error('Permission denied: You do not have permission to update comments');
+          return;
+        }
+
+        set((state) => ({
+          projects: state.projects.map(p =>
+            p.id === projectId
+              ? {
+                  ...p,
+                  updatedAt: new Date().toISOString(),
+                  stages: {
+                    ...p.stages,
+                    [stageId]: {
+                      ...p.stages[stageId],
+                      tasks: p.stages[stageId].tasks.map(t =>
+                        t.id === taskId
+                          ? {
+                              ...t,
+                              comments: t.comments.map(c =>
+                                c.id === commentId
+                                  ? { ...c, ...updates }
+                                  : c
+                              )
+                            }
+                          : t
+                      )
+                    }
+                  }
+                }
+              : p
+          )
+        }));
+
+        logAdminAction('update', 'comments', commentId, undefined, { projectId, stageId, taskId });
       },
 
       // Milestone actions

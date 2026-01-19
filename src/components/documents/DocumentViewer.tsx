@@ -50,6 +50,10 @@ interface DocumentViewerProps {
   status: import('@/lib/types/document').DocumentStatus;
   fileUrl: string; // Blob URL or data URL
   onClose: () => void;
+  /** Optional comment ID to highlight on initial load (from notification navigation) */
+  initialHighlightCommentId?: string;
+  /** Optional initial tab for comments panel ('location' or 'general') */
+  initialCommentTab?: 'location' | 'general';
 }
 
 type ZoomLevel = 'fit-width' | 'fit-page' | number;
@@ -61,13 +65,15 @@ export function DocumentViewer({
   status,
   fileUrl,
   onClose,
+  initialHighlightCommentId,
+  initialCommentTab,
 }: DocumentViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [zoom, setZoom] = useState<ZoomLevel>('fit-width');
   const [containerWidth, setContainerWidth] = useState<number>(800);
   const [annotationMode, setAnnotationMode] = useState(false);
-  const [highlightedCommentId, setHighlightedCommentId] = useState<string>();
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | undefined>(initialHighlightCommentId);
   const [showComments, setShowComments] = useState(true);
   const [showPins, setShowPins] = useState(true);
   const [drawingMode, setDrawingMode] = useState(false);
@@ -219,7 +225,7 @@ export function DocumentViewer({
     setShowAddCommentDialog(true);
   };
 
-  const handleCommentSubmit = async (comment: string, highlightColor?: HighlightColor) => {
+  const handleCommentSubmit = async (comment: string, highlightColor?: HighlightColor, mentions?: string[]) => {
     if (pendingHighlight) {
       // Handle highlight comment
       const { x, y, width, height, page, color } = pendingHighlight;
@@ -230,7 +236,7 @@ export function DocumentViewer({
         width,
         height,
         highlightColor: highlightColor || color,
-      });
+      }, mentions);
 
       if (commentId) {
         setHighlightedCommentId(commentId);
@@ -241,7 +247,7 @@ export function DocumentViewer({
     } else if (pendingCommentLocation) {
       // Handle point comment
       const { x, y, page } = pendingCommentLocation;
-      const commentId = await addComment(documentId, selectedVersionId, comment, { x, y, page });
+      const commentId = await addComment(documentId, selectedVersionId, comment, { x, y, page }, mentions);
 
       if (commentId) {
         setHighlightedCommentId(commentId);
@@ -644,6 +650,7 @@ export function DocumentViewer({
               selectedVersionId={activeVersionId}
               highlightedCommentId={highlightedCommentId}
               onLocationCommentClick={handleLocationCommentClick}
+              initialTab={initialCommentTab}
             />
           </div>
         )}

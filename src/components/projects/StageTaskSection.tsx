@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { format, isPast, isToday } from 'date-fns';
+import { CalendarDays } from 'lucide-react';
 import type { Project, TaskStatus } from '@/lib/types';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
@@ -11,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TaskProgressBar } from '@/components/tasks/TaskProgressBar';
+import { TaskDetail } from '@/components/tasks/TaskDetail';
+import { cn } from '@/lib/utils';
 
 interface StageTaskSectionProps {
   project: Project;
@@ -24,6 +28,7 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
   const workflow = useWorkflowStore((state) => state.workflow);
   const [isAdding, setIsAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const stageData = project.stages[stageId];
   const workflowStage = workflow.stages.find((s) => s.id === stageId);
 
@@ -186,7 +191,8 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
         {tasks.map((task) => (
           <div
             key={task.id}
-            className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors"
+            className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+            onClick={() => setSelectedTaskId(task.id)}
           >
             <div
               className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
@@ -200,9 +206,31 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
               {task.status === 'complete' ? '✓' : task.status === 'in_progress' ? '•' : '○'}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate" style={{ color: 'hsl(var(--foreground))' }}>
-                {task.title}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium truncate" style={{ color: 'hsl(var(--foreground))' }}>
+                  {task.title}
+                </span>
+                {task.dueDate && task.status !== 'complete' && (
+                  <span
+                    className={cn(
+                      'flex items-center gap-1 text-xs shrink-0',
+                      isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate))
+                        ? 'text-red-600'
+                        : isToday(new Date(task.dueDate))
+                          ? 'text-amber-600'
+                          : 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarDays className="h-3 w-3" />
+                    {format(new Date(task.dueDate), 'MMM d')}
+                  </span>
+                )}
               </div>
+              {task.description && (
+                <div className="text-xs text-muted-foreground truncate mt-0.5">
+                  {task.description}
+                </div>
+              )}
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -264,6 +292,14 @@ export function StageTaskSection({ project, stageId, stageName }: StageTaskSecti
           </Button>
         </div>
       )}
+
+      {/* Task Detail Sheet */}
+      <TaskDetail
+        projectId={project.id}
+        stageId={stageId}
+        taskId={selectedTaskId}
+        onClose={() => setSelectedTaskId(null)}
+      />
     </div>
   );
 }

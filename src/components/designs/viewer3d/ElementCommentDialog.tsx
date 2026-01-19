@@ -15,12 +15,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { useDesignStore } from '@/stores/designStore';
 import type { ElementAnchor, DesignComment } from '@/lib/types';
 import { toast } from 'sonner';
+import { MentionInput } from '@/components/mentions/MentionInput';
+import { MentionText } from '@/components/mentions/MentionText';
 
 interface ElementCommentDialogProps {
   open: boolean;
@@ -40,6 +41,7 @@ export function ElementCommentDialog({
   onCommentAdded,
 }: ElementCommentDialogProps) {
   const [commentText, setCommentText] = useState('');
+  const [commentMentions, setCommentMentions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [existingComments, setExistingComments] = useState<DesignComment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,18 +78,26 @@ export function ElementCommentDialog({
   useEffect(() => {
     if (!open) {
       setCommentText('');
+      setCommentMentions([]);
     }
   }, [open]);
+
+  const handleTextChange = (text: string, mentions: string[]) => {
+    setCommentText(text);
+    setCommentMentions(mentions);
+  };
 
   const handleSubmit = async () => {
     if (!commentText.trim()) return;
 
     setIsSubmitting(true);
     try {
-      const commentId = await addComment(designId, versionId, commentText, elementAnchor);
+      const mentionsToPass = commentMentions.length > 0 ? commentMentions : undefined;
+      const commentId = await addComment(designId, versionId, commentText, elementAnchor, mentionsToPass);
       if (commentId) {
         toast.success('Comment added');
         setCommentText('');
+        setCommentMentions([]);
         // Refresh comments
         const comments = await getElementComments(
           designId,
@@ -174,9 +184,9 @@ export function ElementCommentDialog({
                         </Badge>
                       )}
                     </div>
-                    <p className={comment.resolved ? 'text-muted-foreground' : ''}>
-                      {comment.text}
-                    </p>
+                    <div className={comment.resolved ? 'text-muted-foreground' : ''}>
+                      <MentionText text={comment.text} />
+                    </div>
                   </div>
                   {!comment.resolved && (
                     <Button
@@ -196,11 +206,11 @@ export function ElementCommentDialog({
 
         {/* New Comment Input */}
         <div className="space-y-2">
-          <Textarea
-            placeholder="Enter your comment..."
+          <MentionInput
             value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            className="min-h-[80px]"
+            onChange={handleTextChange}
+            placeholder="Enter your comment... (use @ to mention someone)"
+            minHeight="80px"
             autoFocus
           />
         </div>

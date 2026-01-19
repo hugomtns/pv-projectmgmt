@@ -6,6 +6,8 @@ import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { db, storeBlob, deleteBlob } from '@/lib/db';
 import { logAdminAction } from '@/lib/adminLogger';
 import { toast } from 'sonner';
+import { extractMentions } from '@/lib/mentions/parser';
+import { notifyMention } from '@/lib/notifications/notificationService';
 
 interface DesignState {
     // State
@@ -21,7 +23,8 @@ interface DesignState {
     addVersion: (designId: string, file: File) => Promise<string | null>;
 
     // Comments
-    addComment: (designId: string, versionId: string, text: string, elementAnchor?: ElementAnchor) => Promise<string | null>;
+    addComment: (designId: string, versionId: string, text: string, elementAnchor?: ElementAnchor, mentions?: string[]) => Promise<string | null>;
+    updateComment: (commentId: string, updates: Partial<DesignComment>) => Promise<boolean>;
     resolveComment: (commentId: string) => Promise<boolean>;
     deleteComment: (commentId: string) => Promise<boolean>;
     getComments: (designId: string, versionId: string) => Promise<DesignComment[]>;
@@ -330,9 +333,11 @@ export const useDesignStore = create<DesignState>()(
                 }
             },
 
-            addComment: async (designId, versionId, text, elementAnchor) => {
+            addComment: async (designId, versionId, text, elementAnchor, mentions) => {
                 const userState = useUserStore.getState();
                 const currentUser = userState.currentUser;
+                const users = userState.users;
+
                 if (!currentUser) {
                     toast.error('Login required');
                     return null;
@@ -346,25 +351,59 @@ export const useDesignStore = create<DesignState>()(
                     const now = new Date().toISOString();
                     const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
 
+                    // Extract mentions from text if not provided
+                    const mentionedUserIds = mentions ?? extractMentions(text, users);
+
                     const comment: DesignComment = {
                         id: commentId,
                         designId,
                         versionId,
                         text,
                         author: userFullName,
+                        authorId: currentUser.id,
                         createdAt: now,
                         resolved: false,
                         type: elementAnchor ? 'element' : 'design',
                         ...(elementAnchor && { elementAnchor }),
+                        ...(mentionedUserIds.length > 0 && { mentions: mentionedUserIds }),
                     };
 
                     await db.designComments.add(comment);
+
+                    // Trigger mention notifications
+                    if (mentionedUserIds.length > 0) {
+                        const design = get().designs.find((d) => d.id === designId);
+                        notifyMention({
+                            actorId: currentUser.id,
+                            actorName: userFullName,
+                            mentionedUserIds,
+                            commentText: text,
+                            commentId,
+                            context: {
+                                type: 'design',
+                                designId,
+                                designName: design?.name || 'Design',
+                                projectId: design?.projectId,
+                                commentType: elementAnchor ? 'element' : 'general',
+                            },
+                        });
+                    }
 
                     return commentId;
                 } catch (e) {
                     console.error(e);
                     toast.error('Failed to add comment');
                     return null;
+                }
+            },
+
+            updateComment: async (commentId, updates) => {
+                try {
+                    await db.designComments.update(commentId, updates);
+                    return true;
+                } catch (e) {
+                    toast.error('Failed to update comment');
+                    return false;
                 }
             },
 

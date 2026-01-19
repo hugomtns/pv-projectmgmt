@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useDocumentStore } from '@/stores/documentStore';
 import { db, getBlob } from '@/lib/db';
 import { blobCache } from '@/lib/blobCache';
@@ -7,9 +7,16 @@ import { DocumentViewer } from '@/components/documents/DocumentViewer';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import NotFound from './NotFound';
 
+interface LocationState {
+  highlightCommentId?: string;
+  commentType?: 'location' | 'general';
+}
+
 export default function DocumentViewerPage() {
   const { documentId } = useParams<{ documentId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as LocationState | null;
   const document = useDocumentStore((state) =>
     documentId ? state.documents.find(d => d.id === documentId) : null
   );
@@ -91,6 +98,8 @@ export default function DocumentViewerPage() {
       status={document.status}
       fileUrl={fileUrl}
       onClose={() => navigate(-1)}
+      initialHighlightCommentId={state?.highlightCommentId}
+      initialCommentTab={state?.commentType}
     />
   );
 }

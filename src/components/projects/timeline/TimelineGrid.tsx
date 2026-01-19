@@ -1,5 +1,5 @@
 import { TimelineRow } from './TimelineRow';
-import type { Project, Milestone, Priority } from '@/lib/types';
+import type { Project, Milestone, Priority, Task } from '@/lib/types';
 import { useWorkflowStore } from '@/stores/workflowStore';
 import { PRIORITY_LABELS } from '@/lib/constants';
 
@@ -11,6 +11,7 @@ interface TimelineGridProps {
   groupBy: 'none' | 'stage' | 'priority';
   ordering: { field: string; direction: 'asc' | 'desc' };
   onMilestoneClick: (projectId: string, milestone: Milestone) => void;
+  onTaskClick?: (projectId: string, stageId: string, task: Task) => void;
 }
 
 export function TimelineGrid({
@@ -21,6 +22,7 @@ export function TimelineGrid({
   groupBy,
   ordering,
   onMilestoneClick,
+  onTaskClick,
 }: TimelineGridProps) {
   const workflow = useWorkflowStore((state) => state.workflow);
 
@@ -102,18 +104,27 @@ export function TimelineGrid({
     );
   }
 
-  // Check if any projects have milestones
+  // Check if any projects have milestones or tasks with due dates
   const totalMilestones = sortedProjects.reduce((sum, p) => sum + (p.milestones?.length || 0), 0);
-  const hasAnyMilestones = totalMilestones > 0;
+  const totalTasksWithDueDates = sortedProjects.reduce((sum, p) => {
+    let taskCount = 0;
+    Object.values(p.stages).forEach((stageData) => {
+      stageData.tasks.forEach((task) => {
+        if (task.dueDate) taskCount++;
+      });
+    });
+    return sum + taskCount;
+  }, 0);
+  const hasAnyItems = totalMilestones > 0 || totalTasksWithDueDates > 0;
 
   return (
     <div className="overflow-y-auto h-full">
-      {!hasAnyMilestones && (
+      {!hasAnyItems && (
         <div className="flex items-center justify-center p-8 text-center border-b">
           <div className="space-y-2">
-            <p className="text-sm font-medium">No milestones yet</p>
+            <p className="text-sm font-medium">No milestones or task deadlines yet</p>
             <p className="text-sm text-muted-foreground">
-              Add milestones to your projects to see them on the timeline
+              Add milestones or set task due dates to see them on the timeline
             </p>
           </div>
         </div>
@@ -136,6 +147,7 @@ export function TimelineGrid({
               rangeEnd={rangeEnd}
               showCompletedMilestones={showCompletedMilestones}
               onMilestoneClick={onMilestoneClick}
+              onTaskClick={onTaskClick}
             />
           ))}
         </div>

@@ -8,15 +8,15 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Check } from 'lucide-react';
 import type { HighlightColor } from '@/lib/types/document';
 import { HIGHLIGHT_COLORS, HIGHLIGHT_COLOR_NAMES } from './constants/highlightConstants';
+import { MentionInput } from '@/components/mentions/MentionInput';
 
 interface AddLocationCommentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (comment: string, highlightColor?: HighlightColor) => void | Promise<void>;
+  onSubmit: (comment: string, highlightColor?: HighlightColor, mentions?: string[]) => void | Promise<void>;
   pageNumber: number;
   isHighlight?: boolean;
   highlightColor?: HighlightColor;
@@ -31,9 +31,16 @@ export function AddLocationCommentDialog({
   highlightColor = 'yellow',
 }: AddLocationCommentDialogProps) {
   const [comment, setComment] = useState('');
+  const [mentions, setMentions] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState<HighlightColor>(highlightColor);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  const handleTextChange = (text: string, mentionedUserIds: string[]) => {
+    setComment(text);
+    setMentions(mentionedUserIds);
+    setError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,10 +53,11 @@ export function AddLocationCommentDialog({
 
     setIsSubmitting(true);
     try {
+      const mentionsToPass = mentions.length > 0 ? mentions : undefined;
       if (isHighlight) {
-        await onSubmit(comment.trim(), selectedColor);
+        await onSubmit(comment.trim(), selectedColor, mentionsToPass);
       } else {
-        await onSubmit(comment.trim());
+        await onSubmit(comment.trim(), undefined, mentionsToPass);
       }
       handleClose();
     } catch (err) {
@@ -61,6 +69,7 @@ export function AddLocationCommentDialog({
 
   const handleClose = () => {
     setComment('');
+    setMentions([]);
     setSelectedColor(highlightColor);
     setError('');
     onOpenChange(false);
@@ -111,19 +120,16 @@ export function AddLocationCommentDialog({
             </div>
           )}
 
-          {/* Comment textarea */}
+          {/* Comment input with @mentions */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Comment</label>
-            <Textarea
+            <MentionInput
               value={comment}
-              onChange={(e) => {
-                setComment(e.target.value);
-                setError(''); // Clear error on input
-              }}
-              placeholder="Enter your comment..."
+              onChange={handleTextChange}
+              placeholder="Enter your comment... (use @ to mention someone)"
               className={error ? 'border-destructive' : ''}
               disabled={isSubmitting}
-              rows={4}
+              minHeight="100px"
               autoFocus
             />
             {error && (
