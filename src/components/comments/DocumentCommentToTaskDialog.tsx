@@ -217,12 +217,12 @@ export function DocumentCommentToTaskDialog({
           {/* Assignee */}
           <div className="space-y-2">
             <Label>Assignee</Label>
-            <Select value={assignee} onValueChange={setAssignee}>
+            <Select value={assignee || 'unassigned'} onValueChange={(val) => setAssignee(val === 'unassigned' ? '' : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select assignee" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {suggestedUsers.length > 0 && (
                   <>
                     <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
