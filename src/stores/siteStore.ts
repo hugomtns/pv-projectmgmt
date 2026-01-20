@@ -10,6 +10,7 @@ import type {
   ScorecardCategory,
   ScorecardRating,
   SiteScorecard,
+  SiteComment,
 } from '@/lib/types';
 import {
   createEmptyScorecard,
@@ -29,7 +30,15 @@ function calculateUsableArea(
   exclusionZones: SiteExclusionZone[],
   totalArea: number
 ): number {
+  console.log('[calculateUsableArea] Starting calculation:', {
+    boundaryCount: boundaries.length,
+    exclusionCount: exclusionZones.length,
+    totalArea,
+    exclusionTypes: exclusionZones.map(ez => ez.type),
+  });
+
   if (boundaries.length === 0 || exclusionZones.length === 0) {
+    console.log('[calculateUsableArea] No exclusions - returning full area');
     return totalArea;
   }
 
@@ -47,7 +56,10 @@ function calculateUsableArea(
         return turf.polygon([coords]);
       });
 
-    if (boundaryPolygons.length === 0) return totalArea;
+    if (boundaryPolygons.length === 0) {
+      console.log('[calculateUsableArea] No valid boundary polygons');
+      return totalArea;
+    }
 
     // Union all boundaries into one (may result in Polygon or MultiPolygon)
     let boundaryUnion: Feature<Polygon | MultiPolygon> = boundaryPolygons[0];
@@ -56,8 +68,12 @@ function calculateUsableArea(
       if (result) boundaryUnion = result;
     }
 
+    const boundaryUnionArea = turf.area(boundaryUnion);
+    console.log('[calculateUsableArea] Boundary union area:', boundaryUnionArea);
+
     // Build exclusion polygons and union them (to handle overlaps)
     const exclusionPolygons: Feature<Polygon>[] = [];
+    const exclusionDetails: Array<{ name: string; type: string; area: number }> = [];
 
     for (const ez of exclusionZones) {
       if (ez.coordinates.length < 4) continue;
@@ -69,13 +85,24 @@ function calculateUsableArea(
             coords[0][1] !== coords[coords.length - 1][1]) {
           coords.push(coords[0]);
         }
-        exclusionPolygons.push(turf.polygon([coords]));
+        const poly = turf.polygon([coords]);
+        exclusionPolygons.push(poly);
+        exclusionDetails.push({
+          name: ez.name,
+          type: ez.type,
+          area: turf.area(poly),
+        });
       } catch {
         // Skip invalid polygons
       }
     }
 
-    if (exclusionPolygons.length === 0) return totalArea;
+    if (exclusionPolygons.length === 0) {
+      console.log('[calculateUsableArea] No valid exclusion polygons');
+      return totalArea;
+    }
+
+    console.log('[calculateUsableArea] Exclusion details:', exclusionDetails);
 
     // Union all exclusion zones to handle overlaps
     let exclusionUnion: Feature<Polygon | MultiPolygon> = exclusionPolygons[0];
@@ -88,19 +115,30 @@ function calculateUsableArea(
       }
     }
 
+    const rawExclusionArea = exclusionDetails.reduce((sum, d) => sum + d.area, 0);
+    const mergedExclusionArea = turf.area(exclusionUnion);
+    const overlapArea = rawExclusionArea - mergedExclusionArea;
+
     // Clip the merged exclusion to the boundary
     const clippedExclusion = turf.intersect(turf.featureCollection([boundaryUnion, exclusionUnion]));
     const clippedExclusionArea = clippedExclusion ? turf.area(clippedExclusion) : 0;
+    const outsideBoundaryArea = mergedExclusionArea - clippedExclusionArea;
 
-    console.log('[calculateUsableArea] Result:', {
-      originalExclusionArea: exclusionZones.reduce((sum, ez) => sum + (ez.area || 0), 0),
-      mergedExclusionArea: turf.area(exclusionUnion),
-      clippedExclusionArea,
-      totalArea,
-      usableArea: totalArea - clippedExclusionArea,
+    const usableArea = Math.max(0, totalArea - clippedExclusionArea);
+    const usablePercent = totalArea > 0 ? ((usableArea / totalArea) * 100).toFixed(1) : 0;
+
+    console.log('[calculateUsableArea] Calculation breakdown:', {
+      step1_totalBoundaryArea: totalArea,
+      step2_rawExclusionArea: rawExclusionArea,
+      step3_mergedExclusionArea: mergedExclusionArea,
+      step4_exclusionOverlapRemoved: overlapArea,
+      step5_clippedToSiteBoundary: clippedExclusionArea,
+      step6_exclusionOutsideBoundary: outsideBoundaryArea,
+      step7_finalUsableArea: usableArea,
+      usablePercent: `${usablePercent}%`,
     });
 
-    return Math.max(0, totalArea - clippedExclusionArea);
+    return usableArea;
   } catch (error) {
     console.error('[calculateUsableArea] Error:', error);
     // Fallback to simple calculation
@@ -142,6 +180,12 @@ interface SiteState {
     rating: ScorecardRating,
     notes?: string
   ) => void;
+
+  // Comment actions
+  addSiteComment: (siteId: string, content: string) => string | undefined;
+  updateSiteComment: (siteId: string, commentId: string, content: string) => void;
+  deleteSiteComment: (siteId: string, commentId: string) => void;
+  getSiteComments: (siteId: string) => SiteComment[];
 
   // Helpers
   getSitesByProject: (projectId: string) => Site[];
@@ -401,6 +445,186 @@ export const useSiteStore = create<SiteState>()(
         updatedScorecard.compositeScore = calculateCompositeScore(updatedScorecard);
 
         get().updateSite(siteId, { scorecard: updatedScorecard });
+      },
+
+      addSiteComment: (siteId, content) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to add comments');
+          return;
+        }
+
+        const site = get().sites.find((s) => s.id === siteId);
+        if (!site) {
+          toast.error('Site not found');
+          return;
+        }
+
+        const now = new Date().toISOString();
+        const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+
+        // Parse @mentions from content
+        const mentionRegex = /@([a-zA-Z]+\.[a-zA-Z]+)/g;
+        const mentions: string[] = [];
+        let match;
+        while ((match = mentionRegex.exec(content)) !== null) {
+          // Convert mention format to user ID lookup
+          const mentionName = match[1].toLowerCase();
+          const users = userState.users;
+          const mentionedUser = users.find(
+            (u) => `${u.firstName.toLowerCase()}.${u.lastName.toLowerCase()}` === mentionName
+          );
+          if (mentionedUser && !mentions.includes(mentionedUser.id)) {
+            mentions.push(mentionedUser.id);
+          }
+        }
+
+        const newComment: SiteComment = {
+          id: crypto.randomUUID(),
+          siteId,
+          content,
+          createdBy: userFullName,
+          creatorId: currentUser.id,
+          createdAt: now,
+          updatedAt: now,
+          mentions: mentions.length > 0 ? mentions : undefined,
+        };
+
+        set((state) => ({
+          sites: state.sites.map((s) =>
+            s.id === siteId
+              ? {
+                  ...s,
+                  comments: [...(s.comments || []), newComment],
+                  updatedAt: now,
+                }
+              : s
+          ),
+        }));
+
+        // TODO: Trigger notifications for mentioned users
+        // This would integrate with notificationService.notifyMention()
+
+        return newComment.id;
+      },
+
+      updateSiteComment: (siteId, commentId, content) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to update comments');
+          return;
+        }
+
+        const site = get().sites.find((s) => s.id === siteId);
+        if (!site) {
+          toast.error('Site not found');
+          return;
+        }
+
+        const comment = site.comments?.find((c) => c.id === commentId);
+        if (!comment) {
+          toast.error('Comment not found');
+          return;
+        }
+
+        // Only comment creator or admin can edit
+        const isAdmin = currentUser.roleId === 'role-admin';
+        if (comment.creatorId !== currentUser.id && !isAdmin) {
+          toast.error('You can only edit your own comments');
+          return;
+        }
+
+        const now = new Date().toISOString();
+
+        // Re-parse @mentions from updated content
+        const mentionRegex = /@([a-zA-Z]+\.[a-zA-Z]+)/g;
+        const mentions: string[] = [];
+        let match;
+        while ((match = mentionRegex.exec(content)) !== null) {
+          const mentionName = match[1].toLowerCase();
+          const users = userState.users;
+          const mentionedUser = users.find(
+            (u) => `${u.firstName.toLowerCase()}.${u.lastName.toLowerCase()}` === mentionName
+          );
+          if (mentionedUser && !mentions.includes(mentionedUser.id)) {
+            mentions.push(mentionedUser.id);
+          }
+        }
+
+        set((state) => ({
+          sites: state.sites.map((s) =>
+            s.id === siteId
+              ? {
+                  ...s,
+                  comments: s.comments?.map((c) =>
+                    c.id === commentId
+                      ? {
+                          ...c,
+                          content,
+                          updatedAt: now,
+                          mentions: mentions.length > 0 ? mentions : undefined,
+                        }
+                      : c
+                  ),
+                  updatedAt: now,
+                }
+              : s
+          ),
+        }));
+
+        toast.success('Comment updated');
+      },
+
+      deleteSiteComment: (siteId, commentId) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to delete comments');
+          return;
+        }
+
+        const site = get().sites.find((s) => s.id === siteId);
+        if (!site) {
+          toast.error('Site not found');
+          return;
+        }
+
+        const comment = site.comments?.find((c) => c.id === commentId);
+        if (!comment) {
+          toast.error('Comment not found');
+          return;
+        }
+
+        // Only comment creator or admin can delete
+        const isAdmin = currentUser.roleId === 'role-admin';
+        if (comment.creatorId !== currentUser.id && !isAdmin) {
+          toast.error('You can only delete your own comments');
+          return;
+        }
+
+        set((state) => ({
+          sites: state.sites.map((s) =>
+            s.id === siteId
+              ? {
+                  ...s,
+                  comments: s.comments?.filter((c) => c.id !== commentId),
+                  updatedAt: new Date().toISOString(),
+                }
+              : s
+          ),
+        }));
+
+        toast.success('Comment deleted');
+      },
+
+      getSiteComments: (siteId) => {
+        const site = get().sites.find((s) => s.id === siteId);
+        return site?.comments || [];
       },
 
       getSitesByProject: (projectId) => {

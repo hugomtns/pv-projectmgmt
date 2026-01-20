@@ -6,6 +6,7 @@
  */
 
 import type { SiteScorecard } from './siteScorecard';
+import type { SiteComment } from './siteComment';
 
 export interface SiteBoundary {
   id: string;
@@ -20,6 +21,9 @@ export type ExclusionZoneType =
   | 'easement'
   | 'slope'
   | 'flood_zone'
+  | 'tree_cover'
+  | 'structure'
+  | 'water_body'
   | 'other';
 
 export interface SiteExclusionZone {
@@ -59,6 +63,9 @@ export interface Site {
 
   // Site selection scorecard
   scorecard?: SiteScorecard;
+
+  // Comments
+  comments?: SiteComment[];
 }
 
 export interface KMLParseResult {
@@ -74,5 +81,8 @@ export const EXCLUSION_ZONE_LABELS: Record<ExclusionZoneType, string> = {
   easement: 'Easement',
   slope: 'Steep Slope',
   flood_zone: 'Flood Zone',
+  tree_cover: 'Tree Cover',
+  structure: 'Structure',
+  water_body: 'Water Body',
   other: 'Other',
 };

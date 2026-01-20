@@ -21,8 +21,14 @@ tsc -b
 # Linting
 npm run lint
 
-# Testing
+# Testing (runs in watch mode)
 npm run test
+
+# Run a single test file
+npm run test -- tests/stores/projectStore.test.ts
+
+# Run tests matching a pattern
+npm run test -- --testNamePattern="should create"
 
 # Preview production build
 npm run preview
@@ -85,8 +91,31 @@ The application uses several Zustand stores with localStorage persistence:
    - Permission checks: admins can update/delete any, users only their own
    - Storage key: `component-storage`
 
-8. **displayStore** & **filterStore** & **userFilterStore**
-   - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search, user filters)
+8. **boqStore** (`src/stores/boqStore.ts`)
+   - Manages Bill of Quantities (BOQ) linked to designs
+   - One BOQ per design, auto-generates items from DXF component extraction
+   - Integrates with component library for pricing
+   - Can export BOQ items to financial model CAPEX
+   - Storage key: `boq-storage`
+
+9. **themeStore** (`src/stores/themeStore.ts`)
+   - Manages light/dark theme with system preference support
+   - Applied immediately on load via `applyStoredTheme()` before React renders
+
+10. **notificationStore** (`src/stores/notificationStore.ts`)
+    - In-app notifications for task assignments, @mentions, due date reminders
+    - Persisted to localStorage
+    - Storage key: `notification-storage`
+
+11. **siteStore**, **equipmentStore**, **maintenanceStore**, **workOrderStore**, **inspectionStore**
+    - Asset management and O&M (Operations & Maintenance) tracking for deployed PV sites
+    - Tracks equipment units, maintenance schedules, work orders, and inspections
+
+12. **digitalTwinStore** (`src/stores/digitalTwinStore.ts`)
+    - Manages digital twin simulations and 3D visualization state
+
+13. **displayStore** & **filterStore** & **userFilterStore**
+    - Handle view settings (list/board, grouping, ordering) and filtering (stage, priority, owner, search, user filters)
 
 ### NTP (Notice to Proceed) Checklist
 
@@ -147,9 +176,24 @@ Projects have an optional NTP checklist (`project.ntpChecklist`) for tracking du
 - Extracts manufacturer, model, and full specifications from PVsyst parameter files
 - Import flow: FileImportDialog → parse file → preview extracted data → ComponentDialog with prefilled specs
 
+**@Mentions & Notifications:**
+- Users can be mentioned in comments using `@firstname.lastname` format
+- `src/lib/mentions/parser.ts` handles mention parsing, autocomplete filtering, and position tracking
+- `src/lib/notifications/notificationService.ts` triggers notifications for:
+  - Task assignments (`notifyTaskAssigned`)
+  - @mentions in task/document/design comments (`notifyMention`)
+  - Due date reminders (`notifyTaskDueSoon`)
+- Users have configurable notification preferences stored in `user.notificationPreferences`
+- Notifications support deep links to tasks, documents, and designs with specific comment anchoring
+
+**Routing:**
+- Uses `react-router-dom` with centralized route definitions in `src/router/routes.tsx`
+- `RootLayout` wraps all pages with `AppShell` for consistent navigation
+- Detail pages use URL params: `/projects/:projectId`, `/designs/:designId`, `/documents/:documentId`, `/financials/:projectId`
+
 **Keyboard Shortcuts:**
 - Custom hook `useKeyboardShortcuts` supports both single keys and sequences
-- Global shortcuts: `g+p` (projects page), `g+w` (workflow page)
+- Global navigation: `g+p` (projects), `g+w` (workflow), `g+u` (users), `g+g` (groups), `g+r` (permissions)
 - Context shortcuts: `0-4` (set priority), `n` (new project), `/` (search), `?` (help)
 
 **Permission System:**
@@ -183,6 +227,8 @@ components/
 - **src/lib/types/financial.ts** - Financial types: `FinancialModel`, `FinancialInputs`, `ProjectResults`, `CostLineItem`
 - **src/lib/types/component.ts** - Component types: `Component`, `ModuleSpecs`, `InverterSpecs`, `DesignUsage`
 - **src/lib/types/ntpChecklist.ts** - NTP types: `NtpChecklist`, `NtpChecklistItem`, `NtpCategory`
+- **src/lib/types/boq.ts** - BOQ types: `BOQ`, `BOQItem`, `BOQGenerationOptions`
+- **src/lib/types/notification.ts** - Notification types: `Notification`, `NotificationLink`, `NotificationPreferences`
 - **src/lib/constants.ts** - Priority labels/colors, task status labels, NTP category colors
 - Priority scale: 0=On Hold, 1=Urgent, 2=High, 3=Medium, 4=Low
 - Document statuses: `draft`, `review`, `approved`, `rejected`
@@ -236,4 +282,9 @@ App shows a loading screen for 300ms on mount to ensure Zustand persistence has 
 - `src/lib/pan/parser.ts` - PVsyst PAN file parser (modules)
 - `src/lib/ond/parser.ts` - PVsyst OND file parser (inverters)
 - `src/data/ntpChecklistTemplate.ts` - NTP checklist templates and utilities
+- `src/stores/boqStore.ts` - Bill of Quantities state and DXF-to-CAPEX export
+- `src/stores/notificationStore.ts` - In-app notification state and delivery
+- `src/lib/mentions/parser.ts` - @mention parsing and autocomplete utilities
+- `src/lib/notifications/notificationService.ts` - Notification triggering service
+- `src/router/routes.tsx` - Centralized route definitions
 - `vite.config.ts` - Vite and Vitest configuration with path aliases

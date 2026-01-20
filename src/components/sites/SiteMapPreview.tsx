@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
 import { LatLngBounds } from 'leaflet';
 import type { Site, ExclusionZoneType } from '@/lib/types';
@@ -9,6 +9,9 @@ import {
   SCORECARD_TRAFFIC_LIGHT_COLORS,
   SCORECARD_TRAFFIC_LIGHT_LABELS,
 } from '@/lib/constants';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Eye, EyeOff } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 interface SiteMapPreviewProps {
@@ -22,10 +25,70 @@ const EXCLUSION_COLORS: Record<ExclusionZoneType, string> = {
   easement: '#8b5cf6', // purple
   slope: '#ef4444', // red
   flood_zone: '#06b6d4', // cyan
+  tree_cover: '#22c55e', // green
+  structure: '#ec4899', // pink
+  water_body: '#0ea5e9', // sky blue
   other: '#6b7280', // gray
 };
 
+// Type for layer visibility state
+type LayerVisibility = {
+  boundaries: boolean;
+} & Record<ExclusionZoneType, boolean>;
+
+// Create initial visibility state with all layers visible
+const createInitialVisibility = (): LayerVisibility => ({
+  boundaries: true,
+  wetland: true,
+  setback: true,
+  easement: true,
+  slope: true,
+  flood_zone: true,
+  tree_cover: true,
+  structure: true,
+  water_body: true,
+  other: true,
+});
+
 export function SiteMapPreview({ site }: SiteMapPreviewProps) {
+  // Layer visibility state
+  const [visibility, setVisibility] = useState<LayerVisibility>(createInitialVisibility);
+
+  // Get unique exclusion types present in this site
+  const exclusionTypesInSite = useMemo(() => {
+    const types = new Set(site.exclusionZones.map(ez => ez.type));
+    return Array.from(types) as ExclusionZoneType[];
+  }, [site.exclusionZones]);
+
+  // Toggle a single layer's visibility
+  const toggleLayer = (layer: keyof LayerVisibility) => {
+    setVisibility(prev => ({ ...prev, [layer]: !prev[layer] }));
+  };
+
+  // Show all layers
+  const showAllLayers = () => {
+    setVisibility(createInitialVisibility());
+  };
+
+  // Hide all exclusion layers (keep boundaries visible)
+  const hideAllExclusions = () => {
+    setVisibility({
+      boundaries: true,
+      wetland: false,
+      setback: false,
+      easement: false,
+      slope: false,
+      flood_zone: false,
+      tree_cover: false,
+      structure: false,
+      water_body: false,
+      other: false,
+    });
+  };
+
+  // Check if any exclusion layers are hidden
+  const hasHiddenExclusions = exclusionTypesInSite.some(type => !visibility[type]);
+
   // Calculate map bounds from all coordinates
   const bounds = useMemo(() => {
     const allCoords: Array<[number, number]> = [];
@@ -87,7 +150,7 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
         />
 
         {/* Render site boundaries */}
-        {boundaryPolygons.map((poly) => (
+        {visibility.boundaries && boundaryPolygons.map((poly) => (
           <Polygon
             key={poly.id}
             positions={poly.positions}
@@ -111,8 +174,10 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
           </Polygon>
         ))}
 
-        {/* Render exclusion zones */}
-        {exclusionPolygons.map((poly) => (
+        {/* Render exclusion zones (filtered by visibility) */}
+        {exclusionPolygons
+          .filter((poly) => visibility[poly.type])
+          .map((poly) => (
           <Polygon
             key={poly.id}
             positions={poly.positions}
@@ -146,30 +211,64 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
         ))}
       </MapContainer>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur rounded-lg p-3 text-xs space-y-1.5 z-[1000] shadow-lg border">
-        <div className="font-medium mb-2">Legend</div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-3 rounded bg-green-500/40 border-2 border-green-500" />
-          <span>Site Boundary</span>
+      {/* Legend with visibility toggles */}
+      <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur rounded-lg p-3 text-xs z-[1000] shadow-lg border max-w-[200px]">
+        <div className="flex items-center justify-between mb-2">
+          <div className="font-medium">Layers</div>
+          {exclusionTypesInSite.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-1.5 text-xs"
+              onClick={hasHiddenExclusions ? showAllLayers : hideAllExclusions}
+              title={hasHiddenExclusions ? 'Show all layers' : 'Hide exclusions'}
+            >
+              {hasHiddenExclusions ? (
+                <Eye className="h-3 w-3" />
+              ) : (
+                <EyeOff className="h-3 w-3" />
+              )}
+            </Button>
+          )}
         </div>
-        {exclusionPolygons.length > 0 && (
+
+        {/* Boundary layer toggle */}
+        <label className="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1">
+          <Checkbox
+            checked={visibility.boundaries}
+            onCheckedChange={() => toggleLayer('boundaries')}
+            className="h-3.5 w-3.5"
+          />
+          <div className="w-4 h-3 rounded bg-green-500/40 border-2 border-green-500 shrink-0" />
+          <span className={!visibility.boundaries ? 'text-muted-foreground line-through' : ''}>
+            Site Boundary
+          </span>
+        </label>
+
+        {exclusionTypesInSite.length > 0 && (
           <>
             <div className="border-t my-1.5" />
             <div className="text-muted-foreground mb-1">Exclusion Zones:</div>
             {/* Only show legend items for exclusion types that exist */}
-            {Array.from(new Set(exclusionPolygons.map((p) => p.type))).map((type) => (
-              <div key={type} className="flex items-center gap-2">
+            {exclusionTypesInSite.map((type) => (
+              <label key={type} className="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1">
+                <Checkbox
+                  checked={visibility[type]}
+                  onCheckedChange={() => toggleLayer(type)}
+                  className="h-3.5 w-3.5"
+                />
                 <div
-                  className="w-4 h-3 rounded border"
+                  className="w-4 h-3 rounded border shrink-0"
                   style={{
                     backgroundColor: EXCLUSION_COLORS[type] + '66',
                     borderColor: EXCLUSION_COLORS[type],
                     borderStyle: 'dashed',
                   }}
                 />
-                <span>{EXCLUSION_ZONE_LABELS[type]}</span>
-              </div>
+                <span className={!visibility[type] ? 'text-muted-foreground line-through' : ''}>
+                  {EXCLUSION_ZONE_LABELS[type]}
+                </span>
+              </label>
             ))}
           </>
         )}

@@ -36,6 +36,11 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
         const area = calculatePolygonArea(coordinates);
         const zoneType = detectZoneType(name, description);
 
+        // Skip pre-calculated areas (like "Buildable Area" polygons)
+        if (zoneType === 'skip') {
+          return;
+        }
+
         if (zoneType) {
           exclusionZones.push({
             id: crypto.randomUUID(),
@@ -66,6 +71,11 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
         if (coordinates.length > 0) {
           const area = calculatePolygonArea(coordinates);
           const zoneType = detectZoneType(name, description);
+
+          // Skip pre-calculated areas (like "Buildable Area" polygons)
+          if (zoneType === 'skip') {
+            return;
+          }
 
           if (zoneType) {
             exclusionZones.push({
@@ -181,33 +191,88 @@ function parseCoordinateString(
 
 /**
  * Detect if placemark represents an exclusion zone based on name/description
+ * Returns null if this is a boundary (not an exclusion)
+ * Returns 'skip' if this placemark should be skipped entirely (e.g., pre-calculated buildable area)
  */
 function detectZoneType(
   name: string,
   description: string
-): ExclusionZoneType | null {
+): ExclusionZoneType | 'skip' | null {
   const text = (name + ' ' + description).toLowerCase();
 
+  // Skip pre-calculated "Buildable Area" polygons - these are results, not raw data
+  if (text.includes('buildable area') || text.includes('buildable_area')) {
+    return 'skip';
+  }
+
+  // Wetlands
   if (text.includes('wetland') || text.includes('marsh') || text.includes('swamp')) {
     return 'wetland';
   }
+
+  // Water bodies (distinct from wetlands - ponds, lakes, streams, etc.)
+  if (
+    text.includes('pond') ||
+    text.includes('lake') ||
+    text.includes('stream') ||
+    text.includes('creek') ||
+    text.includes('river') ||
+    text.includes('water')
+  ) {
+    return 'water_body';
+  }
+
+  // Tree cover / vegetation
+  if (
+    text.includes('tree') ||
+    text.includes('forest') ||
+    text.includes('vegetation') ||
+    text.includes('wooded') ||
+    text.includes('timber')
+  ) {
+    return 'tree_cover';
+  }
+
+  // Structures / buildings / constraints
+  if (
+    text.includes('house') ||
+    text.includes('building') ||
+    text.includes('structure') ||
+    text.includes('constraint') ||
+    text.includes('barn') ||
+    text.includes('shed') ||
+    text.includes('dwelling')
+  ) {
+    return 'structure';
+  }
+
+  // Setbacks / buffers
   if (text.includes('setback') || text.includes('buffer')) {
     return 'setback';
   }
+
+  // Easements / rights-of-way
   if (text.includes('easement') || text.includes('right-of-way') || text.includes('row')) {
     return 'easement';
   }
+
+  // Steep slopes
   if (text.includes('slope') || text.includes('steep') || text.includes('grade')) {
     return 'slope';
   }
+
+  // Flood zones
   if (text.includes('flood') || text.includes('floodplain') || text.includes('fema')) {
     return 'flood_zone';
   }
+
+  // Generic exclusion terms - catch-all for anything marked as exclusion
   if (
     text.includes('exclusion') ||
     text.includes('exclude') ||
     text.includes('restricted') ||
-    text.includes('no-build')
+    text.includes('no-build') ||
+    text.includes('no build')
   ) {
     return 'other';
   }

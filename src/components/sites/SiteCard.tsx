@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardContent,
@@ -23,12 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Calendar, User, MoreVertical, Trash2, MapPin, Layers } from 'lucide-react';
 import type { Site } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -36,21 +31,19 @@ import { useSiteStore } from '@/stores/siteStore';
 import { useUserStore } from '@/stores/userStore';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
 import { squareMetersToAcres } from '@/lib/kml/parser';
-import { SiteMapPreview } from './SiteMapPreview';
 import { ScorecardBadge } from './scorecard/ScorecardBadge';
-import { ScorecardSection } from './scorecard/ScorecardSection';
 
 interface SiteCardProps {
   site: Site;
 }
 
 export function SiteCard({ site }: SiteCardProps) {
+  const navigate = useNavigate();
   const deleteSite = useSiteStore((state) => state.deleteSite);
   const currentUser = useUserStore((state) => state.currentUser);
   const permissionOverrides = useUserStore((state) => state.permissionOverrides);
   const roles = useUserStore((state) => state.roles);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showMapDialog, setShowMapDialog] = useState(false);
 
   // Check delete permission (owner or admin)
   const isAdmin = currentUser?.roleId === 'role-admin';
@@ -81,7 +74,7 @@ export function SiteCard({ site }: SiteCardProps) {
     <>
       <Card
         className="cursor-pointer hover:shadow-md transition-shadow group h-full flex flex-col"
-        onClick={() => setShowMapDialog(true)}
+        onClick={() => navigate(`/sites/${site.id}`)}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-2">
@@ -178,28 +171,6 @@ export function SiteCard({ site }: SiteCardProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Map preview dialog */}
-      <Dialog open={showMapDialog} onOpenChange={setShowMapDialog}>
-        <DialogContent className="max-w-5xl h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              {site.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Map view */}
-            <div className="lg:col-span-2 min-h-[300px]">
-              <SiteMapPreview site={site} />
-            </div>
-            {/* Scorecard panel */}
-            <div className="overflow-y-auto">
-              <ScorecardSection site={site} defaultExpanded={true} />
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

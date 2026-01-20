@@ -165,6 +165,9 @@ export type {
 } from './types/site';
 export { EXCLUSION_ZONE_LABELS } from './types/site';
 
+// Site Comments
+export type { SiteComment } from './types/siteComment';
+
 // Site Selection Scorecard
 export type {
   ScorecardCategory,

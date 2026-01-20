@@ -54,7 +54,10 @@
       "Bash(do)",
       "Bash(echo:*)",
       "Bash(done)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(for branch in feature/comment-tasks feature/digital-twin feature/asset-management feature/boq feature/on-site-inspections)",
+      "Bash(do echo \"=== $branch vs master ===\")",
+      "Bash(npm run lint:*)"
     ]
   },
   "enabledMcpjsonServers": [
