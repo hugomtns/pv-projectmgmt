@@ -27,13 +27,20 @@ interface SiteCommentPanelProps {
   siteId: string;
 }
 
+// Stable empty array to avoid re-renders
+const EMPTY_COMMENTS: SiteComment[] = [];
+
 export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
   const [newComment, setNewComment] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const comments = useSiteStore((state) => state.getSiteComments(siteId));
+  // Use direct selector with stable empty array fallback
+  const siteComments = useSiteStore((state) =>
+    state.sites.find((s) => s.id === siteId)?.comments
+  );
+  const comments = siteComments ?? EMPTY_COMMENTS;
   const addComment = useSiteStore((state) => state.addSiteComment);
   const updateComment = useSiteStore((state) => state.updateSiteComment);
   const deleteComment = useSiteStore((state) => state.deleteSiteComment);
