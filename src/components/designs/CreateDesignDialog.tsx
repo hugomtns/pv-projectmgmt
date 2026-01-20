@@ -11,7 +11,7 @@ import { useDesignStore } from '@/stores/designStore';
 import { LocationPicker } from './LocationPicker';
 import { extractGeoDataFromDXF } from '@/lib/dxf/parser';
 import { toast } from 'sonner';
-import { Upload, FileUp } from 'lucide-react';
+import { Upload, FileUp, FileBox } from 'lucide-react';
 import type { GPSCoordinates } from '@/lib/types';
 
 const createDesignSchema = z.object({
@@ -35,6 +35,7 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
     const [gpsCoordinates, setGpsCoordinates] = useState<GPSCoordinates | undefined>(undefined);
     const [groundSizeMeters, setGroundSizeMeters] = useState(400);
     const [gpsExtractedFromFile, setGpsExtractedFromFile] = useState(false);
+    const [isLoadingExample, setIsLoadingExample] = useState(false);
 
     const {
         register,
@@ -77,6 +78,26 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
         setGpsCoordinates(coords);
         if (!coords) {
             setGpsExtractedFromFile(false);
+        }
+    };
+
+    // Load example DXF file
+    const loadExampleDesign = async () => {
+        setIsLoadingExample(true);
+        try {
+            const response = await fetch('/examples/Drawing5.dxf');
+            if (!response.ok) {
+                throw new Error('Failed to load example file');
+            }
+            const blob = await response.blob();
+            const file = new File([blob], 'Drawing5.dxf', { type: 'application/dxf' });
+            await handleFileChange(file);
+            toast.success('Example design loaded');
+        } catch (error) {
+            console.error('Failed to load example design:', error);
+            toast.error('Failed to load example design');
+        } finally {
+            setIsLoadingExample(false);
         }
     };
 
@@ -155,6 +176,19 @@ export function CreateDesignDialog({ open, onOpenChange, projectId }: CreateDesi
                                 )}
                             </label>
                         </div>
+                        {!selectedFile && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="w-full text-muted-foreground hover:text-foreground"
+                                onClick={loadExampleDesign}
+                                disabled={isLoadingExample}
+                            >
+                                <FileBox className="h-4 w-4 mr-2" />
+                                {isLoadingExample ? 'Loading...' : 'Use example design'}
+                            </Button>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label>Project Location (optional)</Label>
