@@ -6,7 +6,82 @@ import type {
 } from '@/lib/types/site';
 
 /**
+ * Get the folder path for a placemark by traversing up the DOM tree
+ * Returns array of folder names from root to placemark
+ */
+function getFolderPath(placemark: Element): string[] {
+  const path: string[] = [];
+  let parent = placemark.parentElement;
+
+  while (parent) {
+    if (parent.tagName === 'Folder') {
+      const folderName = parent.querySelector(':scope > name')?.textContent;
+      if (folderName) {
+        path.unshift(folderName.toLowerCase());
+      }
+    }
+    parent = parent.parentElement;
+  }
+
+  return path;
+}
+
+/**
+ * Determine how to categorize a placemark based on its folder path
+ * Returns: 'boundary' | 'exclusion' | 'skip' | null (for unknown)
+ */
+function categorizeByFolderPath(
+  folderPath: string[]
+): 'boundary' | 'exclusion' | 'skip' | null {
+  // Skip buildable area polygons (pre-calculated results)
+  if (folderPath.some(f => f.includes('buildable'))) {
+    return 'skip';
+  }
+
+  // Skip "Exclusion Setback Area" - these are buffer zones already accounted for
+  if (folderPath.some(f => f.includes('setback area') || f === 'exclusion setback area')) {
+    return 'skip';
+  }
+
+  // Parcel boundaries
+  if (folderPath.some(f => f.includes('parcel boundary') || f === 'parcel boundary')) {
+    return 'boundary';
+  }
+
+  // Exclusion drawings folder
+  if (folderPath.some(f => f.includes('exclusion'))) {
+    return 'exclusion';
+  }
+
+  return null; // Unknown - will use name-based detection
+}
+
+/**
+ * Detect exclusion type from folder path
+ */
+function detectZoneTypeFromFolder(folderPath: string[]): ExclusionZoneType | null {
+  // Check the immediate parent folder name for type hints
+  const immediateFolder = folderPath[folderPath.length - 1] || '';
+
+  if (immediateFolder.includes('slope')) {
+    return 'slope';
+  }
+  if (immediateFolder.includes('tree') || immediateFolder.includes('forest')) {
+    return 'tree_cover';
+  }
+  if (immediateFolder.includes('wetland')) {
+    return 'wetland';
+  }
+  if (immediateFolder.includes('flood')) {
+    return 'flood_zone';
+  }
+
+  return null;
+}
+
+/**
  * Parse KML file content and extract site boundaries and exclusion zones
+ * Uses folder structure to properly categorize placemarks
  */
 export async function parseKMLFile(content: string): Promise<KMLParseResult> {
   const parser = new DOMParser();
@@ -25,18 +100,116 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
   const placemarks = doc.querySelectorAll('Placemark');
 
   placemarks.forEach((placemark) => {
-    const name = placemark.querySelector('name')?.textContent || 'Unnamed';
-    const description = placemark.querySelector('description')?.textContent || '';
+    const name = placemark.querySelector(':scope > name')?.textContent || 'Unnamed';
+    const description = placemark.querySelector(':scope > description')?.textContent || '';
+
+    // Get folder context for this placemark
+    const folderPath = getFolderPath(placemark);
+    const folderCategory = categorizeByFolderPath(folderPath);
+
+    // Skip based on folder (buildable area, setback buffers)
+    if (folderCategory === 'skip') {
+      return;
+    }
 
     // Process Polygon elements
     const polygons = placemark.querySelectorAll('Polygon');
     polygons.forEach((polygon) => {
       const coordinates = extractPolygonCoordinates(polygon);
-      if (coordinates.length > 0) {
-        const area = calculatePolygonArea(coordinates);
-        const zoneType = detectZoneType(name, description);
+      if (coordinates.length < 3) return; // Need at least 3 points for a polygon
 
-        // Skip pre-calculated areas (like "Buildable Area" polygons)
+      const area = calculatePolygonArea(coordinates);
+
+      // Determine zone type using folder context first, then name/description
+      let zoneType: ExclusionZoneType | 'skip' | null = null;
+
+      if (folderCategory === 'boundary') {
+        // This is a boundary, not an exclusion
+        boundaries.push({
+          id: crypto.randomUUID(),
+          name,
+          coordinates,
+          area,
+        });
+        return;
+      }
+
+      if (folderCategory === 'exclusion') {
+        // Try to get type from folder name
+        zoneType = detectZoneTypeFromFolder(folderPath);
+        // Fall back to name/description detection
+        if (!zoneType) {
+          zoneType = detectZoneType(name, description);
+        }
+        // Default to 'other' if still no type
+        if (!zoneType || zoneType === 'skip') {
+          zoneType = 'other';
+        }
+      } else {
+        // Unknown folder - use name/description detection
+        zoneType = detectZoneType(name, description);
+      }
+
+      // Skip if marked as skip
+      if (zoneType === 'skip') {
+        return;
+      }
+
+      if (zoneType) {
+        exclusionZones.push({
+          id: crypto.randomUUID(),
+          name,
+          type: zoneType,
+          coordinates,
+          area,
+          description: description || undefined,
+        });
+      } else {
+        // No exclusion detected, treat as boundary
+        boundaries.push({
+          id: crypto.randomUUID(),
+          name,
+          coordinates,
+          area,
+        });
+      }
+    });
+
+    // If no Polygon found, check for LinearRing directly (some KML files)
+    if (polygons.length === 0) {
+      const outerBoundary = placemark.querySelector(
+        'outerBoundaryIs LinearRing coordinates'
+      );
+      if (outerBoundary) {
+        const coordinates = parseCoordinateString(outerBoundary.textContent || '');
+        if (coordinates.length < 3) return;
+
+        const area = calculatePolygonArea(coordinates);
+
+        if (folderCategory === 'boundary') {
+          boundaries.push({
+            id: crypto.randomUUID(),
+            name,
+            coordinates,
+            area,
+          });
+          return;
+        }
+
+        let zoneType: ExclusionZoneType | 'skip' | null = null;
+
+        if (folderCategory === 'exclusion') {
+          zoneType = detectZoneTypeFromFolder(folderPath);
+          if (!zoneType) {
+            zoneType = detectZoneType(name, description);
+          }
+          if (!zoneType || zoneType === 'skip') {
+            zoneType = 'other';
+          }
+        } else {
+          zoneType = detectZoneType(name, description);
+        }
+
         if (zoneType === 'skip') {
           return;
         }
@@ -59,43 +232,6 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
           });
         }
       }
-    });
-
-    // If no Polygon found, check for LinearRing directly (some KML files)
-    if (polygons.length === 0) {
-      const outerBoundary = placemark.querySelector(
-        'outerBoundaryIs LinearRing coordinates'
-      );
-      if (outerBoundary) {
-        const coordinates = parseCoordinateString(outerBoundary.textContent || '');
-        if (coordinates.length > 0) {
-          const area = calculatePolygonArea(coordinates);
-          const zoneType = detectZoneType(name, description);
-
-          // Skip pre-calculated areas (like "Buildable Area" polygons)
-          if (zoneType === 'skip') {
-            return;
-          }
-
-          if (zoneType) {
-            exclusionZones.push({
-              id: crypto.randomUUID(),
-              name,
-              type: zoneType,
-              coordinates,
-              area,
-              description: description || undefined,
-            });
-          } else {
-            boundaries.push({
-              id: crypto.randomUUID(),
-              name,
-              coordinates,
-              area,
-            });
-          }
-        }
-      }
     }
   });
 
@@ -107,6 +243,7 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
     placemarkCount: placemarks.length,
     boundaries: boundaries.length,
     exclusionZones: exclusionZones.length,
+    exclusionTypes: exclusionZones.map(ez => `${ez.name} (${ez.type})`),
     totalArea: squareMetersToAcres(totalArea).toFixed(1) + ' acres',
   });
 
