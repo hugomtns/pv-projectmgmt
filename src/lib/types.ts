@@ -1,6 +1,7 @@
 // lib/types.ts
 
 import type { NtpChecklist } from './types/ntpChecklist';
+import type { GeneratedLayout } from './types/layout';
 
 export type Priority = 0 | 1 | 2 | 3 | 4;
 // 0 = On Hold, 1 = Urgent, 2 = High, 3 = Medium, 4 = Low
@@ -168,6 +169,21 @@ export { EXCLUSION_ZONE_LABELS } from './types/site';
 // Site Comments
 export type { SiteComment } from './types/siteComment';
 
+// Layout Generation
+export type {
+  ModuleInput,
+  LayoutParameters,
+  PanelRow,
+  LayoutSummary,
+  GeneratedLayout,
+} from './types/layout';
+export {
+  DEFAULT_LAYOUT_PARAMETERS,
+  LAYOUT_PARAMETER_LIMITS,
+  LAYOUT_PARAMETER_LABELS,
+  LAYOUT_PARAMETER_DESCRIPTIONS,
+} from './types/layout';
+
 // Site Selection Scorecard
 export type {
   ScorecardCategory,
@@ -208,6 +224,9 @@ export interface Design {
   gpsCoordinates?: GPSCoordinates;
   satelliteZoomLevel?: number; // Default: 18 (high detail, ~0.5m/pixel)
   groundSizeMeters?: number; // Ground plane size in meters (default: 200)
+  // Generated layout fields (for Site-to-Design conversion)
+  siteId?: string; // Link to source site
+  generatedLayout?: GeneratedLayout; // Auto-generated panel layout
 }
 
 export interface DesignVersion {

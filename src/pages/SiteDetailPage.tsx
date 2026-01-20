@@ -22,8 +22,10 @@ import {
   FileUp,
   Layers,
   ExternalLink,
+  Zap,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { GenerateDesignDialog } from '@/components/sites/GenerateDesignDialog';
 
 interface LocationState {
   highlightCommentId?: string;
@@ -43,6 +45,7 @@ export default function SiteDetailPage() {
   );
 
   const [activeTab, setActiveTab] = useState<'info' | 'scorecard' | 'comments'>('info');
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const commentCount = site?.comments?.length || 0;
 
   if (!siteId || !site) {
@@ -107,9 +110,19 @@ export default function SiteDetailPage() {
             </Link>
           )}
         </div>
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <X className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => setShowGenerateDialog(true)}
+            className="gap-1.5"
+          >
+            <Zap className="h-4 w-4" />
+            Generate Design
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Main content */}
@@ -280,6 +293,13 @@ export default function SiteDetailPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Generate Design Dialog */}
+      <GenerateDesignDialog
+        site={site}
+        open={showGenerateDialog}
+        onOpenChange={setShowGenerateDialog}
+      />
     </div>
   );
 }
