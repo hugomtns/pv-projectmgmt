@@ -1,8 +1,14 @@
+/**
+ * SiteCommentPanel - Comment thread for sites
+ *
+ * Reuses the same layout pattern and components as CommentThread
+ * with form at bottom and scrollable comment list.
+ */
+
 import { useState } from 'react';
 import { useSiteStore } from '@/stores/siteStore';
 import { useUserStore } from '@/stores/userStore';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Send, MoreVertical, Pencil, Trash2, User } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { MoreVertical, Pencil, Trash2, User } from 'lucide-react';
+import { MentionInput } from '@/components/mentions/MentionInput';
+import { MentionText } from '@/components/mentions/MentionText';
 import type { SiteComment } from '@/lib/types';
 
 interface SiteCommentPanelProps {
@@ -31,9 +38,9 @@ interface SiteCommentPanelProps {
 const EMPTY_COMMENTS: SiteComment[] = [];
 
 export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
-  const [newComment, setNewComment] = useState('');
+  const [text, setText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [editText, setEditText] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Use direct selector with stable empty array fallback
@@ -47,10 +54,16 @@ export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
 
   const currentUser = useUserStore((state) => state.currentUser);
 
+  // MentionInput provides mentions but store parses them from text
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleTextChange = (newText: string, _mentions: string[]) => {
+    setText(newText);
+  };
+
   const handleSubmit = () => {
-    if (!newComment.trim()) return;
-    addComment(siteId, newComment.trim());
-    setNewComment('');
+    if (!currentUser || !text.trim()) return;
+    addComment(siteId, text.trim());
+    setText('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -62,19 +75,24 @@ export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
 
   const handleStartEdit = (comment: SiteComment) => {
     setEditingId(comment.id);
-    setEditContent(comment.content);
+    setEditText(comment.content);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleEditTextChange = (newText: string, _mentions: string[]) => {
+    setEditText(newText);
   };
 
   const handleSaveEdit = () => {
-    if (!editingId || !editContent.trim()) return;
-    updateComment(siteId, editingId, editContent.trim());
+    if (!editingId || !editText.trim()) return;
+    updateComment(siteId, editingId, editText.trim());
     setEditingId(null);
-    setEditContent('');
+    setEditText('');
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setEditContent('');
+    setEditText('');
   };
 
   const handleConfirmDelete = () => {
@@ -83,104 +101,99 @@ export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
     setDeleteId(null);
   };
 
-  // Sort comments by date, newest first
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    });
+  };
+
+  // Sort comments by date, oldest first (natural reading order)
   const sortedComments = [...comments].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
   return (
     <div className="flex flex-col h-full">
-      {/* Comment input */}
-      <div className="p-4 border-b space-y-2">
-        <Textarea
-          placeholder="Add a comment... (use @firstname.lastname to mention)"
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="min-h-[80px] resize-none"
-        />
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-muted-foreground">
-            Ctrl+Enter to submit
-          </span>
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={!newComment.trim() || !currentUser}
-          >
-            <Send className="h-4 w-4 mr-1" />
-            Comment
-          </Button>
-        </div>
-      </div>
-
-      {/* Comments list */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Comments list - scrollable area */}
+      <div className="flex-1 overflow-y-auto p-4">
         {sortedComments.length === 0 ? (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            No comments yet. Be the first to comment!
+          <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
+            No comments yet
           </div>
         ) : (
-          <div className="divide-y">
+          <div className="space-y-3">
             {sortedComments.map((comment) => {
               const isOwner = currentUser?.id === comment.creatorId;
               const isAdmin = currentUser?.roleId === 'role-admin';
-              const canEdit = isOwner || isAdmin;
+              const canModify = isOwner || isAdmin;
               const isEditing = editingId === comment.id;
 
               return (
-                <div key={comment.id} className="p-4">
+                <div
+                  key={comment.id}
+                  className="group rounded-lg bg-muted/50 p-3 space-y-2"
+                >
                   {/* Header */}
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-foreground">
+                      {comment.createdBy}
+                    </span>
                     <div className="flex items-center gap-2">
-                      <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">
-                          {comment.createdBy}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(comment.createdAt), {
-                            addSuffix: true,
-                          })}
-                          {comment.updatedAt !== comment.createdAt && (
-                            <span className="ml-1">(edited)</span>
-                          )}
-                        </div>
-                      </div>
+                      {canModify && !isEditing && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleStartEdit(comment)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeleteId(comment.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                      <span className="text-muted-foreground">
+                        {formatTimestamp(comment.createdAt)}
+                        {comment.updatedAt !== comment.createdAt && ' (edited)'}
+                      </span>
                     </div>
-                    {canEdit && !isEditing && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleStartEdit(comment)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteId(comment.id)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
                   </div>
 
                   {/* Content */}
                   {isEditing ? (
                     <div className="space-y-2">
-                      <Textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        className="min-h-[60px] resize-none"
+                      <MentionInput
+                        value={editText}
+                        onChange={handleEditTextChange}
+                        placeholder="Edit comment..."
+                        minHeight="60px"
                         autoFocus
                       />
                       <div className="flex gap-2 justify-end">
@@ -194,16 +207,16 @@ export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
                         <Button
                           size="sm"
                           onClick={handleSaveEdit}
-                          disabled={!editContent.trim()}
+                          disabled={!editText.trim()}
                         >
                           Save
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap">
-                      {formatMentions(comment.content)}
-                    </p>
+                    <div className="text-sm text-foreground">
+                      <MentionText text={comment.content} />
+                    </div>
                   )}
                 </div>
               );
@@ -211,6 +224,38 @@ export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
           </div>
         )}
       </div>
+
+      {/* Add comment form - fixed at bottom */}
+      {currentUser ? (
+        <div className="p-4 border-t space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <User className="h-3 w-3" />
+            Commenting as {currentUser.firstName} {currentUser.lastName}
+          </div>
+          <div onKeyDown={handleKeyDown}>
+            <MentionInput
+              value={text}
+              onChange={handleTextChange}
+              placeholder="Add a comment... (use @ to mention someone)"
+              minHeight="80px"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              Press Ctrl+Enter to submit
+            </span>
+            <Button size="sm" onClick={handleSubmit} disabled={!text.trim()}>
+              Add Comment
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 border-t">
+          <div className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-lg">
+            Log in to add comments
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
@@ -235,36 +280,4 @@ export function SiteCommentPanel({ siteId }: SiteCommentPanelProps) {
       </AlertDialog>
     </div>
   );
-}
-
-// Helper to highlight @mentions in comment text
-function formatMentions(text: string): React.ReactNode {
-  const mentionRegex = /@([a-zA-Z]+\.[a-zA-Z]+)/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = mentionRegex.exec(text)) !== null) {
-    // Add text before mention
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    // Add highlighted mention
-    parts.push(
-      <span
-        key={match.index}
-        className="text-primary font-medium bg-primary/10 px-0.5 rounded"
-      >
-        {match[0]}
-      </span>
-    );
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : text;
 }
