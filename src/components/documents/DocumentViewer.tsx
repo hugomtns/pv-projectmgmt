@@ -20,6 +20,7 @@ import { VersionUploadDialog } from './VersionUploadDialog';
 import { AddLocationCommentDialog } from './AddLocationCommentDialog';
 import { WorkflowActions } from './WorkflowActions';
 import { WorkflowHistory } from './WorkflowHistory';
+import { AIReviewDialog } from './AIReviewDialog';
 import {
   ZoomIn,
   ZoomOut,
@@ -36,6 +37,7 @@ import {
   Activity,
   Lock,
   Unlock,
+  Sparkles,
 } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -100,6 +102,7 @@ export function DocumentViewer({
     color: HighlightColor;
   } | null>(null);
   const [showClearDrawingsConfirm, setShowClearDrawingsConfirm] = useState(false);
+  const [showAIReviewDialog, setShowAIReviewDialog] = useState(false);
 
   const addComment = useDocumentStore((state) => state.addComment);
   const deleteDrawing = useDocumentStore((state) => state.deleteDrawing);
@@ -380,6 +383,23 @@ export function DocumentViewer({
                 ) : (
                   <Lock className="h-4 w-4" />
                 )}
+              </Button>
+              <div className="h-6 w-px bg-border" />
+            </>
+          )}
+
+          {/* AI Review button - only show for documents with 2+ versions */}
+          {doc && doc.versions.length >= 2 && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={() => setShowAIReviewDialog(true)}
+                title="AI-powered document review"
+              >
+                <Sparkles className="h-4 w-4" />
+                AI Review
               </Button>
               <div className="h-6 w-px bg-border" />
             </>
@@ -702,6 +722,14 @@ export function DocumentViewer({
         description="Clear all drawings on this document? This cannot be undone."
         confirmText="Clear All"
         variant="destructive"
+      />
+
+      {/* AI Review Dialog */}
+      <AIReviewDialog
+        open={showAIReviewDialog}
+        onOpenChange={setShowAIReviewDialog}
+        documentId={documentId}
+        currentVersionId={activeVersionId}
       />
     </div>
   );

@@ -50,7 +50,8 @@ interface DocumentState {
     versionId: string,
     text: string,
     location?: LocationAnchor,
-    mentions?: string[]
+    mentions?: string[],
+    authorOverride?: string // For AI-generated comments
   ) => Promise<string | null>; // Returns comment ID
 
   updateComment: (commentId: string, updates: Partial<DocumentComment>) => Promise<boolean>;
@@ -516,7 +517,7 @@ export const useDocumentStore = create<DocumentState>()(
       },
 
       // Add comment
-      addComment: async (documentId, versionId, text, location, mentions) => {
+      addComment: async (documentId, versionId, text, location, mentions, authorOverride) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
         const users = userState.users;
@@ -551,8 +552,8 @@ export const useDocumentStore = create<DocumentState>()(
             versionId,
             type: location ? 'location' : 'document',
             text,
-            author: userFullName,
-            authorId: currentUser.id,
+            author: authorOverride || userFullName,
+            authorId: authorOverride ? undefined : currentUser.id,
             createdAt: new Date().toISOString(),
             location,
             resolved: false,

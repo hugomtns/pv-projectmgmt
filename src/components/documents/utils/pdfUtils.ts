@@ -1,8 +1,7 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker
-// In production, this should point to the worker file in node_modules
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Set up PDF.js worker - use unpkg for consistent loading
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 export interface PDFDocumentInfo {
   numPages: number;
