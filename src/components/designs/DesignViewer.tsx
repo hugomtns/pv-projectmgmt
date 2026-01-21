@@ -50,6 +50,9 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
 
+    // For generated layouts without uploaded files, use a synthetic version ID
+    const effectiveVersionId = versionId ?? (design?.generatedLayout ? 'generated' : undefined);
+
     // Get source site for generated layouts
     const sourceSite = design?.siteId ? sites.find((s) => s.id === design.siteId) : undefined;
 
@@ -72,7 +75,7 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
     const [equipmentCounts, setEquipmentCounts] = useState<EquipmentCounts | null>(null);
 
     // State
-    const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(versionId);
+    const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>(effectiveVersionId);
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileType, setFileType] = useState<'dxf' | null>(null);
     const [loading, setLoading] = useState(true);
@@ -174,10 +177,10 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
 
     // Sync selected version if design updates (e.g. initial load)
     useEffect(() => {
-        if (design && !selectedVersionId) {
-            setSelectedVersionId(design.currentVersionId);
+        if (design && !selectedVersionId && effectiveVersionId) {
+            setSelectedVersionId(effectiveVersionId);
         }
-    }, [design, selectedVersionId]);
+    }, [design, selectedVersionId, effectiveVersionId]);
 
     // Load File Logic
     useEffect(() => {
@@ -186,7 +189,8 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
         const loadVersionFile = async () => {
             if (!design) return;
 
-            if (!selectedVersionId) {
+            // For generated layouts (synthetic version ID), skip file loading
+            if (!selectedVersionId || selectedVersionId === 'generated') {
                 setLoading(false);
                 return;
             }
