@@ -25,8 +25,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Sparkles, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Sparkles, Loader2, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+
+// localStorage key for unlock state
+const AI_REVIEW_UNLOCKED_KEY = 'ai-review-unlocked';
+
+// Check if the feature is unlocked
+function isFeatureUnlocked(): boolean {
+  return localStorage.getItem(AI_REVIEW_UNLOCKED_KEY) === 'true';
+}
+
+// Unlock the feature
+function unlockFeature(): void {
+  localStorage.setItem(AI_REVIEW_UNLOCKED_KEY, 'true');
+}
+
+// Validate unlock code against env variable
+function validateUnlockCode(code: string): boolean {
+  const correctCode = import.meta.env.VITE_AI_REVIEW_UNLOCK_CODE;
+  if (!correctCode) {
+    // If no unlock code is configured, feature is always unlocked
+    return true;
+  }
+  return code === correctCode;
+}
+
+// Check if unlock code is required
+function isUnlockCodeRequired(): boolean {
+  return !!import.meta.env.VITE_AI_REVIEW_UNLOCK_CODE;
+}
 
 interface AIReviewDialogProps {
   open: boolean;
@@ -36,7 +65,7 @@ interface AIReviewDialogProps {
   onReviewComplete?: (result: ReviewResult) => void;
 }
 
-type ReviewStage = 'idle' | 'extracting' | 'analyzing' | 'creating-comments' | 'complete' | 'error';
+type ReviewStage = 'locked' | 'idle' | 'extracting' | 'analyzing' | 'creating-comments' | 'complete' | 'error';
 
 export function AIReviewDialog({
   open,
@@ -51,6 +80,8 @@ export function AIReviewDialog({
   const [progressMessage, setProgressMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ReviewResult | null>(null);
+  const [unlockCode, setUnlockCode] = useState('');
+  const [unlockError, setUnlockError] = useState<string | null>(null);
 
   // Fetch all versions for this document
   const versions = useLiveQuery(
@@ -76,12 +107,30 @@ export function AIReviewDialog({
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
-      setStage('idle');
+      // Check if unlock is required
+      if (isUnlockCodeRequired() && !isFeatureUnlocked()) {
+        setStage('locked');
+      } else {
+        setStage('idle');
+      }
       setError(null);
       setResult(null);
       setIsReviewing(false);
+      setUnlockCode('');
+      setUnlockError(null);
     }
   }, [open]);
+
+  const handleUnlock = () => {
+    if (validateUnlockCode(unlockCode)) {
+      unlockFeature();
+      setStage('idle');
+      setUnlockError(null);
+      toast.success('AI Review unlocked!');
+    } else {
+      setUnlockError('Invalid unlock code');
+    }
+  };
 
   const handleStartReview = async () => {
     if (!selectedPreviousVersionId) {
@@ -146,6 +195,48 @@ export function AIReviewDialog({
             The AI will create highlight comments to mark discrepancies.
           </DialogDescription>
         </DialogHeader>
+
+        {stage === 'locked' && (
+          <div className="space-y-4 py-4">
+            <div className="text-center py-4">
+              <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-sm text-muted-foreground mb-4">
+                This feature requires an unlock code to use.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Enter unlock code</label>
+              <Input
+                type="password"
+                placeholder="Enter code..."
+                value={unlockCode}
+                onChange={(e) => {
+                  setUnlockCode(e.target.value);
+                  setUnlockError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleUnlock();
+                  }
+                }}
+              />
+              {unlockError && (
+                <p className="text-sm text-destructive">{unlockError}</p>
+              )}
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleUnlock} disabled={!unlockCode}>
+                <Lock className="h-4 w-4 mr-2" />
+                Unlock
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
 
         {stage === 'idle' && (
           <div className="space-y-4 py-4">
@@ -270,38 +361,40 @@ export function AIReviewDialog({
           </div>
         )}
 
-        <DialogFooter>
-          {stage === 'idle' && (
-            <>
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleStartReview}
-                disabled={!selectedPreviousVersionId || availableVersions.length === 0}
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Start Review
-              </Button>
-            </>
-          )}
+        {stage !== 'locked' && (
+          <DialogFooter>
+            {stage === 'idle' && (
+              <>
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleStartReview}
+                  disabled={!selectedPreviousVersionId || availableVersions.length === 0}
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Start Review
+                </Button>
+              </>
+            )}
 
-          {stage === 'complete' && (
-            <Button onClick={handleClose}>Done</Button>
-          )}
+            {stage === 'complete' && (
+              <Button onClick={handleClose}>Done</Button>
+            )}
 
-          {stage === 'error' && (
-            <>
-              <Button variant="outline" onClick={handleClose}>
-                Close
-              </Button>
-              <Button onClick={handleStartReview}>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+            {stage === 'error' && (
+              <>
+                <Button variant="outline" onClick={handleClose}>
+                  Close
+                </Button>
+                <Button onClick={handleStartReview}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
