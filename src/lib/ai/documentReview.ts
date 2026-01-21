@@ -86,16 +86,17 @@ Analyze the documents and identify:
 
 For each change found, provide:
 - type: "addition", "deletion", or "modification"
-- previousText: The exact text from the previous version (null for additions)
-- currentText: The exact text in the current version (null for deletions)
-- pageNumber: The page number where this change appears in the CURRENT version (use 1 if deletion)
-- summary: A brief human-readable description of what changed
+- previousText: SHORT excerpt (max 40 chars) from previous version, or null for additions
+- currentText: SHORT excerpt (max 40 chars) from current version, or null for deletions
+- pageNumber: Page number in CURRENT version (use 1 for deletions)
+- summary: Brief description (max 80 chars)
 
-Important guidelines:
-- Focus on meaningful content changes, not minor formatting or whitespace
-- Quote the actual text involved (keep quotes under 200 characters, use ... for longer text)
-- For modifications, include both the old and new text
-- Page numbers should reference the CURRENT version (for positioning highlights)
+CRITICAL RULES:
+- Keep ALL text fields VERY SHORT (max 40 characters each) - truncate with ... if needed
+- Report maximum 10 most significant changes only
+- IGNORE timestamp/date differences completely
+- IGNORE minor formatting or whitespace changes
+- Focus on actual content changes (numbers, text, values)
 
 Respond ONLY with valid JSON in this exact format:
 {
@@ -133,13 +134,91 @@ If no meaningful changes are found, return:
 }
 
 /**
+ * Attempt to repair truncated JSON by closing incomplete structures
+ */
+function repairTruncatedJson(jsonText: string): string {
+  let repaired = jsonText.trim();
+
+  // Check if it looks truncated (doesn't end with proper closing)
+  if (repaired.endsWith('}')) {
+    return repaired; // Already looks complete
+  }
+
+  console.log('[AI Review] Attempting to repair truncated JSON...');
+
+  // Find the last complete object in the changes array
+  // Look for the last complete object pattern: {...}
+  const lastCompleteObjectMatch = repaired.match(/^([\s\S]*\})\s*,?\s*\{[^}]*$/);
+  if (lastCompleteObjectMatch) {
+    // Truncate to the last complete object and close the array/object
+    repaired = lastCompleteObjectMatch[1];
+  }
+
+  // Count unclosed braces and brackets
+  let braceCount = 0;
+  let bracketCount = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (const char of repaired) {
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (!inString) {
+      if (char === '{') braceCount++;
+      if (char === '}') braceCount--;
+      if (char === '[') bracketCount++;
+      if (char === ']') bracketCount--;
+    }
+  }
+
+  // If we're in a string, close it
+  if (inString) {
+    repaired += '"';
+  }
+
+  // Remove trailing comma if present
+  repaired = repaired.replace(/,\s*$/, '');
+
+  // Close any unclosed brackets/braces
+  while (bracketCount > 0) {
+    repaired += ']';
+    bracketCount--;
+  }
+  while (braceCount > 0) {
+    repaired += '}';
+    braceCount--;
+  }
+
+  // Ensure we have overallSummary if the changes array was closed
+  if (!repaired.includes('"overallSummary"') && repaired.includes('"changes"')) {
+    // Add a default overallSummary before the final closing brace
+    repaired = repaired.replace(/\}\s*$/, ', "overallSummary": "Changes detected (response truncated)"}');
+  }
+
+  console.log('[AI Review] Repaired JSON (last 200 chars):', repaired.slice(-200));
+
+  return repaired;
+}
+
+/**
  * Parse the Gemini response to extract changes
  */
 function parseGeminiResponse(responseText: string): {
   changes: IdentifiedChange[];
   overallSummary: string;
 } {
-  console.log('[AI Review] Raw Gemini response:', responseText.substring(0, 500) + '...');
+  console.log('[AI Review] Raw Gemini response length:', responseText.length);
+  console.log('[AI Review] Raw Gemini response (first 500 chars):', responseText.substring(0, 500) + '...');
 
   // Remove markdown code blocks if present
   let jsonText = responseText.trim();
@@ -158,6 +237,10 @@ function parseGeminiResponse(responseText: string): {
     if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
       jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
       console.log('[AI Review] Extracted JSON object from response');
+    } else if (jsonStart !== -1) {
+      // No closing brace found - likely truncated
+      jsonText = jsonText.substring(jsonStart);
+      console.log('[AI Review] JSON appears truncated (no closing brace)');
     }
   }
 
@@ -167,9 +250,19 @@ function parseGeminiResponse(responseText: string): {
   try {
     parsed = JSON.parse(jsonText);
   } catch (parseError) {
-    console.error('[AI Review] JSON parse error:', parseError);
-    console.error('[AI Review] Failed JSON text:', jsonText);
-    throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+    console.warn('[AI Review] Initial JSON parse failed, attempting repair...');
+
+    // Try to repair truncated JSON
+    const repairedJson = repairTruncatedJson(jsonText);
+
+    try {
+      parsed = JSON.parse(repairedJson);
+      console.log('[AI Review] Successfully parsed repaired JSON');
+    } catch (repairError) {
+      console.error('[AI Review] JSON parse error after repair:', repairError);
+      console.error('[AI Review] Failed JSON text:', jsonText.substring(0, 1000));
+      throw new Error(`AI response was truncated and could not be repaired. Try again or use a smaller document.`);
+    }
   }
 
   const response = parsed as Record<string, unknown>;
