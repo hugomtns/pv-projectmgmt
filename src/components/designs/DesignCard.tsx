@@ -19,7 +19,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Calendar, User, MoreVertical, Trash2 } from 'lucide-react';
+import { Calendar, User, MoreVertical, Trash2, FileUp, Sparkles } from 'lucide-react';
 import type { Design } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useDesignStore } from '@/stores/designStore';
@@ -80,6 +80,17 @@ export function DesignCard({ design }: DesignCardProps) {
                         {design.name}
                     </CardTitle>
                     <div className="flex items-center gap-1 shrink-0">
+                        {design.generatedLayout ? (
+                            <Badge variant="outline" className="gap-1">
+                                <Sparkles className="h-3 w-3" />
+                                Auto
+                            </Badge>
+                        ) : design.currentVersionId ? (
+                            <Badge variant="outline" className="gap-1">
+                                <FileUp className="h-3 w-3" />
+                                DXF
+                            </Badge>
+                        ) : null}
                         <Badge variant="secondary" className={getStatusColor(design.status)}>
                             {design.status.replace('_', ' ')}
                         </Badge>
