@@ -1,4 +1,4 @@
 // Layout generation module
-export { generatePanelLayout, estimatePanelCount } from './generator';
+export { generatePanelLayout, estimatePanelCount, estimatePanelCountLegacy } from './generator';
 export { generatedLayoutToParsedData } from './toParsedData';
 export * from './geometry';

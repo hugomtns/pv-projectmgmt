@@ -1,6 +1,7 @@
 /**
  * Panel Layout Generator
- * Auto-fills a usable area with panel rows based on parameters
+ * Auto-fills a usable area with panel frames based on parameters
+ * Uses frame-based placement with corridor support
  */
 
 import type { Site } from '@/lib/types/site';
@@ -8,20 +9,21 @@ import type {
   ModuleInput,
   LayoutParameters,
   PanelRow,
+  FramePlacement,
   GeneratedLayout,
 } from '@/lib/types/layout';
 import {
   createLocalProjection,
   getBoundingBox,
-  clipLineToPolygon,
-  localDistance,
   polygonArea,
   shrinkPolygon,
+  calculateFrameCorners,
+  frameFullyContained,
   type LocalCoord,
 } from './geometry';
 
 /**
- * Generate a panel layout for a site
+ * Generate a panel layout for a site using frame-based placement
  */
 export function generatePanelLayout(
   site: Site,
@@ -38,7 +40,6 @@ export function generatePanelLayout(
   }
 
   // Get usable area polygon (use first boundary for now)
-  // In future, could union multiple boundaries
   const boundary = site.boundaries[0];
   const boundaryCoords = boundary.coordinates;
 
@@ -67,41 +68,58 @@ export function generatePanelLayout(
   const moduleLengthM = module.lengthMm / 1000;
   const moduleWidthM = module.widthMm / 1000;
 
-  // Calculate row pitch based on GCR
-  // GCR = module_width / pitch (simplified for flat terrain)
-  // For tilted panels: effective_width = width * cos(tilt)
+  // Calculate frame dimensions
+  const frameWidth =
+    parameters.frameColumns * moduleLengthM +
+    (parameters.frameColumns - 1) * parameters.moduleGapM;
+
+  // Apply tilt to frame height
   const tiltRad = (parameters.tiltAngle * Math.PI) / 180;
-  const effectiveModuleWidth = moduleWidthM * Math.cos(tiltRad);
-  const rowPitch = effectiveModuleWidth / parameters.gcr;
+  const frameHeightPhysical =
+    parameters.frameRows * moduleWidthM +
+    (parameters.frameRows - 1) * parameters.moduleGapM;
+  const effectiveFrameHeight = frameHeightPhysical * Math.cos(tiltRad);
 
-  // Ensure minimum row gap
-  const actualRowPitch = Math.max(rowPitch, effectiveModuleWidth + parameters.rowGapM);
+  // Calculate rotation from azimuth
+  // Azimuth 180 (south) = rows run east-west = 0° rotation
+  const rotationDeg = parameters.azimuth - 180;
 
-  // Generate panel rows
-  const rows = generateRows(
+  // Generate frame placements
+  const frames = generateFrameGrid(
     localBoundary,
     localExclusions,
-    moduleLengthM,
-    actualRowPitch,
-    parameters.azimuth,
+    frameWidth,
+    effectiveFrameHeight,
+    parameters,
+    rotationDeg,
     projection
   );
 
   // Calculate summary statistics
-  const totalPanels = rows.reduce((sum, r) => sum + r.panelCount, 0);
+  const modulesPerFrame = parameters.frameRows * parameters.frameColumns;
+  const totalPanels = frames.length * modulesPerFrame;
   const dcCapacityKw = (totalPanels * module.wattage) / 1000;
   const coveredAreaSqm = polygonArea(localBoundary);
   const moduleAreaSqm = totalPanels * moduleLengthM * moduleWidthM;
   const actualGcr = coveredAreaSqm > 0 ? moduleAreaSqm / coveredAreaSqm : 0;
 
+  // Count distinct row indices
+  const rowIndices = new Set(frames.map((f) => f.rowIndex));
+  const totalRows = rowIndices.size;
+
+  // Create legacy PanelRow format for backward compatibility
+  const rows = framesToLegacyRows(frames, modulesPerFrame);
+
   return {
     siteId: site.id,
     module,
     parameters,
+    frames,
     rows,
     summary: {
       totalPanels,
-      totalRows: rows.length,
+      totalFrames: frames.length,
+      totalRows,
       dcCapacityKw,
       dcCapacityMw: dcCapacityKw / 1000,
       actualGcr,
@@ -113,249 +131,184 @@ export function generatePanelLayout(
 }
 
 /**
- * Generate rows of panels within the boundary
+ * Generate frame grid positions within the boundary
  */
-function generateRows(
+function generateFrameGrid(
   boundary: LocalCoord[],
   exclusions: LocalCoord[][],
-  moduleLengthM: number,
-  rowPitch: number,
-  azimuth: number,
+  frameWidth: number,
+  frameHeight: number,
+  parameters: LayoutParameters,
+  rotationDeg: number,
   projection: ReturnType<typeof createLocalProjection>
-): PanelRow[] {
-  const rows: PanelRow[] = [];
+): FramePlacement[] {
+  const frames: FramePlacement[] = [];
 
-  // Get bounding box
+  // Get bounding box of the boundary
   const bbox = getBoundingBox(boundary);
 
-  // Calculate row direction based on azimuth
-  // Azimuth 180 (south-facing) means rows run east-west
-  // Row direction is perpendicular to panel facing direction
-  const rowAngle = azimuth + 90; // Rows perpendicular to azimuth
-  const rowAngleRad = (rowAngle * Math.PI) / 180;
+  // Calculate grid parameters
+  // We need to account for rotation when determining the grid extent
+  const diagonalLength = Math.sqrt(
+    bbox.width * bbox.width + bbox.height * bbox.height
+  );
 
-  // Direction vector for rows
+  // Direction vectors for the grid (along rows and perpendicular)
+  const rowAngleRad = (rotationDeg * Math.PI) / 180;
   const rowDir = {
     x: Math.cos(rowAngleRad),
     y: Math.sin(rowAngleRad),
   };
-
-  // Direction perpendicular to rows (for spacing)
   const perpDir = {
     x: -rowDir.y,
     y: rowDir.x,
   };
 
-  // Calculate how many rows we can fit
-  const diagonalLength = Math.sqrt(
-    bbox.width * bbox.width + bbox.height * bbox.height
-  );
-  const numRows = Math.ceil(diagonalLength / rowPitch) + 2;
-
-  // Center point of bounding box
+  // Center of bounding box
   const center = {
     x: (bbox.minX + bbox.maxX) / 2,
     y: (bbox.minY + bbox.maxY) / 2,
   };
 
-  // Generate rows centered on the bounding box
-  const startOffset = -((numRows - 1) / 2) * rowPitch;
+  // Calculate how many rows/columns we might need
+  const maxRowsEstimate = Math.ceil(diagonalLength / frameHeight) + 2;
+  const maxColsEstimate = Math.ceil(diagonalLength / frameWidth) + 2;
 
-  for (let i = 0; i < numRows; i++) {
-    const offset = startOffset + i * rowPitch;
+  // Starting offsets (centered on bbox)
+  const startRowOffset = -((maxRowsEstimate - 1) / 2);
+  const startColOffset = -((maxColsEstimate - 1) / 2);
 
-    // Row center point
-    const rowCenter = {
-      x: center.x + perpDir.x * offset,
-      y: center.y + perpDir.y * offset,
-    };
+  let frameIndex = 0;
 
-    // Create row line extending across the entire bbox
-    const halfLength = diagonalLength;
-    const lineStart = {
-      x: rowCenter.x - rowDir.x * halfLength,
-      y: rowCenter.y - rowDir.y * halfLength,
-    };
-    const lineEnd = {
-      x: rowCenter.x + rowDir.x * halfLength,
-      y: rowCenter.y + rowDir.y * halfLength,
-    };
+  // Iterate through potential row positions
+  for (let ri = 0; ri < maxRowsEstimate; ri++) {
+    // Calculate Y offset including corridors
+    let yOffset = 0;
+    const rowStartIndex = Math.floor(startRowOffset);
+    for (let r = rowStartIndex; r < rowStartIndex + ri; r++) {
+      // Add frame height
+      yOffset += frameHeight;
+      // Add gap (corridor or regular)
+      if (
+        parameters.corridorEveryNFramesY > 0 &&
+        r > rowStartIndex &&
+        (r - rowStartIndex) % parameters.corridorEveryNFramesY === 0
+      ) {
+        yOffset += parameters.corridorWidth;
+      } else {
+        yOffset += parameters.frameGapY;
+      }
+    }
 
-    // Clip row to boundary
-    const clipped = clipLineToPolygon(lineStart, lineEnd, boundary);
-    if (!clipped) continue;
+    const rowCenterOffset = startRowOffset * (frameHeight + parameters.frameGapY) + yOffset;
 
-    // Further clip to exclude exclusion zones
-    const segments = subtractExclusions(clipped.start, clipped.end, exclusions);
+    // Iterate through potential column positions in this row
+    for (let ci = 0; ci < maxColsEstimate; ci++) {
+      // Calculate X offset including corridors
+      let xOffset = 0;
+      const colStartIndex = Math.floor(startColOffset);
+      for (let c = colStartIndex; c < colStartIndex + ci; c++) {
+        // Add frame width
+        xOffset += frameWidth;
+        // Add gap (corridor or regular)
+        if (
+          parameters.corridorEveryNFramesX > 0 &&
+          c > colStartIndex &&
+          (c - colStartIndex) % parameters.corridorEveryNFramesX === 0
+        ) {
+          xOffset += parameters.corridorWidth;
+        } else {
+          xOffset += parameters.frameGapX;
+        }
+      }
 
-    // Create panel rows from remaining segments
-    for (const segment of segments) {
-      const segmentLength = localDistance(segment.start, segment.end);
-      const panelCount = Math.floor(segmentLength / moduleLengthM);
+      const colCenterOffset = startColOffset * (frameWidth + parameters.frameGapX) + xOffset;
 
-      if (panelCount > 0) {
-        // Convert back to global coordinates
-        const startGlobal = projection.toGlobal(segment.start);
-        const endGlobal = projection.toGlobal(segment.end);
+      // Calculate frame center position
+      const frameCenter: LocalCoord = {
+        x: center.x + rowDir.x * colCenterOffset + perpDir.x * rowCenterOffset,
+        y: center.y + rowDir.y * colCenterOffset + perpDir.y * rowCenterOffset,
+      };
 
-        rows.push({
-          index: rows.length,
-          panelCount,
-          startCoord: { lat: startGlobal.lat, lng: startGlobal.lng },
-          endCoord: { lat: endGlobal.lat, lng: endGlobal.lng },
-          lengthM: segmentLength,
+      // Calculate frame corners
+      const corners = calculateFrameCorners(
+        frameCenter,
+        frameWidth,
+        frameHeight,
+        rotationDeg
+      );
+
+      // Check if frame is fully contained
+      if (frameFullyContained(corners, boundary, exclusions)) {
+        // Convert center to global coordinates
+        const centerGlobal = projection.toGlobal(frameCenter);
+
+        frames.push({
+          index: frameIndex,
+          rowIndex: ri,
+          colIndex: ci,
+          frameRows: parameters.frameRows,
+          frameColumns: parameters.frameColumns,
+          centerCoord: {
+            lat: centerGlobal.lat,
+            lng: centerGlobal.lng,
+          },
+          widthM: frameWidth,
+          heightM: frameHeight,
+          rotationDeg,
         });
+
+        frameIndex++;
       }
     }
   }
 
+  return frames;
+}
+
+/**
+ * Convert frame placements to legacy PanelRow format for backward compatibility
+ */
+function framesToLegacyRows(
+  frames: FramePlacement[],
+  modulesPerFrame: number
+): PanelRow[] {
+  // Group frames by rowIndex
+  const rowGroups = new Map<number, FramePlacement[]>();
+  for (const frame of frames) {
+    const existing = rowGroups.get(frame.rowIndex);
+    if (existing) {
+      existing.push(frame);
+    } else {
+      rowGroups.set(frame.rowIndex, [frame]);
+    }
+  }
+
+  const rows: PanelRow[] = [];
+  let rowIndex = 0;
+
+  for (const [, framesInRow] of rowGroups) {
+    if (framesInRow.length === 0) continue;
+
+    // Sort frames by colIndex
+    framesInRow.sort((a, b) => a.colIndex - b.colIndex);
+
+    // Use first and last frame to determine row extent
+    const firstFrame = framesInRow[0];
+    const lastFrame = framesInRow[framesInRow.length - 1];
+
+    rows.push({
+      index: rowIndex,
+      panelCount: framesInRow.length * modulesPerFrame,
+      startCoord: firstFrame.centerCoord,
+      endCoord: lastFrame.centerCoord,
+      lengthM: 0, // Would need to calculate properly
+    });
+
+    rowIndex++;
+  }
+
   return rows;
-}
-
-/**
- * Subtract exclusion zones from a line segment
- * Returns array of remaining segments
- */
-function subtractExclusions(
-  start: LocalCoord,
-  end: LocalCoord,
-  exclusions: LocalCoord[][]
-): { start: LocalCoord; end: LocalCoord }[] {
-  let segments = [{ start, end }];
-
-  for (const exclusion of exclusions) {
-    const newSegments: { start: LocalCoord; end: LocalCoord }[] = [];
-
-    for (const segment of segments) {
-      const subtracted = subtractPolygonFromSegment(
-        segment.start,
-        segment.end,
-        exclusion
-      );
-      newSegments.push(...subtracted);
-    }
-
-    segments = newSegments;
-  }
-
-  return segments;
-}
-
-/**
- * Subtract a polygon from a line segment
- * Returns segments that are outside the polygon
- */
-function subtractPolygonFromSegment(
-  start: LocalCoord,
-  end: LocalCoord,
-  polygon: LocalCoord[]
-): { start: LocalCoord; end: LocalCoord }[] {
-  // Find all intersections with polygon edges
-  const intersections: { point: LocalCoord; t: number }[] = [];
-  const n = polygon.length;
-
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const lineLength = Math.sqrt(dx * dx + dy * dy);
-
-  if (lineLength === 0) return [];
-
-  for (let i = 0; i < n; i++) {
-    const p1 = polygon[i];
-    const p2 = polygon[(i + 1) % n];
-
-    const intersection = segmentIntersection(start, end, p1, p2);
-    if (intersection) {
-      intersections.push(intersection);
-    }
-  }
-
-  // Sort by t value
-  intersections.sort((a, b) => a.t - b.t);
-
-  // Check if start is inside polygon
-  const startInside = pointInPolygonLocal(start, polygon);
-
-  // Build result segments
-  const result: { start: LocalCoord; end: LocalCoord }[] = [];
-  let currentStart = start;
-  let inside = startInside;
-
-  for (const { point } of intersections) {
-    if (!inside) {
-      // We're outside, this intersection enters the polygon
-      result.push({ start: currentStart, end: point });
-    }
-    currentStart = point;
-    inside = !inside;
-  }
-
-  // Handle final segment
-  if (!inside) {
-    result.push({ start: currentStart, end });
-  }
-
-  return result;
-}
-
-/**
- * Check if point is inside polygon
- */
-function pointInPolygonLocal(point: LocalCoord, polygon: LocalCoord[]): boolean {
-  let inside = false;
-  const n = polygon.length;
-
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
-
-    if (
-      yi > point.y !== yj > point.y &&
-      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi
-    ) {
-      inside = !inside;
-    }
-  }
-
-  return inside;
-}
-
-/**
- * Find intersection of two line segments
- */
-function segmentIntersection(
-  a1: LocalCoord,
-  a2: LocalCoord,
-  b1: LocalCoord,
-  b2: LocalCoord
-): { point: LocalCoord; t: number } | null {
-  const d1x = a2.x - a1.x;
-  const d1y = a2.y - a1.y;
-  const d2x = b2.x - b1.x;
-  const d2y = b2.y - b1.y;
-
-  const cross = d1x * d2y - d1y * d2x;
-  if (Math.abs(cross) < 1e-10) return null;
-
-  const dx = b1.x - a1.x;
-  const dy = b1.y - a1.y;
-
-  const t = (dx * d2y - dy * d2x) / cross;
-  const u = (dx * d1y - dy * d1x) / cross;
-
-  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-    return {
-      point: {
-        x: a1.x + t * d1x,
-        y: a1.y + t * d1y,
-      },
-      t,
-    };
-  }
-
-  return null;
 }
 
 /**
@@ -363,6 +316,59 @@ function segmentIntersection(
  * Useful for live preview in UI
  */
 export function estimatePanelCount(
+  usableAreaSqm: number,
+  module: ModuleInput,
+  parameters: LayoutParameters
+): {
+  panelCount: number;
+  frameCount: number;
+  dcCapacityKw: number;
+  dcCapacityMw: number;
+} {
+  const moduleLengthM = module.lengthMm / 1000;
+  const moduleWidthM = module.widthMm / 1000;
+
+  // Calculate frame dimensions
+  const frameWidth =
+    parameters.frameColumns * moduleLengthM +
+    (parameters.frameColumns - 1) * parameters.moduleGapM;
+
+  const tiltRad = (parameters.tiltAngle * Math.PI) / 180;
+  const frameHeightPhysical =
+    parameters.frameRows * moduleWidthM +
+    (parameters.frameRows - 1) * parameters.moduleGapM;
+  const effectiveFrameHeight = frameHeightPhysical * Math.cos(tiltRad);
+
+  // Calculate effective frame footprint including average spacing
+  const avgGapX = parameters.corridorEveryNFramesX > 0
+    ? (parameters.frameGapX * (parameters.corridorEveryNFramesX - 1) + parameters.corridorWidth) / parameters.corridorEveryNFramesX
+    : parameters.frameGapX;
+  const avgGapY = parameters.corridorEveryNFramesY > 0
+    ? (parameters.frameGapY * (parameters.corridorEveryNFramesY - 1) + parameters.corridorWidth) / parameters.corridorEveryNFramesY
+    : parameters.frameGapY;
+
+  const effectiveFrameAreaWithSpacing = (frameWidth + avgGapX) * (effectiveFrameHeight + avgGapY);
+
+  // Estimate number of frames (with ~70% packing efficiency for irregular shapes)
+  const packingEfficiency = 0.7;
+  const frameCount = Math.floor((usableAreaSqm * packingEfficiency) / effectiveFrameAreaWithSpacing);
+
+  const modulesPerFrame = parameters.frameRows * parameters.frameColumns;
+  const panelCount = frameCount * modulesPerFrame;
+  const dcCapacityKw = (panelCount * module.wattage) / 1000;
+
+  return {
+    panelCount,
+    frameCount,
+    dcCapacityKw,
+    dcCapacityMw: dcCapacityKw / 1000,
+  };
+}
+
+/**
+ * Estimate with legacy GCR parameter (for backward compatibility)
+ */
+export function estimatePanelCountLegacy(
   usableAreaSqm: number,
   module: ModuleInput,
   gcr: number

@@ -1,6 +1,6 @@
 /**
  * LayoutPreview - 2D map preview of generated panel layout
- * Shows site boundary, exclusion zones, and panel rows
+ * Shows site boundary, exclusion zones, and frame placements
  */
 
 import { useEffect, useRef, useMemo } from 'react';
@@ -20,8 +20,9 @@ interface LayoutPreviewProps {
 const COLORS = {
   boundary: '#3b82f6', // blue
   exclusion: '#ef4444', // red
-  panelRow: '#22c55e', // green
-  panelRowFill: 'rgba(34, 197, 94, 0.3)',
+  frame: '#22c55e', // green
+  frameFill: 'rgba(34, 197, 94, 0.4)',
+  corridor: '#f59e0b', // amber for corridors (if we visualize them)
 };
 
 export function LayoutPreview({ site, module, parameters }: LayoutPreviewProps) {
@@ -133,22 +134,35 @@ export function LayoutPreview({ site, module, parameters }: LayoutPreviewProps) 
       }
     });
 
-    // Add panel rows from layout
-    if (layout && layout.rows.length > 0) {
-      layout.rows.forEach((row) => {
-        const line = L.polyline(
-          [
-            [row.startCoord.lat, row.startCoord.lng],
-            [row.endCoord.lat, row.endCoord.lng],
-          ],
-          {
-            color: COLORS.panelRow,
-            weight: 3,
-            opacity: 0.8,
-          }
-        );
-        layers.addLayer(line);
-      });
+    // Add frames from layout
+    if (layout && layout.frames.length > 0) {
+      // Calculate scale factors for converting meters to lat/lng
+      const centroid = site.centroid;
+      if (centroid) {
+        const metersPerDegreeLat = 111139;
+        const metersPerDegreeLng = 111139 * Math.cos((centroid.latitude * Math.PI) / 180);
+
+        layout.frames.forEach((frame) => {
+          // Calculate frame corners in lat/lng
+          const corners = calculateFrameCornersLatLng(
+            frame.centerCoord.lat,
+            frame.centerCoord.lng,
+            frame.widthM,
+            frame.heightM,
+            frame.rotationDeg,
+            metersPerDegreeLat,
+            metersPerDegreeLng
+          );
+
+          const polygon = L.polygon(corners, {
+            color: COLORS.frame,
+            weight: 1,
+            fillOpacity: 0.4,
+            fillColor: COLORS.frameFill,
+          });
+          layers.addLayer(polygon);
+        });
+      }
     }
 
     // Fit bounds if we have any
@@ -181,9 +195,9 @@ export function LayoutPreview({ site, module, parameters }: LayoutPreviewProps) 
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded-sm"
-            style={{ backgroundColor: COLORS.panelRow }}
+            style={{ backgroundColor: COLORS.frame }}
           />
-          <span>Panel Rows ({layout?.rows.length ?? 0})</span>
+          <span>Frames ({layout?.frames.length ?? 0})</span>
         </div>
       </div>
 
@@ -191,6 +205,9 @@ export function LayoutPreview({ site, module, parameters }: LayoutPreviewProps) 
       {layout && (
         <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm rounded-md p-2 text-xs z-[1000]">
           <div className="font-medium text-primary">
+            {layout.summary.totalFrames.toLocaleString()} frames
+          </div>
+          <div className="text-muted-foreground">
             {layout.summary.totalPanels.toLocaleString()} panels
           </div>
           <div className="text-muted-foreground">
@@ -209,4 +226,41 @@ export function LayoutPreview({ site, module, parameters }: LayoutPreviewProps) 
       )}
     </div>
   );
+}
+
+/**
+ * Calculate frame corners in lat/lng coordinates
+ */
+function calculateFrameCornersLatLng(
+  centerLat: number,
+  centerLng: number,
+  widthM: number,
+  heightM: number,
+  rotationDeg: number,
+  metersPerDegreeLat: number,
+  metersPerDegreeLng: number
+): L.LatLngExpression[] {
+  // Half dimensions in degrees
+  const halfWidthDeg = (widthM / 2) / metersPerDegreeLng;
+  const halfHeightDeg = (heightM / 2) / metersPerDegreeLat;
+
+  // Rotation
+  const rotationRad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rotationRad);
+  const sin = Math.sin(rotationRad);
+
+  // Unrotated corners (relative to center in degrees)
+  const corners = [
+    { dLng: -halfWidthDeg, dLat: -halfHeightDeg }, // bottom-left
+    { dLng: halfWidthDeg, dLat: -halfHeightDeg },  // bottom-right
+    { dLng: halfWidthDeg, dLat: halfHeightDeg },   // top-right
+    { dLng: -halfWidthDeg, dLat: halfHeightDeg },  // top-left
+  ];
+
+  // Rotate and translate
+  return corners.map((corner) => {
+    const rotatedLng = corner.dLng * cos - corner.dLat * sin;
+    const rotatedLat = corner.dLng * sin + corner.dLat * cos;
+    return [centerLat + rotatedLat, centerLng + rotatedLng] as L.LatLngExpression;
+  });
 }

@@ -330,3 +330,82 @@ function lineIntersection(
 
   return null;
 }
+
+/**
+ * Calculate the four corners of a frame given center position and dimensions
+ * @param center Center position of frame
+ * @param width Frame width in meters
+ * @param height Frame height in meters
+ * @param rotationDeg Rotation angle in degrees
+ */
+export function calculateFrameCorners(
+  center: LocalCoord,
+  width: number,
+  height: number,
+  rotationDeg: number
+): LocalCoord[] {
+  // Half dimensions
+  const hw = width / 2;
+  const hh = height / 2;
+
+  // Unrotated corners (relative to center)
+  const corners: LocalCoord[] = [
+    { x: -hw, y: -hh }, // bottom-left
+    { x: hw, y: -hh },  // bottom-right
+    { x: hw, y: hh },   // top-right
+    { x: -hw, y: hh },  // top-left
+  ];
+
+  // Rotate and translate each corner
+  return corners.map((corner) => {
+    const rotated = rotatePoint(corner, rotationDeg);
+    return {
+      x: center.x + rotated.x,
+      y: center.y + rotated.y,
+    };
+  });
+}
+
+/**
+ * Check if all corners of a frame are inside the boundary polygon
+ * and outside all exclusion zones
+ */
+export function frameFullyContained(
+  frameCorners: LocalCoord[],
+  boundary: LocalCoord[],
+  exclusions: LocalCoord[][]
+): boolean {
+  // All corners must be inside boundary
+  for (const corner of frameCorners) {
+    if (!pointInPolygon(corner, boundary)) {
+      return false;
+    }
+  }
+
+  // No corner can be inside any exclusion zone
+  for (const exclusion of exclusions) {
+    for (const corner of frameCorners) {
+      if (pointInPolygon(corner, exclusion)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Rotate a point around an arbitrary center point
+ */
+export function rotatePointAround(
+  point: LocalCoord,
+  center: LocalCoord,
+  angleDegrees: number
+): LocalCoord {
+  const relative = { x: point.x - center.x, y: point.y - center.y };
+  const rotated = rotatePoint(relative, angleDegrees);
+  return {
+    x: center.x + rotated.x,
+    y: center.y + rotated.y,
+  };
+}

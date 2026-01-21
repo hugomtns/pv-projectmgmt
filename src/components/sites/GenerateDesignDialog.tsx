@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 import { ModuleSelector } from './ModuleSelector';
 import { LayoutPreview } from './LayoutPreview';
 import { useDesignStore } from '@/stores/designStore';
@@ -30,7 +31,16 @@ import {
 } from '@/lib/types/layout';
 import type { Site } from '@/lib/types/site';
 import type { ModuleInput, LayoutParameters } from '@/lib/types/layout';
-import { Zap, Grid3X3, Percent, Ruler, LayoutGrid, Info, Map } from 'lucide-react';
+import {
+  Zap,
+  Grid3X3,
+  Ruler,
+  LayoutGrid,
+  Info,
+  Map,
+  Rows3,
+  ArrowLeftRight,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface GenerateDesignDialogProps {
@@ -67,13 +77,16 @@ export function GenerateDesignDialog({
   const usableAreaSqm = site.usableArea ?? site.totalArea ?? 0;
   const usableAreaAcres = squareMetersToAcres(usableAreaSqm);
 
+  // Calculate modules per frame for display
+  const modulesPerFrame = parameters.frameRows * parameters.frameColumns;
+
   // Live estimate based on parameters
   const estimate = useMemo(() => {
     if (!module.wattage || !module.lengthMm || !module.widthMm) {
-      return { panelCount: 0, dcCapacityKw: 0, dcCapacityMw: 0 };
+      return { panelCount: 0, frameCount: 0, dcCapacityKw: 0, dcCapacityMw: 0 };
     }
-    return estimatePanelCount(usableAreaSqm, module, parameters.gcr);
-  }, [usableAreaSqm, module, parameters.gcr]);
+    return estimatePanelCount(usableAreaSqm, module, parameters);
+  }, [usableAreaSqm, module, parameters]);
 
   const handleParameterChange = useCallback(
     (param: keyof LayoutParameters, value: number) => {
@@ -103,7 +116,7 @@ export function GenerateDesignDialog({
       const designId = addDesign({
         projectId: site.projectId,
         name: `${site.name} - Preliminary Layout`,
-        description: `Auto-generated layout: ${layout.summary.totalPanels.toLocaleString()} panels, ${layout.summary.dcCapacityMw.toFixed(2)} MW DC`,
+        description: `Auto-generated layout: ${layout.summary.totalFrames.toLocaleString()} frames (${layout.summary.totalPanels.toLocaleString()} panels), ${layout.summary.dcCapacityMw.toFixed(2)} MW DC`,
         status: 'draft',
         siteId: site.id,
         generatedLayout: layout,
@@ -126,7 +139,7 @@ export function GenerateDesignDialog({
       }
 
       toast.success(
-        `Design created: ${layout.summary.totalPanels.toLocaleString()} panels, ${layout.summary.dcCapacityMw.toFixed(2)} MW`
+        `Design created: ${layout.summary.totalFrames.toLocaleString()} frames, ${layout.summary.dcCapacityMw.toFixed(2)} MW`
       );
 
       onOpenChange(false);
@@ -189,14 +202,112 @@ export function GenerateDesignDialog({
 
           <Separator />
 
-          {/* Layout parameters */}
-          <div className="space-y-5">
+          {/* Frame Configuration */}
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <LayoutGrid className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium">Layout Parameters</Label>
+              <Label className="text-sm font-medium">Frame Configuration</Label>
             </div>
 
-            {/* Tilt Angle */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Rows per Frame
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={parameters.frameRows}
+                    onChange={(e) =>
+                      handleParameterChange(
+                        'frameRows',
+                        Math.max(1, Math.min(6, parseInt(e.target.value) || 1))
+                      )
+                    }
+                    min={LAYOUT_PARAMETER_LIMITS.frameRows.min}
+                    max={LAYOUT_PARAMETER_LIMITS.frameRows.max}
+                    className="w-20"
+                  />
+                  <Slider
+                    value={[parameters.frameRows]}
+                    onValueChange={([v]) => handleParameterChange('frameRows', v)}
+                    min={LAYOUT_PARAMETER_LIMITS.frameRows.min}
+                    max={LAYOUT_PARAMETER_LIMITS.frameRows.max}
+                    step={LAYOUT_PARAMETER_LIMITS.frameRows.step}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Columns per Frame
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={parameters.frameColumns}
+                    onChange={(e) =>
+                      handleParameterChange(
+                        'frameColumns',
+                        Math.max(1, Math.min(10, parseInt(e.target.value) || 1))
+                      )
+                    }
+                    min={LAYOUT_PARAMETER_LIMITS.frameColumns.min}
+                    max={LAYOUT_PARAMETER_LIMITS.frameColumns.max}
+                    className="w-20"
+                  />
+                  <Slider
+                    value={[parameters.frameColumns]}
+                    onValueChange={([v]) => handleParameterChange('frameColumns', v)}
+                    min={LAYOUT_PARAMETER_LIMITS.frameColumns.min}
+                    max={LAYOUT_PARAMETER_LIMITS.frameColumns.max}
+                    step={LAYOUT_PARAMETER_LIMITS.frameColumns.step}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Frame preview */}
+            <div className="bg-muted/30 rounded-lg p-3">
+              <div className="text-xs text-muted-foreground mb-2">Frame Preview</div>
+              <div className="flex items-center gap-4">
+                <div className="border border-dashed border-muted-foreground/30 rounded p-2">
+                  <div
+                    className="grid gap-0.5"
+                    style={{
+                      gridTemplateRows: `repeat(${parameters.frameRows}, 1fr)`,
+                      gridTemplateColumns: `repeat(${parameters.frameColumns}, 1fr)`,
+                    }}
+                  >
+                    {Array.from({ length: modulesPerFrame }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-4 h-3 bg-primary/60 rounded-sm"
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="text-sm">
+                  <div className="font-medium">
+                    {parameters.frameRows} × {parameters.frameColumns} = {modulesPerFrame} modules
+                  </div>
+                  <div className="text-xs text-muted-foreground">per frame</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Tilt & Orientation */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Rows3 className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Tilt & Orientation</Label>
+            </div>
+
             <ParameterSlider
               label="Tilt Angle"
               value={parameters.tiltAngle}
@@ -208,21 +319,45 @@ export function GenerateDesignDialog({
               description={LAYOUT_PARAMETER_DESCRIPTIONS.tiltAngle}
             />
 
-            {/* GCR */}
-            <ParameterSlider
-              label="Ground Coverage Ratio (GCR)"
-              value={parameters.gcr}
-              onChange={(v) => handleParameterChange('gcr', v)}
-              min={LAYOUT_PARAMETER_LIMITS.gcr.min}
-              max={LAYOUT_PARAMETER_LIMITS.gcr.max}
-              step={LAYOUT_PARAMETER_LIMITS.gcr.step}
-              unit=""
-              displayValue={(v) => v.toFixed(2)}
-              description={LAYOUT_PARAMETER_DESCRIPTIONS.gcr}
-              icon={<Percent className="h-3 w-3" />}
-            />
+            <div className="text-xs text-muted-foreground flex items-center gap-1">
+              <Info className="h-3 w-3" />
+              Azimuth fixed at 180° (south-facing). More options coming soon.
+            </div>
+          </div>
 
-            {/* Boundary Setback */}
+          <Separator />
+
+          {/* Spacing Configuration */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Spacing</Label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <ParameterSlider
+                label="Frame Gap (X)"
+                value={parameters.frameGapX}
+                onChange={(v) => handleParameterChange('frameGapX', v)}
+                min={LAYOUT_PARAMETER_LIMITS.frameGapX.min}
+                max={LAYOUT_PARAMETER_LIMITS.frameGapX.max}
+                step={LAYOUT_PARAMETER_LIMITS.frameGapX.step}
+                unit="m"
+                description="Horizontal gap between frames"
+              />
+
+              <ParameterSlider
+                label="Frame Gap (Y)"
+                value={parameters.frameGapY}
+                onChange={(v) => handleParameterChange('frameGapY', v)}
+                min={LAYOUT_PARAMETER_LIMITS.frameGapY.min}
+                max={LAYOUT_PARAMETER_LIMITS.frameGapY.max}
+                step={LAYOUT_PARAMETER_LIMITS.frameGapY.step}
+                unit="m"
+                description="Vertical gap between frame rows"
+              />
+            </div>
+
             <ParameterSlider
               label="Boundary Setback"
               value={parameters.boundarySetbackM}
@@ -234,23 +369,80 @@ export function GenerateDesignDialog({
               description={LAYOUT_PARAMETER_DESCRIPTIONS.boundarySetbackM}
               icon={<Ruler className="h-3 w-3" />}
             />
+          </div>
 
-            {/* Row Gap */}
+          <Separator />
+
+          {/* Corridor Configuration */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Rows3 className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Maintenance Corridors</Label>
+            </div>
+
             <ParameterSlider
-              label="Row Gap"
-              value={parameters.rowGapM}
-              onChange={(v) => handleParameterChange('rowGapM', v)}
-              min={LAYOUT_PARAMETER_LIMITS.rowGapM.min}
-              max={LAYOUT_PARAMETER_LIMITS.rowGapM.max}
-              step={LAYOUT_PARAMETER_LIMITS.rowGapM.step}
+              label="Corridor Width"
+              value={parameters.corridorWidth}
+              onChange={(v) => handleParameterChange('corridorWidth', v)}
+              min={LAYOUT_PARAMETER_LIMITS.corridorWidth.min}
+              max={LAYOUT_PARAMETER_LIMITS.corridorWidth.max}
+              step={LAYOUT_PARAMETER_LIMITS.corridorWidth.step}
               unit="m"
-              description={LAYOUT_PARAMETER_DESCRIPTIONS.rowGapM}
+              description="Width of vehicle access corridors"
             />
 
-            {/* Azimuth - simplified for now */}
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <Info className="h-3 w-3" />
-              Azimuth fixed at 180° (south-facing). More options coming soon.
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Every N Columns (0 = off)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={parameters.corridorEveryNFramesX}
+                    onChange={(e) =>
+                      handleParameterChange(
+                        'corridorEveryNFramesX',
+                        Math.max(0, Math.min(20, parseInt(e.target.value) || 0))
+                      )
+                    }
+                    min={0}
+                    max={20}
+                    className="w-20"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {parameters.corridorEveryNFramesX === 0
+                      ? 'Disabled'
+                      : `corridor every ${parameters.corridorEveryNFramesX} columns`}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Every N Rows (0 = off)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={parameters.corridorEveryNFramesY}
+                    onChange={(e) =>
+                      handleParameterChange(
+                        'corridorEveryNFramesY',
+                        Math.max(0, Math.min(10, parseInt(e.target.value) || 0))
+                      )
+                    }
+                    min={0}
+                    max={10}
+                    className="w-20"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {parameters.corridorEveryNFramesY === 0
+                      ? 'Disabled'
+                      : `corridor every ${parameters.corridorEveryNFramesY} rows`}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -261,7 +453,13 @@ export function GenerateDesignDialog({
             <div className="text-sm font-medium mb-3 text-primary">
               Estimated Output
             </div>
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold">
+                  {estimate.frameCount.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Frames</div>
+              </div>
               <div>
                 <div className="text-2xl font-bold">
                   {estimate.panelCount.toLocaleString()}

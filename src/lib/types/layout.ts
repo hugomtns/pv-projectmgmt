@@ -18,15 +18,51 @@ export interface ModuleInput {
  * Layout generation parameters
  */
 export interface LayoutParameters {
+  // Tilt & Orientation
   tiltAngle: number; // Degrees (0-45), default 20
   azimuth: number; // Degrees (0-360), default 180 (south-facing)
-  gcr: number; // Ground Coverage Ratio (0.2-0.7), default 0.4
+
+  // Frame configuration - modules grouped into frames/tables
+  frameRows: number; // Number of module rows per frame (default: 2)
+  frameColumns: number; // Number of module columns per frame (default: 4)
+  moduleGapM: number; // Gap between modules within frame (default: 0.02m)
+
+  // Spacing configuration
+  frameGapX: number; // Gap between frames in same row (default: 1m)
+  frameGapY: number; // Gap between frame rows (default: 2m)
   boundarySetbackM: number; // Setback from site boundary in meters, default 10
-  rowGapM: number; // Minimum gap between rows in meters, default 3
+
+  // Corridor configuration for maintenance vehicle access
+  corridorWidth: number; // Width of maintenance corridors (default: 5m)
+  corridorEveryNFramesX: number; // Corridor every N frames horizontally (0 = disabled)
+  corridorEveryNFramesY: number; // Corridor every N frame rows vertically (0 = disabled)
+
+  // Legacy - kept for backwards compatibility but deprecated
+  gcr: number; // Ground Coverage Ratio - now calculated from frame params
+  rowGapM: number; // Deprecated - use frameGapY instead
+}
+
+/**
+ * A single frame/table placement in the generated layout
+ */
+export interface FramePlacement {
+  index: number;
+  rowIndex: number; // Which row of frames this belongs to
+  colIndex: number; // Position within the row
+  frameRows: number; // Modules per frame vertically
+  frameColumns: number; // Modules per frame horizontally
+  // Frame center position in lat/lng
+  centerCoord: { lat: number; lng: number };
+  // Frame dimensions in meters
+  widthM: number;
+  heightM: number;
+  // Rotation angle in degrees (from azimuth)
+  rotationDeg: number;
 }
 
 /**
  * A single row of panels in the generated layout
+ * @deprecated Use FramePlacement[] instead
  */
 export interface PanelRow {
   index: number;
@@ -43,7 +79,8 @@ export interface PanelRow {
  */
 export interface LayoutSummary {
   totalPanels: number;
-  totalRows: number;
+  totalFrames: number;
+  totalRows: number; // Number of frame rows
   dcCapacityKw: number;
   dcCapacityMw: number;
   actualGcr: number;
@@ -60,7 +97,11 @@ export interface GeneratedLayout {
   module: ModuleInput;
   parameters: LayoutParameters;
 
-  // Generated output
+  // Generated output - frame-based
+  frames: FramePlacement[];
+
+  // Legacy - kept for backwards compatibility
+  /** @deprecated Use frames instead */
   rows: PanelRow[];
 
   // Summary statistics
@@ -74,10 +115,27 @@ export interface GeneratedLayout {
  * Default layout parameters
  */
 export const DEFAULT_LAYOUT_PARAMETERS: LayoutParameters = {
+  // Tilt & Orientation
   tiltAngle: 20,
   azimuth: 180,
-  gcr: 0.4,
+
+  // Frame configuration
+  frameRows: 2,
+  frameColumns: 4,
+  moduleGapM: 0.02,
+
+  // Spacing
+  frameGapX: 1,
+  frameGapY: 2,
   boundarySetbackM: 10,
+
+  // Corridors
+  corridorWidth: 5,
+  corridorEveryNFramesX: 0, // Disabled by default
+  corridorEveryNFramesY: 0, // Disabled by default
+
+  // Legacy (deprecated)
+  gcr: 0.4,
   rowGapM: 3,
 };
 
@@ -85,10 +143,27 @@ export const DEFAULT_LAYOUT_PARAMETERS: LayoutParameters = {
  * Parameter constraints for validation
  */
 export const LAYOUT_PARAMETER_LIMITS = {
+  // Tilt & Orientation
   tiltAngle: { min: 0, max: 45, step: 1 },
   azimuth: { min: 0, max: 360, step: 5 },
-  gcr: { min: 0.2, max: 0.7, step: 0.01 },
+
+  // Frame configuration
+  frameRows: { min: 1, max: 6, step: 1 },
+  frameColumns: { min: 1, max: 10, step: 1 },
+  moduleGapM: { min: 0, max: 0.1, step: 0.01 },
+
+  // Spacing
+  frameGapX: { min: 0.5, max: 5, step: 0.5 },
+  frameGapY: { min: 0.5, max: 10, step: 0.5 },
   boundarySetbackM: { min: 0, max: 50, step: 1 },
+
+  // Corridors
+  corridorWidth: { min: 3, max: 10, step: 0.5 },
+  corridorEveryNFramesX: { min: 0, max: 20, step: 1 },
+  corridorEveryNFramesY: { min: 0, max: 10, step: 1 },
+
+  // Legacy (deprecated)
+  gcr: { min: 0.2, max: 0.7, step: 0.01 },
   rowGapM: { min: 1, max: 10, step: 0.5 },
 };
 
@@ -98,9 +173,17 @@ export const LAYOUT_PARAMETER_LIMITS = {
 export const LAYOUT_PARAMETER_LABELS: Record<keyof LayoutParameters, string> = {
   tiltAngle: 'Tilt Angle',
   azimuth: 'Azimuth (Orientation)',
-  gcr: 'Ground Coverage Ratio (GCR)',
+  frameRows: 'Frame Rows',
+  frameColumns: 'Frame Columns',
+  moduleGapM: 'Module Gap',
+  frameGapX: 'Frame Gap (Horizontal)',
+  frameGapY: 'Frame Gap (Vertical)',
   boundarySetbackM: 'Boundary Setback',
-  rowGapM: 'Row Gap',
+  corridorWidth: 'Corridor Width',
+  corridorEveryNFramesX: 'Corridor Every N Columns',
+  corridorEveryNFramesY: 'Corridor Every N Rows',
+  gcr: 'Ground Coverage Ratio (GCR)',
+  rowGapM: 'Row Gap (Legacy)',
 };
 
 /**
@@ -109,7 +192,15 @@ export const LAYOUT_PARAMETER_LABELS: Record<keyof LayoutParameters, string> = {
 export const LAYOUT_PARAMETER_DESCRIPTIONS: Record<keyof LayoutParameters, string> = {
   tiltAngle: 'Panel tilt angle in degrees from horizontal',
   azimuth: '0° = North, 90° = East, 180° = South, 270° = West',
-  gcr: 'Ratio of panel area to ground area. Higher = more panels, more shading',
+  frameRows: 'Number of module rows per frame/table',
+  frameColumns: 'Number of module columns per frame/table',
+  moduleGapM: 'Gap between modules within frame',
+  frameGapX: 'Horizontal gap between adjacent frames',
+  frameGapY: 'Vertical gap between frame rows',
   boundarySetbackM: 'Buffer distance from site boundary edges',
-  rowGapM: 'Minimum gap between panel rows for maintenance access',
+  corridorWidth: 'Width of maintenance vehicle corridors',
+  corridorEveryNFramesX: 'Insert corridor after every N columns (0 = disabled)',
+  corridorEveryNFramesY: 'Insert corridor after every N rows (0 = disabled)',
+  gcr: 'Ratio of panel area to ground area (calculated automatically)',
+  rowGapM: 'Legacy parameter - use frameGapY instead',
 };

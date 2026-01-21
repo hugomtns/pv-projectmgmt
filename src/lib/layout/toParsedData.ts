@@ -31,11 +31,6 @@ export function generatedLayoutToParsedData(
   const moduleLengthM = layout.module.lengthMm / 1000;
   const moduleWidthM = layout.module.widthMm / 1000;
 
-  // Convert azimuth to rotation (radians)
-  // Azimuth 180 = south-facing = panels face south = rotation 0
-  // We need to rotate the panel table so it faces the azimuth direction
-  const azimuthRad = ((layout.parameters.azimuth - 180) * Math.PI) / 180;
-
   // Tilt angle
   const tiltAngle = layout.parameters.tiltAngle;
 
@@ -44,67 +39,115 @@ export function generatedLayoutToParsedData(
   let maxX = -Infinity, maxY = -Infinity;
   const minZ = 0, maxZ = 0;
 
-  // Generate panels from rows
   let panelIndex = 0;
-  layout.rows.forEach((row) => {
-    // Convert row start/end to local coordinates
-    const startLocal = projection.toLocal({
-      lat: row.startCoord.lat,
-      lng: row.startCoord.lng,
-    });
-    const endLocal = projection.toLocal({
-      lat: row.endCoord.lat,
-      lng: row.endCoord.lng,
-    });
 
-    // Direction along the row
-    const dx = endLocal.x - startLocal.x;
-    const dy = endLocal.y - startLocal.y;
-    const rowLength = Math.sqrt(dx * dx + dy * dy);
+  // Generate panels from frames
+  if (layout.frames && layout.frames.length > 0) {
+    // New frame-based approach
+    layout.frames.forEach((frame) => {
+      // Convert frame center to local coordinates
+      const centerLocal = projection.toLocal({
+        lat: frame.centerCoord.lat,
+        lng: frame.centerCoord.lng,
+      });
 
-    if (rowLength === 0) return;
+      // Frame rotation in radians
+      const rotationRad = (frame.rotationDeg * Math.PI) / 180;
 
-    // Normalized direction
-    const dirX = dx / rowLength;
-    const dirY = dy / rowLength;
-
-    // Place panels along the row
-    for (let i = 0; i < row.panelCount; i++) {
-      // Position along the row (center of each panel)
-      const t = (i + 0.5) / row.panelCount;
-      const x = startLocal.x + dx * t;
-      const y = startLocal.y + dy * t;
-      const z = 0; // Ground level
+      // Create a panel geometry for this frame (represents the entire table)
+      const x = centerLocal.x;
+      const y = centerLocal.y;
+      const z = 0;
 
       // Update bounds
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-
-      // Calculate rotation from row direction
-      const rowRotation = Math.atan2(dirY, dirX);
+      const halfWidth = frame.widthM / 2;
+      const halfHeight = frame.heightM / 2;
+      if (x - halfWidth < minX) minX = x - halfWidth;
+      if (x + halfWidth > maxX) maxX = x + halfWidth;
+      if (y - halfHeight < minY) minY = y - halfHeight;
+      if (y + halfHeight > maxY) maxY = y + halfHeight;
 
       panels.push({
-        id: `gen-panel-${panelIndex}`,
+        id: `gen-frame-${panelIndex}`,
         position: [x, y, z],
-        rotation: rowRotation + azimuthRad,
+        rotation: rotationRad,
         scale: [1, 1, 1],
-        blockName: 'GeneratedPanel',
+        blockName: 'GeneratedFrame',
         layer: 'PANELS',
         tiltAngle,
-        tableWidth: moduleLengthM,
-        tableHeight: moduleWidthM,
-        moduleRows: 1,
-        moduleColumns: 1,
+        tableWidth: frame.widthM,
+        tableHeight: frame.heightM,
+        moduleRows: frame.frameRows,
+        moduleColumns: frame.frameColumns,
         mountingHeight: 0.5, // Default mounting height
         moduleWidth: moduleLengthM,
         moduleHeight: moduleWidthM,
       });
 
       panelIndex++;
-    }
-  });
+    });
+  } else if (layout.rows && layout.rows.length > 0) {
+    // Legacy row-based approach for backward compatibility
+    layout.rows.forEach((row) => {
+      // Convert row start/end to local coordinates
+      const startLocal = projection.toLocal({
+        lat: row.startCoord.lat,
+        lng: row.startCoord.lng,
+      });
+      const endLocal = projection.toLocal({
+        lat: row.endCoord.lat,
+        lng: row.endCoord.lng,
+      });
+
+      // Direction along the row
+      const dx = endLocal.x - startLocal.x;
+      const dy = endLocal.y - startLocal.y;
+      const rowLength = Math.sqrt(dx * dx + dy * dy);
+
+      if (rowLength === 0) return;
+
+      // Normalized direction
+      const dirX = dx / rowLength;
+      const dirY = dy / rowLength;
+
+      // Place panels along the row
+      for (let i = 0; i < row.panelCount; i++) {
+        // Position along the row (center of each panel)
+        const t = (i + 0.5) / row.panelCount;
+        const x = startLocal.x + dx * t;
+        const y = startLocal.y + dy * t;
+        const z = 0; // Ground level
+
+        // Update bounds
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+
+        // Calculate rotation from row direction
+        const rowRotation = Math.atan2(dirY, dirX);
+
+        panels.push({
+          id: `gen-panel-${panelIndex}`,
+          position: [x, y, z],
+          rotation: rowRotation,
+          scale: [1, 1, 1],
+          blockName: 'GeneratedPanel',
+          layer: 'PANELS',
+          tiltAngle,
+          tableWidth: moduleLengthM,
+          tableHeight: moduleWidthM,
+          moduleRows: 1,
+          moduleColumns: 1,
+          mountingHeight: 0.5, // Default mounting height
+          moduleWidth: moduleLengthM,
+          moduleHeight: moduleWidthM,
+        });
+
+        panelIndex++;
+      }
+    });
+  }
 
   // Add some padding to bounds
   const padding = 50; // meters
