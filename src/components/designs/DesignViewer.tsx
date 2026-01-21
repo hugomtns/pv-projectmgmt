@@ -440,21 +440,21 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
                 </div>
 
                 {/* Sidebar */}
-                {activeTab === 'comments' && selectedVersionId && (
+                {activeTab === 'comments' && effectiveVersionId && (
                     <DesignCommentPanel
                         designId={designId}
-                        versionId={selectedVersionId}
+                        versionId={effectiveVersionId}
                         onJumpToElement={handleJumpToElement}
                         highlightedElementKey={highlightedElementKey}
                         explicitHighlightCommentId={highlightedCommentId}
                         initialTab={initialCommentTab}
                     />
                 )}
-                {activeTab === 'history' && selectedVersionId && (
+                {activeTab === 'history' && effectiveVersionId && (
                     <DesignVersionHistory
                         designId={designId}
                         currentVersionId={design.currentVersionId}
-                        selectedVersionId={selectedVersionId}
+                        selectedVersionId={effectiveVersionId}
                         onVersionSelect={setSelectedVersionId}
                         canUpload={true}
                     />
