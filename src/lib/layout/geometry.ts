@@ -367,31 +367,114 @@ export function calculateFrameCorners(
 }
 
 /**
- * Check if all corners of a frame are inside the boundary polygon
- * and outside all exclusion zones
+ * Check if a frame is fully contained within the boundary polygon
+ * and does not overlap with any exclusion zones.
+ *
+ * For boundary: frame must be completely inside (all corners + no edge crossings)
+ * For exclusions: frame must not overlap at all (no intersection)
  */
 export function frameFullyContained(
   frameCorners: LocalCoord[],
   boundary: LocalCoord[],
   exclusions: LocalCoord[][]
 ): boolean {
-  // All corners must be inside boundary
+  // 1. All frame corners must be inside boundary
   for (const corner of frameCorners) {
     if (!pointInPolygon(corner, boundary)) {
       return false;
     }
   }
 
-  // No corner can be inside any exclusion zone
+  // 2. Frame edges must not cross boundary edges
+  if (polygonsIntersect(frameCorners, boundary)) {
+    return false;
+  }
+
+  // 3. Frame must not overlap with any exclusion zone
   for (const exclusion of exclusions) {
-    for (const corner of frameCorners) {
-      if (pointInPolygon(corner, exclusion)) {
-        return false;
-      }
+    if (polygonsOverlap(frameCorners, exclusion)) {
+      return false;
     }
   }
 
   return true;
+}
+
+/**
+ * Check if two polygons have intersecting edges
+ */
+function polygonsIntersect(poly1: LocalCoord[], poly2: LocalCoord[]): boolean {
+  const n1 = poly1.length;
+  const n2 = poly2.length;
+
+  for (let i = 0; i < n1; i++) {
+    const a1 = poly1[i];
+    const a2 = poly1[(i + 1) % n1];
+
+    for (let j = 0; j < n2; j++) {
+      const b1 = poly2[j];
+      const b2 = poly2[(j + 1) % n2];
+
+      if (segmentsIntersect(a1, a2, b1, b2)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if two line segments intersect
+ */
+function segmentsIntersect(
+  a1: LocalCoord,
+  a2: LocalCoord,
+  b1: LocalCoord,
+  b2: LocalCoord
+): boolean {
+  const d1x = a2.x - a1.x;
+  const d1y = a2.y - a1.y;
+  const d2x = b2.x - b1.x;
+  const d2y = b2.y - b1.y;
+
+  const cross = d1x * d2y - d1y * d2x;
+  if (Math.abs(cross) < 1e-10) return false; // Parallel
+
+  const dx = b1.x - a1.x;
+  const dy = b1.y - a1.y;
+
+  const t = (dx * d2y - dy * d2x) / cross;
+  const u = (dx * d1y - dy * d1x) / cross;
+
+  // Check if intersection is within both segments (exclusive of endpoints to avoid corner touches)
+  return t > 1e-10 && t < 1 - 1e-10 && u > 1e-10 && u < 1 - 1e-10;
+}
+
+/**
+ * Check if two polygons overlap (intersect or one contains the other)
+ */
+function polygonsOverlap(poly1: LocalCoord[], poly2: LocalCoord[]): boolean {
+  // Check if edges intersect
+  if (polygonsIntersect(poly1, poly2)) {
+    return true;
+  }
+
+  // Check if any corner of poly1 is inside poly2
+  for (const corner of poly1) {
+    if (pointInPolygon(corner, poly2)) {
+      return true;
+    }
+  }
+
+  // Check if any corner of poly2 is inside poly1
+  for (const corner of poly2) {
+    if (pointInPolygon(corner, poly1)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
