@@ -139,31 +139,55 @@ function parseGeminiResponse(responseText: string): {
   changes: IdentifiedChange[];
   overallSummary: string;
 } {
+  console.log('[AI Review] Raw Gemini response:', responseText.substring(0, 500) + '...');
+
   // Remove markdown code blocks if present
   let jsonText = responseText.trim();
-  if (jsonText.startsWith('```json')) {
-    jsonText = jsonText.slice(7);
-  } else if (jsonText.startsWith('```')) {
-    jsonText = jsonText.slice(3);
-  }
-  if (jsonText.endsWith('```')) {
-    jsonText = jsonText.slice(0, -3);
-  }
-  jsonText = jsonText.trim();
 
-  const parsed = JSON.parse(jsonText);
+  // Handle various markdown code block formats
+  const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    jsonText = codeBlockMatch[1].trim();
+    console.log('[AI Review] Extracted JSON from code block');
+  }
+
+  // Try to find JSON object if response has extra text
+  if (!jsonText.startsWith('{')) {
+    const jsonStart = jsonText.indexOf('{');
+    const jsonEnd = jsonText.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      jsonText = jsonText.substring(jsonStart, jsonEnd + 1);
+      console.log('[AI Review] Extracted JSON object from response');
+    }
+  }
+
+  console.log('[AI Review] Cleaned JSON (first 500 chars):', jsonText.substring(0, 500));
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch (parseError) {
+    console.error('[AI Review] JSON parse error:', parseError);
+    console.error('[AI Review] Failed JSON text:', jsonText);
+    throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+  }
+
+  const response = parsed as Record<string, unknown>;
 
   // Validate structure
-  if (!Array.isArray(parsed.changes)) {
+  if (!response.changes || !Array.isArray(response.changes)) {
+    console.error('[AI Review] Invalid response structure:', response);
     throw new Error('Invalid response format: missing changes array');
   }
 
   // Validate and normalize each change
-  const changes: IdentifiedChange[] = parsed.changes.map((change: unknown, index: number) => {
+  const changes: IdentifiedChange[] = (response.changes as unknown[]).map((change: unknown, index: number) => {
     const c = change as Record<string, unknown>;
 
     if (!c.type || !['addition', 'deletion', 'modification'].includes(c.type as string)) {
-      throw new Error(`Invalid change type at index ${index}`);
+      console.warn(`[AI Review] Invalid change type at index ${index}:`, c.type);
+      // Default to modification if type is invalid
+      c.type = 'modification';
     }
 
     return {
@@ -175,9 +199,11 @@ function parseGeminiResponse(responseText: string): {
     };
   });
 
+  console.log(`[AI Review] Parsed ${changes.length} changes from response`);
+
   return {
     changes,
-    overallSummary: (parsed.overallSummary as string) || 'Document comparison complete',
+    overallSummary: (response.overallSummary as string) || 'Document comparison complete',
   };
 }
 
@@ -193,6 +219,23 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     );
   }
 
+  console.log('[AI Review] Calling Gemini API...');
+  console.log('[AI Review] Prompt length:', prompt.length, 'characters');
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.1, // Low temperature for consistent, factual responses
+      topP: 0.8,
+      maxOutputTokens: 8192,
+      responseMimeType: 'application/json', // Request JSON response format
+    },
+  };
+
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
@@ -200,29 +243,23 @@ async function callGeminiAPI(prompt: string): Promise<string> {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.1, // Low temperature for consistent, factual responses
-          topP: 0.8,
-          maxOutputTokens: 8192,
-        },
-      }),
+      body: JSON.stringify(requestBody),
     }
   );
 
+  console.log('[AI Review] Gemini API response status:', response.status);
+
   if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('[AI Review] Gemini API error:', errorData);
+
     if (response.status === 429) {
       throw new Error('Rate limit exceeded. Please try again in a few minutes.');
     }
     if (response.status === 400) {
-      throw new Error('Request too large. Try with a smaller document.');
+      const errorMsg = (errorData as { error?: { message?: string } }).error?.message || '';
+      throw new Error(`Request error: ${errorMsg || 'Try with a smaller document.'}`);
     }
-    const errorData = await response.json().catch(() => ({}));
     const errorMessage =
       (errorData as { error?: { message?: string } }).error?.message ||
       `API request failed: ${response.status}`;
@@ -230,6 +267,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
+  console.log('[AI Review] Gemini API response received');
 
   // Extract text from response
   const textPart = data.candidates?.[0]?.content?.parts?.find(
@@ -237,6 +275,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   );
 
   if (!textPart?.text) {
+    console.error('[AI Review] No text in response:', JSON.stringify(data, null, 2));
     throw new Error('No response received from AI. Please try again.');
   }
 
@@ -293,24 +332,33 @@ export async function runDocumentReview(
   previousVersionId: string,
   onProgress: ProgressCallback
 ): Promise<ReviewResult> {
+  console.log('[AI Review] Starting document review');
+  console.log('[AI Review] Document ID:', documentId);
+  console.log('[AI Review] Current version:', currentVersionId);
+  console.log('[AI Review] Previous version:', previousVersionId);
+
   try {
     // Stage 1: Extract text from both versions
     onProgress('extracting', 'Extracting text from documents...');
+    console.log('[AI Review] Stage 1: Extracting text from documents...');
 
     const [prevBlob, currBlob] = await Promise.all([
       loadVersionBlob(previousVersionId),
       loadVersionBlob(currentVersionId),
     ]);
+    console.log('[AI Review] Loaded blobs - prev:', prevBlob.size, 'bytes, curr:', currBlob.size, 'bytes');
 
     const [prevPdf, currPdf] = await Promise.all([
       loadPDFFromBlob(prevBlob),
       loadPDFFromBlob(currBlob),
     ]);
+    console.log('[AI Review] Loaded PDFs - prev:', prevPdf.numPages, 'pages, curr:', currPdf.numPages, 'pages');
 
     const [prevTextData, currTextData] = await Promise.all([
       extractDocumentText(prevPdf),
       extractDocumentText(currPdf),
     ]);
+    console.log('[AI Review] Extracted text - prev:', prevTextData.fullText.length, 'chars, curr:', currTextData.fullText.length, 'chars');
 
     // Get version numbers for the prompt
     const [prevVersion, currVersion] = await Promise.all([
@@ -323,6 +371,7 @@ export async function runDocumentReview(
 
     // Stage 2: Send to Gemini for analysis
     onProgress('analyzing', 'Analyzing changes with AI...');
+    console.log('[AI Review] Stage 2: Analyzing changes with AI...');
 
     const prompt = buildComparisonPrompt(
       prevTextData.fullText,
@@ -334,7 +383,11 @@ export async function runDocumentReview(
     const geminiResponse = await callGeminiAPI(prompt);
     const { changes, overallSummary } = parseGeminiResponse(geminiResponse);
 
+    console.log('[AI Review] Analysis complete:', changes.length, 'changes found');
+    console.log('[AI Review] Summary:', overallSummary);
+
     if (changes.length === 0) {
+      console.log('[AI Review] No changes detected, completing');
       return {
         success: true,
         changes: [],
@@ -345,6 +398,7 @@ export async function runDocumentReview(
 
     // Stage 3: Create comments for each change
     onProgress('creating-comments', 'Creating highlight comments...');
+    console.log('[AI Review] Stage 3: Creating highlight comments...');
 
     const addComment = useDocumentStore.getState().addComment;
     let commentsCreated = 0;
@@ -356,6 +410,8 @@ export async function runDocumentReview(
       if (position) {
         const commentText = formatChangeComment(change);
         const highlightColor = CHANGE_TYPE_COLORS[change.type];
+
+        console.log(`[AI Review] Creating ${change.type} comment on page ${position.page} at (${position.x.toFixed(1)}, ${position.y.toFixed(1)})`);
 
         const commentId = await addComment(
           documentId,
@@ -376,8 +432,12 @@ export async function runDocumentReview(
         if (commentId) {
           commentsCreated++;
         }
+      } else {
+        console.warn('[AI Review] Could not find position for change:', change.summary);
       }
     }
+
+    console.log('[AI Review] Review complete:', commentsCreated, 'comments created');
 
     return {
       success: true,
@@ -386,6 +446,7 @@ export async function runDocumentReview(
       commentsCreated,
     };
   } catch (error) {
+    console.error('[AI Review] Error during review:', error);
     const message = error instanceof Error ? error.message : 'An unknown error occurred';
     return {
       success: false,
