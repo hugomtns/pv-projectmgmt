@@ -221,7 +221,7 @@ export function GenerateDesignDialog({
                     onChange={(e) =>
                       handleParameterChange(
                         'frameRows',
-                        Math.max(1, Math.min(6, parseInt(e.target.value) || 1))
+                        Math.max(1, Math.min(4, parseInt(e.target.value) || 1))
                       )
                     }
                     min={LAYOUT_PARAMETER_LIMITS.frameRows.min}
@@ -250,7 +250,7 @@ export function GenerateDesignDialog({
                     onChange={(e) =>
                       handleParameterChange(
                         'frameColumns',
-                        Math.max(1, Math.min(10, parseInt(e.target.value) || 1))
+                        Math.max(1, Math.min(32, parseInt(e.target.value) || 1))
                       )
                     }
                     min={LAYOUT_PARAMETER_LIMITS.frameColumns.min}

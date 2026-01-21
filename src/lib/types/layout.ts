@@ -121,7 +121,7 @@ export const DEFAULT_LAYOUT_PARAMETERS: LayoutParameters = {
 
   // Frame configuration
   frameRows: 2,
-  frameColumns: 4,
+  frameColumns: 12,
   moduleGapM: 0.02,
 
   // Spacing
@@ -148,8 +148,8 @@ export const LAYOUT_PARAMETER_LIMITS = {
   azimuth: { min: 0, max: 360, step: 5 },
 
   // Frame configuration
-  frameRows: { min: 1, max: 6, step: 1 },
-  frameColumns: { min: 1, max: 10, step: 1 },
+  frameRows: { min: 1, max: 4, step: 1 },
+  frameColumns: { min: 1, max: 32, step: 1 },
   moduleGapM: { min: 0, max: 0.1, step: 0.01 },
 
   // Spacing
