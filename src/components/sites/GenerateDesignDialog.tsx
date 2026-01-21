@@ -42,6 +42,58 @@ import {
   ArrowLeftRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { GeneratedLayout } from '@/lib/types/layout';
+
+/**
+ * Calculate the required ground size in meters to cover the entire layout
+ * Returns a square size that encompasses all frames with padding
+ */
+function calculateGroundSizeForLayout(
+  layout: GeneratedLayout,
+  centroid: { latitude: number; longitude: number }
+): number {
+  if (layout.frames.length === 0) {
+    return 500; // Default size if no frames
+  }
+
+  // Find the bounding box of all frame centers
+  let minLat = Infinity,
+    maxLat = -Infinity,
+    minLng = Infinity,
+    maxLng = -Infinity;
+
+  for (const frame of layout.frames) {
+    const lat = frame.centerCoord.lat;
+    const lng = frame.centerCoord.lng;
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+  }
+
+  // Convert lat/lng span to meters
+  const metersPerDegreeLat = 111139;
+  const metersPerDegreeLng = 111139 * Math.cos((centroid.latitude * Math.PI) / 180);
+
+  const latSpanMeters = (maxLat - minLat) * metersPerDegreeLat;
+  const lngSpanMeters = (maxLng - minLng) * metersPerDegreeLng;
+
+  // Add padding for frame dimensions and some margin (50% extra)
+  const maxFrameSize = Math.max(
+    layout.frames[0]?.widthM || 30,
+    layout.frames[0]?.heightM || 5
+  );
+  const padding = maxFrameSize * 2 + 50; // Extra padding for edges
+
+  const requiredWidth = lngSpanMeters + padding;
+  const requiredHeight = latSpanMeters + padding;
+
+  // Use the larger dimension (square ground plane)
+  const groundSize = Math.max(requiredWidth, requiredHeight);
+
+  // Round up to nearest 100 meters with minimum of 200
+  return Math.max(200, Math.ceil(groundSize / 100) * 100);
+}
 
 interface GenerateDesignDialogProps {
   site: Site;
@@ -112,6 +164,11 @@ export function GenerateDesignDialog({
       // Generate the layout
       const layout = generatePanelLayout(site, module, parameters);
 
+      // Calculate ground size to cover all frames
+      const groundSizeMeters = site.centroid
+        ? calculateGroundSizeForLayout(layout, site.centroid)
+        : 500;
+
       // Create the design
       const designId = addDesign({
         projectId: site.projectId,
@@ -126,6 +183,7 @@ export function GenerateDesignDialog({
               longitude: site.centroid.longitude,
             }
           : undefined,
+        groundSizeMeters,
       });
 
       if (!designId) {

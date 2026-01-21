@@ -120,6 +120,9 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
 
       const area = calculatePolygonArea(coordinates);
 
+      // Skip degenerate or extremely small polygons (< 1 sqm)
+      if (area < 1) return;
+
       // Determine zone type using folder context first, then name/description
       let zoneType: ExclusionZoneType | 'skip' | null = null;
 
@@ -185,6 +188,9 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
         if (coordinates.length < 3) return;
 
         const area = calculatePolygonArea(coordinates);
+
+        // Skip degenerate or extremely small polygons (< 1 sqm)
+        if (area < 1) return;
 
         if (folderCategory === 'boundary') {
           boundaries.push({

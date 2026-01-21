@@ -24,6 +24,7 @@ import {
 
 /**
  * Generate a panel layout for a site using frame-based placement
+ * Iterates over ALL boundaries in the site and generates frames for each
  */
 export function generatePanelLayout(
   site: Site,
@@ -39,27 +40,13 @@ export function generatePanelLayout(
     throw new Error('Site must have at least one boundary');
   }
 
-  // Get usable area polygon (use first boundary for now)
-  const boundary = site.boundaries[0];
-  const boundaryCoords = boundary.coordinates;
-
   // Create projection centered on site centroid
   const projection = createLocalProjection({
     lat: site.centroid.latitude,
     lng: site.centroid.longitude,
   });
 
-  // Convert boundary to local coordinates
-  let localBoundary: LocalCoord[] = boundaryCoords.map((c) =>
-    projection.toLocal({ lat: c.lat, lng: c.lng })
-  );
-
-  // Apply boundary setback (shrink polygon inward)
-  if (parameters.boundarySetbackM > 0) {
-    localBoundary = shrinkPolygon(localBoundary, parameters.boundarySetbackM);
-  }
-
-  // Convert exclusion zones to local coordinates
+  // Convert exclusion zones to local coordinates (shared across all boundaries)
   const localExclusions: LocalCoord[][] = site.exclusionZones.map((zone) =>
     zone.coordinates.map((c) => projection.toLocal({ lat: c.lat, lng: c.lng }))
   );
@@ -84,46 +71,73 @@ export function generatePanelLayout(
   // Azimuth 180 (south) = rows run east-west = 0° rotation
   const rotationDeg = parameters.azimuth - 180;
 
-  // Generate frame placements
-  const frames = generateFrameGrid(
-    localBoundary,
-    localExclusions,
-    frameWidth,
-    effectiveFrameHeight,
-    parameters,
-    rotationDeg,
-    projection
-  );
+  // Generate frames for ALL boundaries
+  const allFrames: FramePlacement[] = [];
+  let totalCoveredAreaSqm = 0;
+  let globalFrameIndex = 0;
+
+  for (const boundary of site.boundaries) {
+    // Convert boundary to local coordinates
+    let localBoundary: LocalCoord[] = boundary.coordinates.map((c) =>
+      projection.toLocal({ lat: c.lat, lng: c.lng })
+    );
+
+    // Apply boundary setback (shrink polygon inward)
+    if (parameters.boundarySetbackM > 0) {
+      localBoundary = shrinkPolygon(localBoundary, parameters.boundarySetbackM);
+    }
+
+    // Skip if boundary becomes degenerate after setback
+    const boundaryArea = polygonArea(localBoundary);
+    if (boundaryArea < 1) continue;
+
+    totalCoveredAreaSqm += boundaryArea;
+
+    // Generate frames for this boundary
+    const boundaryFrames = generateFrameGrid(
+      localBoundary,
+      localExclusions,
+      frameWidth,
+      effectiveFrameHeight,
+      parameters,
+      rotationDeg,
+      projection,
+      globalFrameIndex
+    );
+
+    // Add frames with updated global indices
+    allFrames.push(...boundaryFrames);
+    globalFrameIndex += boundaryFrames.length;
+  }
 
   // Calculate summary statistics
   const modulesPerFrame = parameters.frameRows * parameters.frameColumns;
-  const totalPanels = frames.length * modulesPerFrame;
+  const totalPanels = allFrames.length * modulesPerFrame;
   const dcCapacityKw = (totalPanels * module.wattage) / 1000;
-  const coveredAreaSqm = polygonArea(localBoundary);
   const moduleAreaSqm = totalPanels * moduleLengthM * moduleWidthM;
-  const actualGcr = coveredAreaSqm > 0 ? moduleAreaSqm / coveredAreaSqm : 0;
+  const actualGcr = totalCoveredAreaSqm > 0 ? moduleAreaSqm / totalCoveredAreaSqm : 0;
 
   // Count distinct row indices
-  const rowIndices = new Set(frames.map((f) => f.rowIndex));
+  const rowIndices = new Set(allFrames.map((f) => f.rowIndex));
   const totalRows = rowIndices.size;
 
   // Create legacy PanelRow format for backward compatibility
-  const rows = framesToLegacyRows(frames, modulesPerFrame);
+  const rows = framesToLegacyRows(allFrames, modulesPerFrame);
 
   return {
     siteId: site.id,
     module,
     parameters,
-    frames,
+    frames: allFrames,
     rows,
     summary: {
       totalPanels,
-      totalFrames: frames.length,
+      totalFrames: allFrames.length,
       totalRows,
       dcCapacityKw,
       dcCapacityMw: dcCapacityKw / 1000,
       actualGcr,
-      coveredAreaSqm,
+      coveredAreaSqm: totalCoveredAreaSqm,
       moduleAreaSqm,
     },
     generatedAt: new Date().toISOString(),
@@ -132,6 +146,7 @@ export function generatePanelLayout(
 
 /**
  * Generate frame grid positions within the boundary
+ * @param startIndex - Starting frame index for global numbering across boundaries
  */
 function generateFrameGrid(
   boundary: LocalCoord[],
@@ -140,7 +155,8 @@ function generateFrameGrid(
   frameHeight: number,
   parameters: LayoutParameters,
   rotationDeg: number,
-  projection: ReturnType<typeof createLocalProjection>
+  projection: ReturnType<typeof createLocalProjection>,
+  startIndex: number = 0
 ): FramePlacement[] {
   const frames: FramePlacement[] = [];
 
@@ -174,7 +190,7 @@ function generateFrameGrid(
   const maxRowsEstimate = Math.ceil(diagonalLength / frameHeight) + 2;
   const maxColsEstimate = Math.ceil(diagonalLength / frameWidth) + 2;
 
-  let frameIndex = 0;
+  let frameIndex = startIndex;
 
   // Iterate through potential row positions
   for (let ri = 0; ri < maxRowsEstimate; ri++) {
