@@ -54,7 +54,7 @@ export interface EquipmentCounts {
 interface PV3DCanvasProps {
   designId: string;
   versionId: string;
-  fileUrl: string;
+  fileUrl?: string; // Optional - not needed if parsedDataOverride is provided
   gpsCoordinates?: GPSCoordinates;
   groundSizeMeters?: number;
   highlightedElementKey?: string | null;
@@ -63,6 +63,8 @@ interface PV3DCanvasProps {
   onEquipmentDetected?: (counts: EquipmentCounts) => void;
   // Digital Twin
   digitalTwinActive?: boolean;
+  // Pre-parsed data (for generated layouts - bypasses DXF parsing)
+  parsedDataOverride?: DXFParsedData;
 }
 
 type CameraMode = '3d' | '2d';
@@ -82,6 +84,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   onGeoDataExtracted,
   onEquipmentDetected,
   digitalTwinActive = false,
+  parsedDataOverride,
 }, ref) {
   const [cameraMode, setCameraMode] = useState<CameraMode>('3d');
   // Shared zoom level between modes (default 8 for good initial view with orthographic)
@@ -115,9 +118,19 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   // Digital Twin telemetry
   const telemetry = useDigitalTwinStore((state) => state.currentSnapshot);
 
-  // Load and parse DXF file when URL changes
+  // Use parsedDataOverride if provided (for generated layouts)
   useEffect(() => {
-    if (!fileUrl) return;
+    if (parsedDataOverride) {
+      setParsedData(parsedDataOverride);
+      setLoading(false);
+      setError(null);
+      console.log('Using parsed data override:', parsedDataOverride.panels.length, 'panels');
+    }
+  }, [parsedDataOverride]);
+
+  // Load and parse DXF file when URL changes (skip if parsedDataOverride is provided)
+  useEffect(() => {
+    if (!fileUrl || parsedDataOverride) return;
 
     let cancelled = false;
 
@@ -150,7 +163,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
     return () => {
       cancelled = true;
     };
-  }, [fileUrl]);
+  }, [fileUrl, parsedDataOverride]);
 
   // Notify parent when geo data is extracted from DXF (for auto-loading satellite imagery)
   useEffect(() => {

@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { ModuleSelector } from './ModuleSelector';
+import { LayoutPreview } from './LayoutPreview';
 import { useDesignStore } from '@/stores/designStore';
 import { useComponentStore } from '@/stores/componentStore';
 import { useUserStore } from '@/stores/userStore';
@@ -29,7 +30,7 @@ import {
 } from '@/lib/types/layout';
 import type { Site } from '@/lib/types/site';
 import type { ModuleInput, LayoutParameters } from '@/lib/types/layout';
-import { Zap, Grid3X3, Percent, Ruler, LayoutGrid, Info } from 'lucide-react';
+import { Zap, Grid3X3, Percent, Ruler, LayoutGrid, Info, Map } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface GenerateDesignDialogProps {
@@ -59,9 +60,7 @@ export function GenerateDesignDialog({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const addDesign = useDesignStore((state) => state.addDesign);
-  const linkDesignToComponent = useComponentStore(
-    (state) => state.linkDesignToComponent
-  );
+  const linkToDesign = useComponentStore((state) => state.linkToDesign);
   const currentUser = useUserStore((state) => state.currentUser);
 
   // Calculate usable area in square meters
@@ -105,6 +104,7 @@ export function GenerateDesignDialog({
         projectId: site.projectId,
         name: `${site.name} - Preliminary Layout`,
         description: `Auto-generated layout: ${layout.summary.totalPanels.toLocaleString()} panels, ${layout.summary.dcCapacityMw.toFixed(2)} MW DC`,
+        status: 'draft',
         siteId: site.id,
         generatedLayout: layout,
         gpsCoordinates: site.centroid
@@ -122,7 +122,7 @@ export function GenerateDesignDialog({
 
       // Link to component library if module from library
       if (module.source === 'library' && module.componentId) {
-        linkDesignToComponent(module.componentId, designId, layout.summary.totalPanels);
+        linkToDesign(module.componentId, designId, layout.summary.totalPanels);
       }
 
       toast.success(
@@ -276,10 +276,29 @@ export function GenerateDesignDialog({
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {(estimate.dcCapacityKw / usableAreaAcres).toFixed(0)}
+                  {usableAreaAcres > 0
+                    ? (estimate.dcCapacityKw / usableAreaAcres).toFixed(0)
+                    : '0'}
                 </div>
                 <div className="text-xs text-muted-foreground">kW/acre</div>
               </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Layout Preview */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Map className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Layout Preview</Label>
+            </div>
+            <div className="h-[250px]">
+              <LayoutPreview
+                site={site}
+                module={module}
+                parameters={parameters}
+              />
             </div>
           </div>
         </div>

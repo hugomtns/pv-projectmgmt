@@ -14,6 +14,8 @@ import { ImageGenerationModal } from './ImageGenerationModal';
 import { DesignYieldModal } from './DesignYieldModal';
 import { BOQModal } from '@/components/boq';
 import { DigitalTwinPanel } from '@/components/digital-twin';
+import { useSiteStore } from '@/stores/siteStore';
+import { generatedLayoutToParsedData } from '@/lib/layout/toParsedData';
 import { toast } from 'sonner';
 import type { DesignContext } from '@/lib/gemini';
 import type { DXFGeoData } from '@/lib/dxf/types';
@@ -43,9 +45,24 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
     const designs = useDesignStore((state) => state.designs);
     const addVersion = useDesignStore((state) => state.addVersion);
     const updateDesign = useDesignStore((state) => state.updateDesign);
+    const sites = useSiteStore((state) => state.sites);
 
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
+
+    // Get source site for generated layouts
+    const sourceSite = design?.siteId ? sites.find((s) => s.id === design.siteId) : undefined;
+
+    // Convert generated layout to parsed data for 3D rendering
+    const generatedParsedData = useMemo(() => {
+        if (!design?.generatedLayout || !sourceSite) return undefined;
+        try {
+            return generatedLayoutToParsedData(design.generatedLayout, sourceSite);
+        } catch (err) {
+            console.error('Failed to convert generated layout:', err);
+            return undefined;
+        }
+    }, [design?.generatedLayout, sourceSite]);
 
     // Sidebars - ensure comments tab is active if we have an initial highlight
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'workflow' | 'digitaltwin' | null>('comments');
@@ -64,6 +81,7 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
     // Bidirectional navigation between 3D badges and comment panel
     const [highlightedElementKey, setHighlightedElementKey] = useState<string | null>(null);
     // Explicit comment highlighting (from notification navigation)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [highlightedCommentId, _setHighlightedCommentId] = useState<string | null>(initialHighlightCommentId ?? null);
     const pv3DCanvasRef = useRef<PV3DCanvasRef>(null);
 
@@ -353,7 +371,24 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
                         </div>
                     )}
 
-                    {!fileUrl && !loading && (
+                    {!fileUrl && !loading && generatedParsedData && (
+                        <div className="flex-1 min-h-0">
+                            <PV3DCanvas
+                                ref={pv3DCanvasRef}
+                                designId={designId}
+                                versionId={selectedVersionId || 'generated'}
+                                gpsCoordinates={design.gpsCoordinates}
+                                groundSizeMeters={design.groundSizeMeters ?? 500}
+                                highlightedElementKey={highlightedElementKey}
+                                onBadgeClick={handleBadgeClick}
+                                onEquipmentDetected={setEquipmentCounts}
+                                digitalTwinActive={digitalTwinActive}
+                                parsedDataOverride={generatedParsedData}
+                            />
+                        </div>
+                    )}
+
+                    {!fileUrl && !loading && !generatedParsedData && (
                         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                             <p>No design file uploaded yet.</p>
                             <input
