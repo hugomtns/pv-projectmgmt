@@ -16,6 +16,9 @@ import type {
 import { DigitalTwinSimulator, createSimulator } from '@/lib/digitaltwin/simulationEngine';
 import { fetchCurrentWeather } from '@/lib/digitaltwin/weatherClient';
 
+/** Check if the user is currently on a design page where digital twin toasts should appear */
+const isOnDesignPage = () => window.location.pathname.startsWith('/designs/');
+
 interface DigitalTwinState {
   // Simulation state
   isActive: boolean;
@@ -116,7 +119,9 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
 
     set({ _intervalId: intervalId, isLoading: false });
 
-    toast.success('Digital Twin simulation started');
+    if (isOnDesignPage()) {
+      toast.success('Digital Twin simulation started');
+    }
   },
 
   stopSimulation: () => {
@@ -137,7 +142,9 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
       alerts: [], // Clear alerts when stopping
     });
 
-    toast.success('Digital Twin simulation stopped');
+    if (isOnDesignPage()) {
+      toast.success('Digital Twin simulation stopped');
+    }
   },
 
   triggerUpdate: async () => {
@@ -166,15 +173,17 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
           alerts: [...newAlerts, ...state.alerts].slice(0, 100),
         }));
 
-        // Show toast for critical alerts
-        newAlerts.forEach((alert) => {
-          if (alert.severity === 'critical') {
-            toast.error(alert.title, { description: alert.message });
-          } else if (alert.severity === 'warning') {
-            toast.warning?.(alert.title, { description: alert.message }) ||
-              toast(alert.title, { description: alert.message });
-          }
-        });
+        // Show toast for critical alerts (only on design page)
+        if (isOnDesignPage()) {
+          newAlerts.forEach((alert) => {
+            if (alert.severity === 'critical') {
+              toast.error(alert.title, { description: alert.message });
+            } else if (alert.severity === 'warning') {
+              toast.warning?.(alert.title, { description: alert.message }) ||
+                toast(alert.title, { description: alert.message });
+            }
+          });
+        }
       }
 
       // Update state with new snapshot
@@ -294,7 +303,9 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
     const { _simulator, isActive } = get();
 
     if (!_simulator || !isActive) {
-      toast.error('Simulation must be active to trigger faults');
+      if (isOnDesignPage()) {
+        toast.error('Simulation must be active to trigger faults');
+      }
       return;
     }
 
@@ -306,17 +317,21 @@ export const useDigitalTwinStore = create<DigitalTwinState>()((set, get) => ({
         alerts: [alert, ...state.alerts].slice(0, 100),
       }));
 
-      // Show toast notification
-      if (alert.severity === 'critical') {
-        toast.error(alert.title, { description: alert.message });
-      } else {
-        toast.warning?.(alert.title, { description: alert.message }) ||
-          toast(alert.title, { description: alert.message });
+      // Show toast notification (only on design page)
+      if (isOnDesignPage()) {
+        if (alert.severity === 'critical') {
+          toast.error(alert.title, { description: alert.message });
+        } else {
+          toast.warning?.(alert.title, { description: alert.message }) ||
+            toast(alert.title, { description: alert.message });
+        }
       }
     } else {
-      toast.info(`No available ${category} to fault`, {
-        description: 'All equipment of this type already has active faults',
-      });
+      if (isOnDesignPage()) {
+        toast.info(`No available ${category} to fault`, {
+          description: 'All equipment of this type already has active faults',
+        });
+      }
     }
   },
 
