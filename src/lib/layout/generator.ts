@@ -174,25 +174,20 @@ function generateFrameGrid(
   const maxRowsEstimate = Math.ceil(diagonalLength / frameHeight) + 2;
   const maxColsEstimate = Math.ceil(diagonalLength / frameWidth) + 2;
 
-  // Starting offsets (centered on bbox)
-  const startRowOffset = -((maxRowsEstimate - 1) / 2);
-  const startColOffset = -((maxColsEstimate - 1) / 2);
-
   let frameIndex = 0;
 
   // Iterate through potential row positions
   for (let ri = 0; ri < maxRowsEstimate; ri++) {
     // Calculate Y offset including corridors
     let yOffset = 0;
-    const rowStartIndex = Math.floor(startRowOffset);
-    for (let r = rowStartIndex; r < rowStartIndex + ri; r++) {
+    for (let r = 0; r < ri; r++) {
       // Add frame height
       yOffset += frameHeight;
-      // Add gap (corridor or regular)
+      // Add gap after this frame (corridor or regular)
+      // Corridor is added after every N frames, i.e., after positions N-1, 2N-1, 3N-1...
       if (
         parameters.corridorEveryNFramesY > 0 &&
-        r > rowStartIndex &&
-        (r - rowStartIndex) % parameters.corridorEveryNFramesY === 0
+        (r + 1) % parameters.corridorEveryNFramesY === 0
       ) {
         yOffset += parameters.corridorWidth;
       } else {
@@ -200,21 +195,22 @@ function generateFrameGrid(
       }
     }
 
-    const rowCenterOffset = startRowOffset * (frameHeight + parameters.frameGapY) + yOffset;
+    // Center offset: start from negative half of total height
+    const startOffset = -((maxRowsEstimate - 1) / 2) * (frameHeight + parameters.frameGapY);
+    const rowCenterOffset = startOffset + yOffset;
 
     // Iterate through potential column positions in this row
     for (let ci = 0; ci < maxColsEstimate; ci++) {
       // Calculate X offset including corridors
       let xOffset = 0;
-      const colStartIndex = Math.floor(startColOffset);
-      for (let c = colStartIndex; c < colStartIndex + ci; c++) {
+      for (let c = 0; c < ci; c++) {
         // Add frame width
         xOffset += frameWidth;
-        // Add gap (corridor or regular)
+        // Add gap after this frame (corridor or regular)
+        // Corridor is added after every N frames, i.e., after positions N-1, 2N-1, 3N-1...
         if (
           parameters.corridorEveryNFramesX > 0 &&
-          c > colStartIndex &&
-          (c - colStartIndex) % parameters.corridorEveryNFramesX === 0
+          (c + 1) % parameters.corridorEveryNFramesX === 0
         ) {
           xOffset += parameters.corridorWidth;
         } else {
@@ -222,7 +218,9 @@ function generateFrameGrid(
         }
       }
 
-      const colCenterOffset = startColOffset * (frameWidth + parameters.frameGapX) + xOffset;
+      // Center offset: start from negative half of total width
+      const colStartOffset = -((maxColsEstimate - 1) / 2) * (frameWidth + parameters.frameGapX);
+      const colCenterOffset = colStartOffset + xOffset;
 
       // Calculate frame center position
       const frameCenter: LocalCoord = {

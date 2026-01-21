@@ -129,10 +129,10 @@ export const DEFAULT_LAYOUT_PARAMETERS: LayoutParameters = {
   frameGapY: 2,
   boundarySetbackM: 10,
 
-  // Corridors
+  // Corridors - maintenance vehicle access
   corridorWidth: 5,
-  corridorEveryNFramesX: 0, // Disabled by default
-  corridorEveryNFramesY: 0, // Disabled by default
+  corridorEveryNFramesX: 0, // Disabled by default (horizontal corridors less common)
+  corridorEveryNFramesY: 4, // Corridor every 4 rows of frames
 
   // Legacy (deprecated)
   gcr: 0.4,
