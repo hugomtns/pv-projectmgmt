@@ -19,7 +19,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Calendar, User, MoreVertical, Trash2, FileUp, Sparkles } from 'lucide-react';
+import { Calendar, User, MoreVertical, Trash2, FileUp, Sparkles, History } from 'lucide-react';
 import type { Design } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { useDesignStore } from '@/stores/designStore';
@@ -76,21 +76,10 @@ export function DesignCard({ design }: DesignCardProps) {
         >
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base font-semibold leading-tight group-hover:text-primary transition-colors line-clamp-2 flex-1">
+                    <CardTitle className="text-base font-semibold leading-tight group-hover:text-primary transition-colors line-clamp-2 flex-1 min-w-0">
                         {design.name}
                     </CardTitle>
                     <div className="flex items-center gap-1 shrink-0">
-                        {design.generatedLayout ? (
-                            <Badge variant="outline" className="gap-1">
-                                <Sparkles className="h-3 w-3" />
-                                Auto
-                            </Badge>
-                        ) : design.currentVersionId ? (
-                            <Badge variant="outline" className="gap-1">
-                                <FileUp className="h-3 w-3" />
-                                DXF
-                            </Badge>
-                        ) : null}
                         <Badge variant="secondary" className={getStatusColor(design.status)}>
                             {design.status.replace('_', ' ')}
                         </Badge>
@@ -123,14 +112,37 @@ export function DesignCard({ design }: DesignCardProps) {
             </CardContent>
 
             <CardFooter className="pt-0 text-xs text-muted-foreground border-t bg-muted/20 p-3 mt-auto">
-                <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-1.5" title={`Created by ${design.createdBy}`}>
-                        <User className="h-3 w-3" />
-                        <span className="truncate max-w-[100px]">{design.createdBy}</span>
+                <div className="flex flex-col gap-2 w-full">
+                    {/* Type and version badges */}
+                    <div className="flex items-center gap-1.5">
+                        {design.generatedLayout ? (
+                            <Badge variant="outline" className="gap-1 text-xs h-5">
+                                <Sparkles className="h-3 w-3" />
+                                Auto
+                            </Badge>
+                        ) : design.currentVersionId ? (
+                            <Badge variant="outline" className="gap-1 text-xs h-5">
+                                <FileUp className="h-3 w-3" />
+                                DXF
+                            </Badge>
+                        ) : null}
+                        {design.versions.length > 0 && (
+                            <Badge variant="outline" className="gap-1 text-xs h-5">
+                                <History className="h-3 w-3" />
+                                {design.versions.length} {design.versions.length === 1 ? 'version' : 'versions'}
+                            </Badge>
+                        )}
                     </div>
-                    <div className="flex items-center gap-1.5" title={`Updated ${new Date(design.updatedAt).toLocaleDateString()}`}>
-                        <Calendar className="h-3 w-3" />
-                        <span>{formatDistanceToNow(new Date(design.updatedAt), { addSuffix: true })}</span>
+                    {/* Creator and date */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5" title={`Created by ${design.createdBy}`}>
+                            <User className="h-3 w-3" />
+                            <span className="truncate max-w-[100px]">{design.createdBy}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5" title={`Updated ${new Date(design.updatedAt).toLocaleDateString()}`}>
+                            <Calendar className="h-3 w-3" />
+                            <span>{formatDistanceToNow(new Date(design.updatedAt), { addSuffix: true })}</span>
+                        </div>
                     </div>
                 </div>
             </CardFooter>

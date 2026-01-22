@@ -51,6 +51,9 @@ export function DesignCommentPanel({
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState<DesignComment | null>(null);
 
+  // Version filter state: 'current' shows only current version, 'all' shows all versions
+  const [versionFilter, setVersionFilter] = useState<'current' | 'all'>('current');
+
   // Get design's project ID
   const design = designs.find((d) => d.id === designId);
   const projectId = design?.projectId;
@@ -65,6 +68,18 @@ export function DesignCommentPanel({
     [designId]
   );
 
+  // Fetch design versions for version badges
+  const versions = useLiveQuery(
+    () => db.designVersions.where('designId').equals(designId).toArray(),
+    [designId]
+  );
+
+  // Create version ID to version number map
+  const versionMap = useMemo(
+    () => new Map(versions?.map((v) => [v.id, v.versionNumber]) || []),
+    [versions]
+  );
+
   // Permissions
   const permissions = currentUser
     ? resolvePermissions(currentUser, 'designs', designId, permissionOverrides, roles)
@@ -72,12 +87,19 @@ export function DesignCommentPanel({
 
   const canComment = !!currentUser;
 
-  // Filter and sort comments for current version
+  // Filter and sort comments based on version filter setting
   const filteredComments = useMemo(() => {
-    return (comments || [])
-      .filter((c) => c.versionId === versionId)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [comments, versionId]);
+    let result = comments || [];
+
+    // Filter by version if showing current only
+    if (versionFilter === 'current') {
+      result = result.filter((c) => c.versionId === versionId);
+    }
+
+    return result.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [comments, versionId, versionFilter]);
 
   // Group comments by type
   const { elementComments, generalComments } = useMemo(() => {
@@ -195,37 +217,82 @@ export function DesignCommentPanel({
     );
   };
 
+  // Render version badge for comments
+  const renderCommentMeta = useCallback(
+    (comment: DesignComment) => {
+      const versionNumber = versionMap.get(comment.versionId);
+      if (!versionNumber) return null;
+
+      return (
+        <Badge
+          variant={comment.versionId === versionId ? 'default' : 'outline'}
+          className="shrink-0 text-xs"
+        >
+          v{versionNumber}
+        </Badge>
+      );
+    },
+    [versionMap, versionId]
+  );
+
   return (
     <>
-      <CommentPanelBase
-        anchoredComments={elementComments}
-        generalComments={generalComments}
-        anchoredTab={{
-          value: 'element',
-          label: 'Elements',
-          icon: <Box className="h-4 w-4" />,
-          emptyTitle: 'No element comments yet.',
-          emptyHint: 'Click elements in the 3D view to add comments.',
-        }}
-        generalTab={{
-          value: 'general',
-          label: 'General',
-          icon: <MessageSquare className="h-4 w-4" />,
-          emptyTitle: 'No general comments yet.',
-          emptyHint: 'Add one below.',
-        }}
-        renderAnchoredHeader={renderAnchoredHeader}
-        onResolve={(id) => resolveComment(id)}
-        onDelete={(id) => deleteComment(id)}
-        onAddComment={(text, mentions) => addComment(designId, versionId, text, undefined, mentions)}
-        onCreateTask={handleCreateTask}
-        isHighlighted={isHighlighted}
-        highlightedCommentId={highlightedCommentId}
-        canComment={canComment}
-        canModify={(comment) => permissions.update || isCreatorOf(comment)}
-        canDelete={(comment) => permissions.delete || isCreatorOf(comment)}
-        initialTab={initialTab}
-      />
+      <div className="flex flex-col h-full bg-muted/30 border-l border-border w-96">
+        {/* Version Filter Toggle */}
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">Show comments</span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant={versionFilter === 'current' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setVersionFilter('current')}
+            >
+              Current version
+            </Button>
+            <Button
+              variant={versionFilter === 'all' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setVersionFilter('all')}
+            >
+              All versions
+            </Button>
+          </div>
+        </div>
+
+        <CommentPanelBase
+          anchoredComments={elementComments}
+          generalComments={generalComments}
+          anchoredTab={{
+            value: 'element',
+            label: 'Elements',
+            icon: <Box className="h-4 w-4" />,
+            emptyTitle: 'No element comments yet.',
+            emptyHint: 'Click elements in the 3D view to add comments.',
+          }}
+          generalTab={{
+            value: 'general',
+            label: 'General',
+            icon: <MessageSquare className="h-4 w-4" />,
+            emptyTitle: 'No general comments yet.',
+            emptyHint: 'Add one below.',
+          }}
+          renderAnchoredHeader={renderAnchoredHeader}
+          renderCommentMeta={renderCommentMeta}
+          onResolve={(id) => resolveComment(id)}
+          onDelete={(id) => deleteComment(id)}
+          onAddComment={(text, mentions) => addComment(designId, versionId, text, undefined, mentions)}
+          onCreateTask={handleCreateTask}
+          isHighlighted={isHighlighted}
+          highlightedCommentId={highlightedCommentId}
+          canComment={canComment}
+          canModify={(comment) => permissions.update || isCreatorOf(comment)}
+          canDelete={(comment) => permissions.delete || isCreatorOf(comment)}
+          initialTab={initialTab}
+          className="border-l-0 flex-1"
+        />
+      </div>
 
       {/* Comment to Task Dialog */}
       {selectedComment && (

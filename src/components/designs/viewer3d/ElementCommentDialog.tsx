@@ -5,7 +5,7 @@
  * Shows element info and allows adding a new comment.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { useDesignStore } from '@/stores/designStore';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 import type { ElementAnchor, DesignComment } from '@/lib/types';
 import { toast } from 'sonner';
 import { MentionInput } from '@/components/mentions/MentionInput';
@@ -49,6 +51,18 @@ export function ElementCommentDialog({
   const addComment = useDesignStore((state) => state.addComment);
   const getElementComments = useDesignStore((state) => state.getElementComments);
   const resolveComment = useDesignStore((state) => state.resolveComment);
+
+  // Fetch design versions for version badges
+  const versions = useLiveQuery(
+    () => db.designVersions.where('designId').equals(designId).toArray(),
+    [designId]
+  );
+
+  // Create version ID to version number map
+  const versionMap = useMemo(
+    () => new Map(versions?.map((v) => [v.id, v.versionNumber]) || []),
+    [versions]
+  );
 
   // Load existing comments for this element
   useEffect(() => {
@@ -177,6 +191,15 @@ export function ElementCommentDialog({
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-xs">{comment.author}</span>
+                      {/* Version badge */}
+                      {versionMap.get(comment.versionId) && (
+                        <Badge
+                          variant={comment.versionId === versionId ? 'default' : 'outline'}
+                          className="text-xs"
+                        >
+                          v{versionMap.get(comment.versionId)}
+                        </Badge>
+                      )}
                       {comment.resolved && (
                         <Badge variant="secondary" className="text-xs">
                           <CheckCircle2 className="h-3 w-3 mr-1" />
