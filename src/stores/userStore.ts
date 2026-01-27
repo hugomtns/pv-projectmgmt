@@ -14,7 +14,7 @@ interface UserState {
   currentUser: User | null;
 
   // User CRUD
-  addUser: (user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addUser: (user: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => string | undefined;
   updateUser: (id: string, updates: Partial<User>) => void;
   deleteUser: (id: string) => void;
 
@@ -49,7 +49,7 @@ export const useUserStore = create<UserState>()(
         // Permission check
         if (!state.currentUser) {
           toast.error('You must be logged in to invite users');
-          return;
+          return undefined;
         }
 
         const permissions = resolvePermissions(
@@ -62,7 +62,7 @@ export const useUserStore = create<UserState>()(
 
         if (!permissions.create) {
           toast.error('Permission denied: You do not have permission to invite users');
-          return;
+          return undefined;
         }
 
         const now = new Date().toISOString();
@@ -81,6 +81,8 @@ export const useUserStore = create<UserState>()(
           email: user.email,
           roleId: user.roleId,
         });
+
+        return userId;
       },
 
       updateUser: (id, updates) => {

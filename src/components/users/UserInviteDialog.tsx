@@ -11,6 +11,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   Select,
   SelectContent,
@@ -18,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface UserInviteDialogProps {
   open: boolean;
@@ -27,12 +43,28 @@ interface UserInviteDialogProps {
 export function UserInviteDialog({ open, onOpenChange }: UserInviteDialogProps) {
   const addUser = useUserStore(state => state.addUser);
   const roles = useUserStore(state => state.roles);
+  const groups = useUserStore(state => state.groups);
+  const updateGroup = useUserStore(state => state.updateGroup);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [functionTitle, setFunctionTitle] = useState('');
   const [roleId, setRoleId] = useState('');
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [groupsOpen, setGroupsOpen] = useState(false);
+
+  const handleToggleGroup = (groupId: string) => {
+    setSelectedGroupIds((prev) =>
+      prev.includes(groupId)
+        ? prev.filter((id) => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const handleRemoveGroup = (groupId: string) => {
+    setSelectedGroupIds((prev) => prev.filter((id) => id !== groupId));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,15 +82,27 @@ export function UserInviteDialog({ open, onOpenChange }: UserInviteDialogProps) 
       return;
     }
 
-    // Add user
-    addUser({
+    // Add user with selected groups
+    const userId = addUser({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
       function: functionTitle.trim(),
       roleId,
-      groupIds: [],
+      groupIds: selectedGroupIds,
     });
+
+    // Update group memberIds for bidirectional sync
+    if (userId && selectedGroupIds.length > 0) {
+      for (const groupId of selectedGroupIds) {
+        const group = groups.find(g => g.id === groupId);
+        if (group && !group.memberIds.includes(userId)) {
+          updateGroup(groupId, {
+            memberIds: [...group.memberIds, userId],
+          });
+        }
+      }
+    }
 
     // Show success toast
     toast.success('User invited successfully', {
@@ -71,12 +115,15 @@ export function UserInviteDialog({ open, onOpenChange }: UserInviteDialogProps) 
     setEmail('');
     setFunctionTitle('');
     setRoleId('');
+    setSelectedGroupIds([]);
     onOpenChange(false);
   };
 
   const handleCancel = () => {
     onOpenChange(false);
   };
+
+  const selectedGroups = groups.filter((g) => selectedGroupIds.includes(g.id));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,6 +190,75 @@ export function UserInviteDialog({ open, onOpenChange }: UserInviteDialogProps) 
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Optional group assignment - multi-select dropdown */}
+          <div className="space-y-2">
+            <Label>User Groups</Label>
+            <Popover open={groupsOpen} onOpenChange={setGroupsOpen} modal={true}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={groupsOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {selectedGroupIds.length === 0
+                    ? 'Select groups...'
+                    : `${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? 's' : ''} selected`}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[1200] w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search groups..." />
+                  <CommandList>
+                    <CommandEmpty>No groups found.</CommandEmpty>
+                    <CommandGroup>
+                      {groups.map((group) => (
+                        <CommandItem
+                          key={group.id}
+                          value={group.name}
+                          onSelect={() => handleToggleGroup(group.id)}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              selectedGroupIds.includes(group.id)
+                                ? 'opacity-100'
+                                : 'opacity-0'
+                            )}
+                          />
+                          <span className="flex-1">{group.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {group.memberIds.length} {group.memberIds.length === 1 ? 'member' : 'members'}
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Selected group badges */}
+            {selectedGroups.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedGroups.map((group) => (
+                  <Badge key={group.id} variant="secondary" className="gap-1 pr-1">
+                    {group.name}
+                    <button
+                      type="button"
+                      className="ml-0.5 rounded-full outline-none hover:bg-muted-foreground/20 p-0.5"
+                      onClick={() => handleRemoveGroup(group.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           <DialogFooter>
