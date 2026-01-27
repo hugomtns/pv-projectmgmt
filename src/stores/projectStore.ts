@@ -14,7 +14,7 @@ interface ProjectState {
   projects: Project[];
   selectedProjectId: string | null;
   // Actions
-  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => string | undefined;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   moveProjectToStage: (projectId: string, stageId: string) => boolean; // returns false if gate blocks
@@ -53,7 +53,7 @@ export const useProjectStore = create<ProjectState>()(
 
         if (!currentUser) {
           toast.error('You must be logged in to create projects');
-          return;
+          return undefined;
         }
 
         const permissions = resolvePermissions(
@@ -66,14 +66,16 @@ export const useProjectStore = create<ProjectState>()(
 
         if (!permissions.create) {
           toast.error('Permission denied: You do not have permission to create projects');
-          return;
+          return undefined;
         }
+
+        const projectId = crypto.randomUUID();
 
         set((state) => {
           const now = new Date().toISOString();
           const newProject: Project = {
             ...project,
-            id: crypto.randomUUID(),
+            id: projectId,
             createdAt: now,
             updatedAt: now,
             stages: project.stages || {},
@@ -89,6 +91,8 @@ export const useProjectStore = create<ProjectState>()(
 
           return { projects: [...state.projects, newProject] };
         });
+
+        return projectId;
       },
 
       updateProject: (id, updates) => {

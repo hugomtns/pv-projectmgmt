@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useWorkflowStore } from '@/stores/workflowStore';
+import { useUserStore } from '@/stores/userStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { UserSelectField } from '@/components/users/UserSelectField';
+import { ProjectPermissionsSection, type GroupPermissionEntry } from './ProjectPermissionsSection';
+import { setProjectGroupPermissions } from '@/lib/permissions/projectPermissions';
 import { PRIORITY_LABELS, PRIORITY_COLORS } from '@/lib/constants';
 import { z } from 'zod';
 import type { Priority } from '@/lib/types';
@@ -27,11 +30,20 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   const addProject = useProjectStore((state) => state.addProject);
   const workflow = useWorkflowStore((state) => state.workflow);
 
+  const currentUser = useUserStore((state) => state.currentUser);
+
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [priority, setPriority] = useState<Priority>(3);
   const [owner, setOwner] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [useCustomPermissions, setUseCustomPermissions] = useState(false);
+  const [permissionEntries, setPermissionEntries] = useState<GroupPermissionEntry[]>([]);
+
+  // Show permissions section only to admins and the selected owner
+  const canManagePermissions =
+    currentUser?.roleId === 'role-admin' ||
+    (owner && currentUser?.id === owner);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +78,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     }));
 
     // Create project with initial stage data
-    addProject({
+    const projectId = addProject({
       name: result.data.name,
       location: result.data.location,
       priority: result.data.priority as Priority,
@@ -82,18 +94,27 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
       },
     });
 
+    // Apply custom permission overrides if configured
+    if (projectId && useCustomPermissions && permissionEntries.length > 0) {
+      for (const entry of permissionEntries) {
+        setProjectGroupPermissions(projectId, entry.groupId, entry.permissions);
+      }
+    }
+
     // Reset form and close
     setName('');
     setLocation('');
     setPriority(3);
     setOwner('');
+    setUseCustomPermissions(false);
+    setPermissionEntries([]);
     setErrors({});
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
         </DialogHeader>
@@ -163,6 +184,15 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
             </div>
             {errors.owner && <p className="text-sm text-red-500 mt-1">{errors.owner}</p>}
           </div>
+
+          {canManagePermissions && (
+            <ProjectPermissionsSection
+              entries={permissionEntries}
+              useCustomPermissions={useCustomPermissions}
+              onToggleCustom={setUseCustomPermissions}
+              onEntriesChange={setPermissionEntries}
+            />
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

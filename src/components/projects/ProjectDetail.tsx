@@ -5,6 +5,8 @@ import { useUserStore } from '@/stores/userStore';
 import { useDocumentStore } from '@/stores/documentStore';
 import { getDocumentPermissions } from '@/lib/permissions/documentPermissions';
 import { resolvePermissions } from '@/lib/permissions/permissionResolver';
+import { getProjectGroupOverrides } from '@/lib/permissions/projectPermissions';
+import { setProjectGroupPermissions, removeProjectGroupPermissions } from '@/lib/permissions/projectPermissions';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
@@ -25,6 +27,7 @@ import { DocumentList } from '@/components/documents/DocumentList';
 import { DesignList } from '@/components/designs/DesignList';
 import { MilestoneSection } from './milestones/MilestoneSection';
 import { Upload } from 'lucide-react';
+import { ProjectPermissionsSection, loadProjectPermissionEntries, type GroupPermissionEntry } from './ProjectPermissionsSection';
 import type { Priority } from '@/lib/types';
 
 export function ProjectDetail() {
@@ -65,6 +68,57 @@ export function ProjectDetail() {
 
   // Get project documents
   const projectDocuments = documents.filter((doc) => doc.projectId === selectedProjectId);
+
+  // Project permissions management state
+  const canManagePermissions =
+    currentUser?.roleId === 'role-admin' ||
+    (project && currentUser?.id === project.owner);
+
+  const [useCustomPermissions, setUseCustomPermissions] = useState(false);
+  const [permissionEntries, setPermissionEntries] = useState<GroupPermissionEntry[]>([]);
+
+  // Load existing project permission overrides when project changes
+  useEffect(() => {
+    if (project) {
+      const loaded = loadProjectPermissionEntries(project.id);
+      setUseCustomPermissions(loaded.useCustom);
+      setPermissionEntries(loaded.entries);
+    }
+  }, [project?.id, permissionOverrides]);
+
+  // Save permission changes immediately
+  const handlePermissionEntriesChange = (entries: GroupPermissionEntry[]) => {
+    setPermissionEntries(entries);
+    if (!project) return;
+
+    // Get current overrides for this project to detect removals
+    const currentOverrides = getProjectGroupOverrides(project.id, permissionOverrides);
+    const newGroupIds = new Set(entries.map((e) => e.groupId));
+
+    // Remove overrides for groups no longer in the list
+    for (const override of currentOverrides) {
+      if (!newGroupIds.has(override.groupId)) {
+        removeProjectGroupPermissions(project.id, override.groupId);
+      }
+    }
+
+    // Add/update overrides for current entries
+    for (const entry of entries) {
+      setProjectGroupPermissions(project.id, entry.groupId, entry.permissions);
+    }
+  };
+
+  const handleToggleCustom = (custom: boolean) => {
+    setUseCustomPermissions(custom);
+    if (!custom && project) {
+      // Switching back to defaults — remove all project-specific overrides
+      const currentOverrides = getProjectGroupOverrides(project.id, permissionOverrides);
+      for (const override of currentOverrides) {
+        removeProjectGroupPermissions(project.id, override.groupId);
+      }
+      setPermissionEntries([]);
+    }
+  };
 
   // Update selected stage when project changes
   useEffect(() => {
@@ -165,6 +219,17 @@ export function ProjectDetail() {
               placeholder="Select owner"
             />
           </div>
+
+          {/* Project Permissions */}
+          {canManagePermissions && (
+            <ProjectPermissionsSection
+              projectId={project.id}
+              entries={permissionEntries}
+              useCustomPermissions={useCustomPermissions}
+              onToggleCustom={handleToggleCustom}
+              onEntriesChange={handlePermissionEntriesChange}
+            />
+          )}
 
           {/* Current Stage */}
           <div>
