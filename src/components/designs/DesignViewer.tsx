@@ -443,7 +443,7 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
                 {activeTab === 'comments' && (
                     <DesignCommentPanel
                         designId={designId}
-                        versionId={effectiveVersionId || 'generated'}
+                        versionId={selectedVersionId || 'generated'}
                         onJumpToElement={handleJumpToElement}
                         highlightedElementKey={highlightedElementKey}
                         explicitHighlightCommentId={highlightedCommentId}
