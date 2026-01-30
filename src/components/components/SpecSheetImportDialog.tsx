@@ -20,9 +20,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Upload,
   Box,
+  Zap,
   Check,
   Loader2,
   AlertTriangle,
@@ -36,26 +38,34 @@ import { useSpecSheetParser, getStageMessage } from '@/hooks/useSpecSheetParser'
 import type {
   SharedModuleSpecs,
   ModuleVariant,
+  SharedInverterSpecs,
+  InverterVariant,
   ConfidenceLevel,
   ExtractedField,
 } from '@/lib/types/specSheetParsing';
+import type { ComponentType } from '@/lib/types/component';
 import { cn } from '@/lib/utils';
-import { CELL_TYPES } from '@/lib/types/component';
+import { CELL_TYPES, INVERTER_TYPES } from '@/lib/types/component';
 
 interface SpecSheetImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (shared: SharedModuleSpecs, variants: ModuleVariant[], selectedIndices: number[]) => void;
+  onModuleImport: (shared: SharedModuleSpecs, variants: ModuleVariant[], selectedIndices: number[]) => void;
+  onInverterImport: (shared: SharedInverterSpecs, variants: InverterVariant[], selectedIndices: number[]) => void;
 }
 
 export function SpecSheetImportDialog({
   open,
   onOpenChange,
-  onImport,
+  onModuleImport,
+  onInverterImport,
 }: SpecSheetImportDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { stage, result, error, warnings, isConfigured, parseFile, reset } =
+  const { stage, moduleResult, inverterResult, error, warnings, isConfigured, parseFile, reset } =
     useSpecSheetParser();
+
+  // Component type selection
+  const [componentType, setComponentType] = useState<ComponentType>('module');
 
   // Selection state for variants
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
@@ -67,6 +77,7 @@ export function SpecSheetImportDialog({
       reset();
       setSelectedIndices(new Set());
       setSharedExpanded(false);
+      setComponentType('module');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -75,15 +86,17 @@ export function SpecSheetImportDialog({
 
   // Select all variants by default when extraction completes
   useEffect(() => {
-    if (result?.variants) {
-      setSelectedIndices(new Set(result.variants.map((_, i) => i)));
+    if (moduleResult?.variants) {
+      setSelectedIndices(new Set(moduleResult.variants.map((_, i) => i)));
+    } else if (inverterResult?.variants) {
+      setSelectedIndices(new Set(inverterResult.variants.map((_, i) => i)));
     }
-  }, [result]);
+  }, [moduleResult, inverterResult]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      parseFile(file);
+      parseFile(file, componentType);
     }
   };
 
@@ -91,7 +104,7 @@ export function SpecSheetImportDialog({
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file && file.type === 'application/pdf') {
-      parseFile(file);
+      parseFile(file, componentType);
     }
   };
 
@@ -104,8 +117,11 @@ export function SpecSheetImportDialog({
   };
 
   const handleImport = () => {
-    if (result) {
-      onImport(result.shared, result.variants, Array.from(selectedIndices));
+    if (componentType === 'module' && moduleResult) {
+      onModuleImport(moduleResult.shared, moduleResult.variants, Array.from(selectedIndices));
+      onOpenChange(false);
+    } else if (componentType === 'inverter' && inverterResult) {
+      onInverterImport(inverterResult.shared, inverterResult.variants, Array.from(selectedIndices));
       onOpenChange(false);
     }
   };
@@ -119,8 +135,9 @@ export function SpecSheetImportDialog({
   };
 
   const handleSelectAll = () => {
-    if (result?.variants) {
-      setSelectedIndices(new Set(result.variants.map((_, i) => i)));
+    const variants = componentType === 'module' ? moduleResult?.variants : inverterResult?.variants;
+    if (variants) {
+      setSelectedIndices(new Set(variants.map((_, i) => i)));
     }
   };
 
@@ -141,6 +158,7 @@ export function SpecSheetImportDialog({
   };
 
   const isLoading = stage === 'reading-pdf' || stage === 'extracting-text' || stage === 'analyzing';
+  const hasResult = componentType === 'module' ? !!moduleResult : !!inverterResult;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -151,7 +169,7 @@ export function SpecSheetImportDialog({
             Import from Spec Sheet
           </DialogTitle>
           <DialogDescription>
-            Upload a module datasheet PDF to extract specifications using AI.
+            Upload a datasheet PDF to extract specifications using AI.
           </DialogDescription>
         </DialogHeader>
 
@@ -165,19 +183,52 @@ export function SpecSheetImportDialog({
           </div>
         )}
 
+        {/* Component Type Selector */}
+        {isConfigured && stage === 'idle' && (
+          <div className="space-y-3">
+            <label className="text-sm font-medium">What type of component?</label>
+            <Tabs value={componentType} onValueChange={(v) => setComponentType(v as ComponentType)}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="module" className="gap-2">
+                  <Box className="h-4 w-4" />
+                  Module
+                </TabsTrigger>
+                <TabsTrigger value="inverter" className="gap-2">
+                  <Zap className="h-4 w-4" />
+                  Inverter
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        )}
+
         {/* Info Text */}
         {stage === 'idle' && isConfigured && (
           <div className="text-sm text-muted-foreground">
             <p className="mb-2">
-              Upload a PDF datasheet from module manufacturers like JinkoSolar, LONGi, Trina
-              Solar, etc. The AI will extract:
+              {componentType === 'module'
+                ? 'Upload a PDF datasheet from module manufacturers like JinkoSolar, LONGi, Trina Solar, etc.'
+                : 'Upload a PDF datasheet from inverter manufacturers like Huawei, SMA, Sungrow, etc.'}
+              {' '}The AI will extract:
             </p>
             <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>All power variants from the spec sheet</li>
-              <li>Manufacturer and model information</li>
-              <li>Electrical parameters (Voc, Isc, Vmp, Imp, efficiency)</li>
-              <li>Physical dimensions and weight</li>
-              <li>Temperature coefficients</li>
+              {componentType === 'module' ? (
+                <>
+                  <li>All power variants from the spec sheet</li>
+                  <li>Manufacturer and model information</li>
+                  <li>Electrical parameters (Voc, Isc, Vmp, Imp, efficiency)</li>
+                  <li>Physical dimensions and weight</li>
+                  <li>Temperature coefficients</li>
+                </>
+              ) : (
+                <>
+                  <li>All power variants from the spec sheet</li>
+                  <li>Manufacturer and model information</li>
+                  <li>DC input specs (voltage, MPPT range, current)</li>
+                  <li>AC output specs (voltage, frequency, current)</li>
+                  <li>Efficiency and physical dimensions</li>
+                </>
+              )}
             </ul>
           </div>
         )}
@@ -244,150 +295,32 @@ export function SpecSheetImportDialog({
           </div>
         )}
 
-        {/* Preview - Multi-Model View */}
-        {stage === 'complete' && result && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
-              <Check className="h-4 w-4" />
-              Extracted: {result.shared.manufacturer.value || 'Unknown'} -{' '}
-              {result.variants.length} model{result.variants.length !== 1 ? 's' : ''}
-            </div>
+        {/* Module Preview */}
+        {stage === 'complete' && moduleResult && componentType === 'module' && (
+          <ModulePreview
+            result={moduleResult}
+            selectedIndices={selectedIndices}
+            sharedExpanded={sharedExpanded}
+            setSharedExpanded={setSharedExpanded}
+            toggleVariant={toggleVariant}
+            handleSelectAll={handleSelectAll}
+            handleDeselectAll={handleDeselectAll}
+            handleRetry={handleRetry}
+          />
+        )}
 
-            {/* Shared Specifications (Collapsible) */}
-            <Collapsible open={sharedExpanded} onOpenChange={setSharedExpanded}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start p-2 h-auto">
-                  {sharedExpanded ? (
-                    <ChevronDown className="h-4 w-4 mr-2" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 mr-2" />
-                  )}
-                  <span className="text-sm font-medium">Shared Specifications</span>
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {formatDimensions(result.shared)} | {getCellTypeLabel(result.shared.cellType.value)} |{' '}
-                    {result.shared.bifacial.value ? 'Bifacial' : 'Monofacial'}
-                  </span>
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="p-4 border rounded-lg bg-muted/30 space-y-4 mt-2">
-                  {/* Physical */}
-                  <SpecSection title="Physical">
-                    <SpecRow label="Length" field={result.shared.length} unit="mm" />
-                    <SpecRow label="Width" field={result.shared.width} unit="mm" />
-                    <SpecRow label="Thickness" field={result.shared.thickness} unit="mm" />
-                    <SpecRow label="Weight" field={result.shared.weight} unit="kg" />
-                  </SpecSection>
-
-                  {/* Cell Info */}
-                  <SpecSection title="Cell Info">
-                    <SpecRow
-                      label="Cell Type"
-                      field={result.shared.cellType}
-                      formatter={(v) => getCellTypeLabel(v as string)}
-                    />
-                    <SpecRow label="Cell Count" field={result.shared.cellCount} />
-                    <SpecRow
-                      label="Bifacial"
-                      field={result.shared.bifacial}
-                      formatter={(v) => (v ? 'Yes' : 'No')}
-                    />
-                    <SpecRow
-                      label="Bifaciality"
-                      field={result.shared.bifacialityFactor}
-                      formatter={(v) => `${((v as number) * 100).toFixed(0)}%`}
-                    />
-                  </SpecSection>
-
-                  {/* Temperature */}
-                  <SpecSection title="Temperature Coefficients">
-                    <SpecRow label="Pmax" field={result.shared.tempCoeffPmax} unit="%/°C" />
-                    <SpecRow label="Voc" field={result.shared.tempCoeffVoc} unit="%/°C" />
-                    <SpecRow label="Isc" field={result.shared.tempCoeffIsc} unit="%/°C" />
-                  </SpecSection>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Variant Selection Table */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Select models to import:</span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleSelectAll}>
-                    All
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleDeselectAll}>
-                    None
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr className="border-b">
-                      <th className="w-10 p-2"></th>
-                      <th className="text-left p-2 font-medium">Model</th>
-                      <th className="text-right p-2 font-medium">Power</th>
-                      <th className="text-right p-2 font-medium">Eff.</th>
-                      <th className="text-right p-2 font-medium">Voc</th>
-                      <th className="text-right p-2 font-medium">Isc</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.variants.map((variant, index) => (
-                      <tr
-                        key={index}
-                        className={cn(
-                          'border-b last:border-0 cursor-pointer hover:bg-muted/30 transition-colors',
-                          selectedIndices.has(index) && 'bg-primary/5'
-                        )}
-                        onClick={() => toggleVariant(index)}
-                      >
-                        <td className="p-2 text-center">
-                          <Checkbox
-                            checked={selectedIndices.has(index)}
-                            onCheckedChange={() => toggleVariant(index)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </td>
-                        <td className="p-2 font-medium">
-                          {variant.model.value || `Variant ${index + 1}`}
-                          {variant.model.confidence !== 'high' && (
-                            <ConfidenceBadge confidence={variant.model.confidence} />
-                          )}
-                        </td>
-                        <td className="p-2 text-right">
-                          {variant.powerRating.value ? `${variant.powerRating.value} Wp` : '-'}
-                        </td>
-                        <td className="p-2 text-right">
-                          {variant.efficiency.value ? `${variant.efficiency.value}%` : '-'}
-                        </td>
-                        <td className="p-2 text-right">
-                          {variant.voc.value ? `${variant.voc.value} V` : '-'}
-                        </td>
-                        <td className="p-2 text-right">
-                          {variant.isc.value ? `${variant.isc.value} A` : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="text-sm text-muted-foreground">
-                {selectedIndices.size} of {result.variants.length} model
-                {result.variants.length !== 1 ? 's' : ''} selected
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleRetry}>
-                Upload Different File
-              </Button>
-            </div>
-          </div>
+        {/* Inverter Preview */}
+        {stage === 'complete' && inverterResult && componentType === 'inverter' && (
+          <InverterPreview
+            result={inverterResult}
+            selectedIndices={selectedIndices}
+            sharedExpanded={sharedExpanded}
+            setSharedExpanded={setSharedExpanded}
+            toggleVariant={toggleVariant}
+            handleSelectAll={handleSelectAll}
+            handleDeselectAll={handleDeselectAll}
+            handleRetry={handleRetry}
+          />
         )}
 
         <DialogFooter>
@@ -396,11 +329,12 @@ export function SpecSheetImportDialog({
           </Button>
           <Button
             onClick={handleImport}
-            disabled={stage !== 'complete' || !result || selectedIndices.size === 0}
+            disabled={stage !== 'complete' || !hasResult || selectedIndices.size === 0}
             className="gap-2"
           >
-            <Box className="h-4 w-4" />
-            Import {selectedIndices.size} Module{selectedIndices.size !== 1 ? 's' : ''}
+            {componentType === 'module' ? <Box className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+            Import {selectedIndices.size} {componentType === 'module' ? 'Module' : 'Inverter'}
+            {selectedIndices.size !== 1 ? 's' : ''}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -408,9 +342,320 @@ export function SpecSheetImportDialog({
   );
 }
 
+// ============================================================================
+// MODULE PREVIEW
+// ============================================================================
+
+interface ModulePreviewProps {
+  result: { shared: SharedModuleSpecs; variants: ModuleVariant[] };
+  selectedIndices: Set<number>;
+  sharedExpanded: boolean;
+  setSharedExpanded: (expanded: boolean) => void;
+  toggleVariant: (index: number) => void;
+  handleSelectAll: () => void;
+  handleDeselectAll: () => void;
+  handleRetry: () => void;
+}
+
+function ModulePreview({
+  result,
+  selectedIndices,
+  sharedExpanded,
+  setSharedExpanded,
+  toggleVariant,
+  handleSelectAll,
+  handleDeselectAll,
+  handleRetry,
+}: ModulePreviewProps) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
+        <Check className="h-4 w-4" />
+        Extracted: {result.shared.manufacturer.value || 'Unknown'} -{' '}
+        {result.variants.length} model{result.variants.length !== 1 ? 's' : ''}
+      </div>
+
+      {/* Shared Specifications (Collapsible) */}
+      <Collapsible open={sharedExpanded} onOpenChange={setSharedExpanded}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-start p-2 h-auto">
+            {sharedExpanded ? (
+              <ChevronDown className="h-4 w-4 mr-2" />
+            ) : (
+              <ChevronRight className="h-4 w-4 mr-2" />
+            )}
+            <span className="text-sm font-medium">Shared Specifications</span>
+            <span className="ml-2 text-xs text-muted-foreground">
+              {formatModuleDimensions(result.shared)} | {getCellTypeLabel(result.shared.cellType.value)} |{' '}
+              {result.shared.bifacial.value ? 'Bifacial' : 'Monofacial'}
+            </span>
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="p-4 border rounded-lg bg-muted/30 space-y-4 mt-2">
+            <SpecSection title="Physical">
+              <SpecRow label="Length" field={result.shared.length} unit="mm" />
+              <SpecRow label="Width" field={result.shared.width} unit="mm" />
+              <SpecRow label="Thickness" field={result.shared.thickness} unit="mm" />
+              <SpecRow label="Weight" field={result.shared.weight} unit="kg" />
+            </SpecSection>
+            <SpecSection title="Cell Info">
+              <SpecRow
+                label="Cell Type"
+                field={result.shared.cellType}
+                formatter={(v) => getCellTypeLabel(v as string)}
+              />
+              <SpecRow label="Cell Count" field={result.shared.cellCount} />
+              <SpecRow
+                label="Bifacial"
+                field={result.shared.bifacial}
+                formatter={(v) => (v ? 'Yes' : 'No')}
+              />
+              <SpecRow
+                label="Bifaciality"
+                field={result.shared.bifacialityFactor}
+                formatter={(v) => `${((v as number) * 100).toFixed(0)}%`}
+              />
+            </SpecSection>
+            <SpecSection title="Temperature Coefficients">
+              <SpecRow label="Pmax" field={result.shared.tempCoeffPmax} unit="%/°C" />
+              <SpecRow label="Voc" field={result.shared.tempCoeffVoc} unit="%/°C" />
+              <SpecRow label="Isc" field={result.shared.tempCoeffIsc} unit="%/°C" />
+            </SpecSection>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Variant Selection Table */}
+      <VariantTable
+        variants={result.variants}
+        selectedIndices={selectedIndices}
+        toggleVariant={toggleVariant}
+        handleSelectAll={handleSelectAll}
+        handleDeselectAll={handleDeselectAll}
+        columns={[
+          { key: 'model', label: 'Model', align: 'left', render: (v: ModuleVariant) => v.model.value || 'Unknown' },
+          { key: 'power', label: 'Power', align: 'right', render: (v: ModuleVariant) => v.powerRating.value ? `${v.powerRating.value} Wp` : '-' },
+          { key: 'eff', label: 'Eff.', align: 'right', render: (v: ModuleVariant) => v.efficiency.value ? `${v.efficiency.value}%` : '-' },
+          { key: 'voc', label: 'Voc', align: 'right', render: (v: ModuleVariant) => v.voc.value ? `${v.voc.value} V` : '-' },
+          { key: 'isc', label: 'Isc', align: 'right', render: (v: ModuleVariant) => v.isc.value ? `${v.isc.value} A` : '-' },
+        ]}
+      />
+
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={handleRetry}>
+          Upload Different File
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// INVERTER PREVIEW
+// ============================================================================
+
+interface InverterPreviewProps {
+  result: { shared: SharedInverterSpecs; variants: InverterVariant[] };
+  selectedIndices: Set<number>;
+  sharedExpanded: boolean;
+  setSharedExpanded: (expanded: boolean) => void;
+  toggleVariant: (index: number) => void;
+  handleSelectAll: () => void;
+  handleDeselectAll: () => void;
+  handleRetry: () => void;
+}
+
+function InverterPreview({
+  result,
+  selectedIndices,
+  sharedExpanded,
+  setSharedExpanded,
+  toggleVariant,
+  handleSelectAll,
+  handleDeselectAll,
+  handleRetry,
+}: InverterPreviewProps) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
+        <Check className="h-4 w-4" />
+        Extracted: {result.shared.manufacturer.value || 'Unknown'} -{' '}
+        {result.variants.length} model{result.variants.length !== 1 ? 's' : ''}
+      </div>
+
+      {/* Shared Specifications (Collapsible) */}
+      <Collapsible open={sharedExpanded} onOpenChange={setSharedExpanded}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-start p-2 h-auto">
+            {sharedExpanded ? (
+              <ChevronDown className="h-4 w-4 mr-2" />
+            ) : (
+              <ChevronRight className="h-4 w-4 mr-2" />
+            )}
+            <span className="text-sm font-medium">Shared Specifications</span>
+            <span className="ml-2 text-xs text-muted-foreground">
+              {result.shared.maxDcVoltage.value ? `${result.shared.maxDcVoltage.value}V DC` : ''} |{' '}
+              {result.shared.mpptCount.value ? `${result.shared.mpptCount.value} MPPT` : ''} |{' '}
+              {result.shared.maxEfficiency.value ? `${result.shared.maxEfficiency.value}% eff` : ''}
+            </span>
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="p-4 border rounded-lg bg-muted/30 space-y-4 mt-2">
+            <SpecSection title="DC Input">
+              <SpecRow label="Max DC Voltage" field={result.shared.maxDcVoltage} unit="V" />
+              <SpecRow label="MPPT Min" field={result.shared.mpptVoltageMin} unit="V" />
+              <SpecRow label="MPPT Max" field={result.shared.mpptVoltageMax} unit="V" />
+              <SpecRow label="MPPT Count" field={result.shared.mpptCount} />
+              <SpecRow label="Strings/MPPT" field={result.shared.stringsPerMppt} />
+            </SpecSection>
+            <SpecSection title="AC Output">
+              <SpecRow label="AC Voltage" field={result.shared.acVoltage} unit="V" />
+              <SpecRow label="Frequency" field={result.shared.acFrequency} unit="Hz" />
+            </SpecSection>
+            <SpecSection title="Performance">
+              <SpecRow label="Max Efficiency" field={result.shared.maxEfficiency} unit="%" />
+              <SpecRow label="Euro Efficiency" field={result.shared.euroEfficiency} unit="%" />
+            </SpecSection>
+            <SpecSection title="Physical">
+              <SpecRow label="Length" field={result.shared.length} unit="mm" />
+              <SpecRow label="Width" field={result.shared.width} unit="mm" />
+              <SpecRow label="Height" field={result.shared.height} unit="mm" />
+              <SpecRow label="Weight" field={result.shared.weight} unit="kg" />
+            </SpecSection>
+            <SpecSection title="Type">
+              <SpecRow
+                label="Inverter Type"
+                field={result.shared.inverterType}
+                formatter={(v) => getInverterTypeLabel(v as string)}
+              />
+            </SpecSection>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Variant Selection Table */}
+      <VariantTable
+        variants={result.variants}
+        selectedIndices={selectedIndices}
+        toggleVariant={toggleVariant}
+        handleSelectAll={handleSelectAll}
+        handleDeselectAll={handleDeselectAll}
+        columns={[
+          { key: 'model', label: 'Model', align: 'left', render: (v: InverterVariant) => v.model.value || 'Unknown' },
+          { key: 'power', label: 'AC Power', align: 'right', render: (v: InverterVariant) => v.acPowerRating.value ? `${v.acPowerRating.value} kW` : '-' },
+          { key: 'dcCurrent', label: 'DC Current', align: 'right', render: (v: InverterVariant) => v.maxDcCurrent.value ? `${v.maxDcCurrent.value} A` : '-' },
+          { key: 'acCurrent', label: 'AC Current', align: 'right', render: (v: InverterVariant) => v.maxAcCurrent.value ? `${v.maxAcCurrent.value} A` : '-' },
+        ]}
+      />
+
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={handleRetry}>
+          Upload Different File
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SHARED COMPONENTS
+// ============================================================================
+
+interface VariantTableProps<T> {
+  variants: T[];
+  selectedIndices: Set<number>;
+  toggleVariant: (index: number) => void;
+  handleSelectAll: () => void;
+  handleDeselectAll: () => void;
+  columns: Array<{
+    key: string;
+    label: string;
+    align: 'left' | 'right';
+    render: (variant: T) => string;
+  }>;
+}
+
+function VariantTable<T>({
+  variants,
+  selectedIndices,
+  toggleVariant,
+  handleSelectAll,
+  handleDeselectAll,
+  columns,
+}: VariantTableProps<T>) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">Select models to import:</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleSelectAll}>
+            All
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDeselectAll}>
+            None
+          </Button>
+        </div>
+      </div>
+
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr className="border-b">
+              <th className="w-10 p-2"></th>
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  className={cn('p-2 font-medium', col.align === 'right' ? 'text-right' : 'text-left')}
+                >
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map((variant, index) => (
+              <tr
+                key={index}
+                className={cn(
+                  'border-b last:border-0 cursor-pointer hover:bg-muted/30 transition-colors',
+                  selectedIndices.has(index) && 'bg-primary/5'
+                )}
+                onClick={() => toggleVariant(index)}
+              >
+                <td className="p-2 text-center">
+                  <Checkbox
+                    checked={selectedIndices.has(index)}
+                    onCheckedChange={() => toggleVariant(index)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </td>
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className={cn('p-2', col.align === 'right' ? 'text-right' : '', col.key === 'model' && 'font-medium')}
+                  >
+                    {col.render(variant)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="text-sm text-muted-foreground">
+        {selectedIndices.size} of {variants.length} model
+        {variants.length !== 1 ? 's' : ''} selected
+      </div>
+    </div>
+  );
+}
+
 // Helper functions
 
-function formatDimensions(shared: SharedModuleSpecs): string {
+function formatModuleDimensions(shared: SharedModuleSpecs): string {
   const l = shared.length.value;
   const w = shared.width.value;
   const t = shared.thickness.value;
@@ -427,6 +672,12 @@ function getCellTypeLabel(value: string | null | undefined): string {
   if (!value) return 'Unknown';
   const cellType = CELL_TYPES.find((t) => t.value === value);
   return cellType?.label || value;
+}
+
+function getInverterTypeLabel(value: string | null | undefined): string {
+  if (!value) return 'Unknown';
+  const inverterType = INVERTER_TYPES.find((t) => t.value === value);
+  return inverterType?.label || value;
 }
 
 // Spec display components
@@ -498,7 +749,6 @@ function ConfidenceBadge({
   };
 
   if (confidence === 'high' && !source) {
-    // Don't show badge for high confidence without source
     return null;
   }
 

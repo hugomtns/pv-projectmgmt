@@ -95,6 +95,85 @@ export interface ExtractedModuleFamily {
   variants: ModuleVariant[];
 }
 
+// ============================================================================
+// INVERTER TYPES
+// ============================================================================
+
+/**
+ * Shared specs across all variants in an inverter family
+ * These are typically the same for all power variants on a spec sheet
+ */
+export interface SharedInverterSpecs {
+  /** Manufacturer name */
+  manufacturer: ExtractedField<string>;
+
+  // DC Input
+  /** Maximum DC input voltage in V */
+  maxDcVoltage: ExtractedField<number>;
+  /** MPPT minimum voltage in V */
+  mpptVoltageMin: ExtractedField<number>;
+  /** MPPT maximum voltage in V */
+  mpptVoltageMax: ExtractedField<number>;
+  /** Number of MPPT trackers */
+  mpptCount: ExtractedField<number>;
+  /** Number of string inputs per MPPT */
+  stringsPerMppt: ExtractedField<number>;
+
+  // AC Output
+  /** Nominal AC output voltage in V */
+  acVoltage: ExtractedField<number>;
+  /** Rated AC frequency in Hz */
+  acFrequency: ExtractedField<number>;
+
+  // Performance
+  /** Maximum efficiency as percentage */
+  maxEfficiency: ExtractedField<number>;
+  /** European/CEC weighted efficiency as percentage */
+  euroEfficiency: ExtractedField<number>;
+
+  // Physical
+  /** Inverter length/width in mm */
+  length: ExtractedField<number>;
+  /** Inverter width/height in mm */
+  width: ExtractedField<number>;
+  /** Inverter height/depth in mm */
+  height: ExtractedField<number>;
+  /** Inverter weight in kg */
+  weight: ExtractedField<number>;
+
+  // Type
+  /** Inverter type: 'string', 'central', or 'micro' */
+  inverterType: ExtractedField<string>;
+}
+
+/**
+ * Variant-specific specs for a single model in an inverter family
+ * These differ between power ratings on a spec sheet
+ */
+export interface InverterVariant {
+  /** Model name/number */
+  model: ExtractedField<string>;
+  /** AC power rating in kW */
+  acPowerRating: ExtractedField<number>;
+  /** Maximum DC power in kW */
+  maxDcPower: ExtractedField<number>;
+  /** Maximum DC input current in A */
+  maxDcCurrent: ExtractedField<number>;
+  /** Maximum AC output current in A */
+  maxAcCurrent: ExtractedField<number>;
+}
+
+/**
+ * An inverter family extracted from a spec sheet
+ * Contains shared specs and an array of power variants
+ */
+export interface ExtractedInverterFamily {
+  /** Specs shared across all variants */
+  shared: SharedInverterSpecs;
+  /** Array of power variants */
+  variants: InverterVariant[];
+}
+
 /**
  * @deprecated Use ExtractedModuleFamily for multi-model support
  * Kept for backward compatibility
@@ -170,9 +249,9 @@ export type ParsingStage =
   | 'error';
 
 /**
- * Result of spec sheet parsing
+ * Result of module spec sheet parsing
  */
-export interface SpecSheetParseResult {
+export interface ModuleParseResult {
   /** Whether parsing succeeded */
   success: boolean;
   /** Extracted module family if successful */
@@ -182,6 +261,26 @@ export interface SpecSheetParseResult {
   /** Non-fatal warnings */
   warnings?: string[];
 }
+
+/**
+ * Result of inverter spec sheet parsing
+ */
+export interface InverterParseResult {
+  /** Whether parsing succeeded */
+  success: boolean;
+  /** Extracted inverter family if successful */
+  data?: ExtractedInverterFamily;
+  /** Error message if failed */
+  error?: string;
+  /** Non-fatal warnings */
+  warnings?: string[];
+}
+
+/**
+ * @deprecated Use ModuleParseResult instead
+ * Kept for backward compatibility
+ */
+export type SpecSheetParseResult = ModuleParseResult;
 
 /**
  * Options for spec sheet parsing

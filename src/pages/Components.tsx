@@ -41,8 +41,14 @@ import { FileImportDialog } from '@/components/components/FileImportDialog';
 import { SpecSheetImportDialog } from '@/components/components/SpecSheetImportDialog';
 import type { ParsedPANData } from '@/lib/pan/parser';
 import type { ParsedONDData } from '@/lib/ond/parser';
-import type { SharedModuleSpecs, ModuleVariant, ExtractedField } from '@/lib/types/specSheetParsing';
-import type { ModuleSpecs } from '@/lib/types/component';
+import type {
+  SharedModuleSpecs,
+  ModuleVariant,
+  SharedInverterSpecs,
+  InverterVariant,
+  ExtractedField,
+} from '@/lib/types/specSheetParsing';
+import type { ModuleSpecs, InverterSpecs } from '@/lib/types/component';
 
 type FilterType = 'all' | ComponentType;
 
@@ -173,7 +179,7 @@ export function Components() {
     };
   };
 
-  const handleImportFromSpecSheet = (
+  const handleModuleImportFromSpecSheet = (
     shared: SharedModuleSpecs,
     variants: ModuleVariant[],
     selectedIndices: number[]
@@ -191,6 +197,57 @@ export function Components() {
 
     // Batch create all selected modules
     addComponents('module', componentsToCreate);
+    setSpecSheetDialogOpen(false);
+  };
+
+  // Merge shared inverter specs and variant into a complete InverterSpecs
+  const mergeInverterSpecs = (shared: SharedInverterSpecs, variant: InverterVariant): InverterSpecs => {
+    return {
+      // From variant
+      acPowerRating: extractValue(variant.acPowerRating) || 0,
+      maxDcPower: extractValue(variant.maxDcPower) || extractValue(variant.acPowerRating) || 0,
+      maxDcCurrent: extractValue(variant.maxDcCurrent) || 0,
+      maxAcCurrent: extractValue(variant.maxAcCurrent),
+      // From shared (DC Input)
+      maxDcVoltage: extractValue(shared.maxDcVoltage) || 0,
+      mpptVoltageMin: extractValue(shared.mpptVoltageMin) || 0,
+      mpptVoltageMax: extractValue(shared.mpptVoltageMax) || 0,
+      mpptCount: extractValue(shared.mpptCount) || 1,
+      stringsPerMppt: extractValue(shared.stringsPerMppt),
+      // From shared (AC Output)
+      acVoltage: extractValue(shared.acVoltage) || 0,
+      acFrequency: extractValue(shared.acFrequency),
+      // From shared (Performance)
+      maxEfficiency: extractValue(shared.maxEfficiency) || 0,
+      euroEfficiency: extractValue(shared.euroEfficiency),
+      // From shared (Physical)
+      length: extractValue(shared.length),
+      width: extractValue(shared.width),
+      height: extractValue(shared.height),
+      weight: extractValue(shared.weight),
+      // From shared (Type)
+      inverterType: extractValue(shared.inverterType),
+    };
+  };
+
+  const handleInverterImportFromSpecSheet = (
+    shared: SharedInverterSpecs,
+    variants: InverterVariant[],
+    selectedIndices: number[]
+  ) => {
+    // Build array of component data for selected variants
+    const componentsToCreate = selectedIndices.map((index) => {
+      const variant = variants[index];
+      return {
+        manufacturer: shared.manufacturer.value || '',
+        model: variant.model.value || '',
+        specs: mergeInverterSpecs(shared, variant),
+        unitPrice: 0, // Default, user can update later
+      };
+    });
+
+    // Batch create all selected inverters
+    addComponents('inverter', componentsToCreate);
     setSpecSheetDialogOpen(false);
   };
 
@@ -487,7 +544,8 @@ export function Components() {
       <SpecSheetImportDialog
         open={specSheetDialogOpen}
         onOpenChange={setSpecSheetDialogOpen}
-        onImport={handleImportFromSpecSheet}
+        onModuleImport={handleModuleImportFromSpecSheet}
+        onInverterImport={handleInverterImportFromSpecSheet}
       />
     </div>
   );

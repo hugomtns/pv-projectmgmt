@@ -2,29 +2,37 @@
  * Hook for managing spec sheet parsing state
  *
  * Handles the async parsing flow with stage tracking for UI feedback.
+ * Supports both module and inverter spec sheets.
  */
 
 import { useState, useCallback } from 'react';
-import { parseModuleSpecSheet, isGeminiConfigured } from '@/lib/ai/specSheetParser';
+import {
+  parseModuleSpecSheet,
+  parseInverterSpecSheet,
+  isGeminiConfigured,
+} from '@/lib/ai/specSheetParser';
 import type {
   ExtractedModuleFamily,
+  ExtractedInverterFamily,
   ParsingStage,
-  SpecSheetParseResult,
 } from '@/lib/types/specSheetParsing';
+import type { ComponentType } from '@/lib/types/component';
 
 export interface UseSpecSheetParserReturn {
   /** Current parsing stage */
   stage: ParsingStage;
-  /** Parsed result data (module family with shared specs and variants) */
-  result: ExtractedModuleFamily | null;
+  /** Parsed module result (if parsing modules) */
+  moduleResult: ExtractedModuleFamily | null;
+  /** Parsed inverter result (if parsing inverters) */
+  inverterResult: ExtractedInverterFamily | null;
   /** Error message if parsing failed */
   error: string | null;
   /** Non-fatal warnings */
   warnings: string[];
   /** Whether Gemini API is configured */
   isConfigured: boolean;
-  /** Parse a PDF file */
-  parseFile: (file: File) => Promise<void>;
+  /** Parse a PDF file for the specified component type */
+  parseFile: (file: File, componentType: ComponentType) => Promise<void>;
   /** Reset state to idle */
   reset: () => void;
 }
@@ -34,13 +42,14 @@ export interface UseSpecSheetParserReturn {
  */
 export function useSpecSheetParser(): UseSpecSheetParserReturn {
   const [stage, setStage] = useState<ParsingStage>('idle');
-  const [result, setResult] = useState<ExtractedModuleFamily | null>(null);
+  const [moduleResult, setModuleResult] = useState<ExtractedModuleFamily | null>(null);
+  const [inverterResult, setInverterResult] = useState<ExtractedInverterFamily | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
 
   const isConfigured = isGeminiConfigured();
 
-  const parseFile = useCallback(async (file: File) => {
+  const parseFile = useCallback(async (file: File, componentType: ComponentType) => {
     // Validate file type
     if (file.type !== 'application/pdf') {
       setError('Please upload a PDF file.');
@@ -58,14 +67,15 @@ export function useSpecSheetParser(): UseSpecSheetParserReturn {
     // Reset state
     setError(null);
     setWarnings([]);
-    setResult(null);
+    setModuleResult(null);
+    setInverterResult(null);
 
     try {
       // Stage 1: Reading PDF
       setStage('reading-pdf');
       const blob = new Blob([await file.arrayBuffer()], { type: file.type });
 
-      // Stage 2: Extracting text (happens inside parseModuleSpecSheet)
+      // Stage 2: Extracting text
       setStage('extracting-text');
       // Small delay to show the stage transition
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -73,15 +83,28 @@ export function useSpecSheetParser(): UseSpecSheetParserReturn {
       // Stage 3: Analyzing with AI
       setStage('analyzing');
 
-      const parseResult: SpecSheetParseResult = await parseModuleSpecSheet(blob);
+      if (componentType === 'module') {
+        const parseResult = await parseModuleSpecSheet(blob);
 
-      if (parseResult.success && parseResult.data) {
-        setResult(parseResult.data);
-        setWarnings(parseResult.warnings || []);
-        setStage('complete');
+        if (parseResult.success && parseResult.data) {
+          setModuleResult(parseResult.data);
+          setWarnings(parseResult.warnings || []);
+          setStage('complete');
+        } else {
+          setError(parseResult.error || 'Failed to parse spec sheet.');
+          setStage('error');
+        }
       } else {
-        setError(parseResult.error || 'Failed to parse spec sheet.');
-        setStage('error');
+        const parseResult = await parseInverterSpecSheet(blob);
+
+        if (parseResult.success && parseResult.data) {
+          setInverterResult(parseResult.data);
+          setWarnings(parseResult.warnings || []);
+          setStage('complete');
+        } else {
+          setError(parseResult.error || 'Failed to parse spec sheet.');
+          setStage('error');
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -92,14 +115,16 @@ export function useSpecSheetParser(): UseSpecSheetParserReturn {
 
   const reset = useCallback(() => {
     setStage('idle');
-    setResult(null);
+    setModuleResult(null);
+    setInverterResult(null);
     setError(null);
     setWarnings([]);
   }, []);
 
   return {
     stage,
-    result,
+    moduleResult,
+    inverterResult,
     error,
     warnings,
     isConfigured,
