@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,14 @@ import {
   Package,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  FinancialMigrationBanner,
+  FinancialMigrationDialog,
+} from '@/components/migration';
+import {
+  checkFinancialMigrationNeeded,
+  markFinancialMigrationCompleted,
+} from '@/lib/initializeStores';
 
 export function ProjectFinancialOverview() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -39,6 +47,16 @@ export function ProjectFinancialOverview() {
     () => allSettings.find((s) => s.projectId === projectId),
     [allSettings, projectId]
   );
+
+  // Migration state
+  const [migrationDialogOpen, setMigrationDialogOpen] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState(() => checkFinancialMigrationNeeded());
+
+  // Check migration status when data changes
+  useEffect(() => {
+    const status = checkFinancialMigrationNeeded();
+    setMigrationStatus(status);
+  }, [allModels, allSettings]);
 
   if (!project || !projectId) {
     return (
@@ -64,6 +82,21 @@ export function ProjectFinancialOverview() {
     // This is a no-op since winner changes happen through the comparison table
   }, []);
 
+  const handleStartMigration = useCallback(() => {
+    setMigrationDialogOpen(true);
+  }, []);
+
+  const handleDismissMigration = useCallback(() => {
+    // User dismissed the banner - they can see it again on next visit
+    console.log('Migration banner dismissed');
+  }, []);
+
+  const handleMigrationComplete = useCallback(() => {
+    markFinancialMigrationCompleted();
+    setMigrationStatus(checkFinancialMigrationNeeded());
+    setMigrationDialogOpen(false);
+  }, []);
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title={`${project.name} - Financial Analysis`}>
@@ -87,6 +120,16 @@ export function ProjectFinancialOverview() {
 
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto p-6 space-y-6">
+          {/* Migration Banner */}
+          {migrationStatus.needed && (
+            <FinancialMigrationBanner
+              oldModelsCount={migrationStatus.oldModelsCount}
+              oldBoqsCount={migrationStatus.oldBoqsCount}
+              onStartMigration={handleStartMigration}
+              onDismiss={handleDismissMigration}
+            />
+          )}
+
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
@@ -176,6 +219,13 @@ export function ProjectFinancialOverview() {
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
         projectId={projectId}
+      />
+
+      {/* Migration Dialog */}
+      <FinancialMigrationDialog
+        open={migrationDialogOpen}
+        onOpenChange={setMigrationDialogOpen}
+        onComplete={handleMigrationComplete}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { useDesignFinancialStore } from '@/stores/designFinancialStore';
@@ -16,6 +16,14 @@ import {
   ArrowRight,
   Package,
 } from 'lucide-react';
+import {
+  FinancialMigrationBanner,
+  FinancialMigrationDialog,
+} from '@/components/migration';
+import {
+  checkFinancialMigrationNeeded,
+  markFinancialMigrationCompleted,
+} from '@/lib/initializeStores';
 
 export function Financials() {
   const navigate = useNavigate();
@@ -23,6 +31,16 @@ export function Financials() {
   const designs = useDesignStore((state) => state.designs);
   const designFinancialModels = useDesignFinancialStore((state) => state.designFinancialModels);
   const allSettings = useProjectFinancialSettingsStore((state) => state.settings);
+
+  // Migration state
+  const [migrationDialogOpen, setMigrationDialogOpen] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState(() => checkFinancialMigrationNeeded());
+
+  // Check migration status when data changes
+  useEffect(() => {
+    const status = checkFinancialMigrationNeeded();
+    setMigrationStatus(status);
+  }, [designFinancialModels, allSettings]);
 
   // Build project data with financial statistics (memoized to prevent infinite loops)
   const projectsWithFinancials = useMemo(() => {
@@ -63,6 +81,21 @@ export function Financials() {
     navigate(`/financials/${projectId}`);
   }, [navigate]);
 
+  const handleStartMigration = useCallback(() => {
+    setMigrationDialogOpen(true);
+  }, []);
+
+  const handleDismissMigration = useCallback(() => {
+    // User dismissed the banner - they can see it again on next visit
+    console.log('Migration banner dismissed');
+  }, []);
+
+  const handleMigrationComplete = useCallback(() => {
+    markFinancialMigrationCompleted();
+    setMigrationStatus(checkFinancialMigrationNeeded());
+    setMigrationDialogOpen(false);
+  }, []);
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Financial Analysis">
@@ -76,6 +109,18 @@ export function Financials() {
 
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto p-6">
+          {/* Migration Banner */}
+          {migrationStatus.needed && (
+            <div className="mb-6">
+              <FinancialMigrationBanner
+                oldModelsCount={migrationStatus.oldModelsCount}
+                oldBoqsCount={migrationStatus.oldBoqsCount}
+                onStartMigration={handleStartMigration}
+                onDismiss={handleDismissMigration}
+              />
+            </div>
+          )}
+
           {projectsWithFinancialActivity.length === 0 ? (
             /* Empty State */
             <Card className="border-dashed">
@@ -284,6 +329,13 @@ export function Financials() {
           )}
         </div>
       </div>
+
+      {/* Migration Dialog */}
+      <FinancialMigrationDialog
+        open={migrationDialogOpen}
+        onOpenChange={setMigrationDialogOpen}
+        onComplete={handleMigrationComplete}
+      />
     </div>
   );
 }
