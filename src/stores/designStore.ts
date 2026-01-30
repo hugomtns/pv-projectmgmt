@@ -31,6 +31,10 @@ interface DesignState {
     getElementComments: (designId: string, versionId: string, elementType: string, elementId: string) => Promise<DesignComment[]>;
     getElementsWithComments: (designId: string, versionId: string) => Promise<Array<{ elementType: string; elementId: string; count: number; hasUnresolved: boolean }>>;
 
+    // Winner Management (NEW - for financial winner selection)
+    markAsFinancialWinner: (designId: string) => void;
+    clearFinancialWinner: (projectId: string) => void;
+
     // Helpers
     getDesignsByProject: (projectId: string) => Design[];
 }
@@ -482,6 +486,43 @@ export const useDesignStore = create<DesignState>()(
                 }
 
                 return Array.from(elementMap.values());
+            },
+
+            // Winner Management (NEW - for financial winner selection)
+            markAsFinancialWinner: (designId) => {
+                const design = get().designs.find(d => d.id === designId);
+                if (!design) {
+                    toast.error('Design not found');
+                    return;
+                }
+
+                // Clear previous winner in this project, mark new winner
+                set((state) => ({
+                    designs: state.designs.map((d) =>
+                        d.projectId === design.projectId
+                            ? { ...d, isFinancialWinner: d.id === designId, updatedAt: new Date().toISOString() }
+                            : d
+                    ),
+                }));
+
+                logAdminAction('update', 'designs', designId, design.name, {
+                    action: 'mark_as_financial_winner',
+                });
+            },
+
+            clearFinancialWinner: (projectId) => {
+                set((state) => ({
+                    designs: state.designs.map((d) =>
+                        d.projectId === projectId
+                            ? { ...d, isFinancialWinner: false, updatedAt: new Date().toISOString() }
+                            : d
+                    ),
+                }));
+
+                logAdminAction('update', 'designs', `project-${projectId}`, `Clear winners`, {
+                    action: 'clear_financial_winner',
+                    projectId,
+                });
             },
 
             getDesignsByProject: (projectId) => {
