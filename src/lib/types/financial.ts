@@ -12,6 +12,9 @@ export interface CostLineItem {
   quantity?: number; // Number of items (CapEx only)
   unit?: string; // Display unit (e.g., "MW", "panels", "meters")
   margin_percent?: number; // CapEx-only: margin override (uses global if undefined)
+  // Source tracking (for BOQ migration and component library integration)
+  source?: 'manual' | 'dxf_extraction' | 'component_library';
+  sourceId?: string; // Component ID if from component_library, or BOQ ID for migrated items
 }
 
 // Financial model inputs
@@ -150,7 +153,97 @@ export interface ProjectResults {
   monthly_data?: MonthlyDataPoint[];
 }
 
-// Financial Model entity (linked to a Project)
+// ============================================================================
+// NEW ARCHITECTURE: Design-Level Financial Models
+// ============================================================================
+
+// Financing parameters (extracted from FinancialInputs for design-level control)
+export interface FinancingParameters {
+  gearing_ratio: number;
+  interest_rate: number;
+  debt_tenor: number;
+  target_dscr: number;
+}
+
+// Project-level default financial assumptions
+export interface DefaultFinancialAssumptions {
+  ppa_escalation: number;
+  om_escalation: number;
+  degradation_rate: number;
+  tax_rate: number;
+  discount_rate: number;
+  project_lifetime: number;
+}
+
+// Project Financial Settings - parent container for project-level defaults
+export interface ProjectFinancialSettings {
+  id: string;
+  projectId: string; // Foreign key to Project (1:1)
+
+  // Default assumptions applied to new design financial models
+  defaultAssumptions: DefaultFinancialAssumptions;
+
+  // Winner design selection
+  winnerDesignId?: string; // FK to Design - marks the financially optimal design
+
+  // Metadata
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Design Financial Model - design-scoped financial analysis (NEW)
+export interface DesignFinancialModel {
+  id: string;
+  designId: string;     // Foreign key to Design (1:1) - PRIMARY RELATIONSHIP
+  projectId: string;    // Denormalized for efficient project-level queries
+  name: string;
+
+  // Core capacity and yield inputs
+  capacity: number;           // MW
+  p50_year_0_yield: number;   // MWh - Year 0/Year 1 energy production
+  ppa_price: number;          // $/MWh
+
+  // CAPEX line items (replaces/merges BOQ functionality)
+  capex: CostLineItem[];
+  global_margin: number;      // CAPEX margin percentage
+
+  // OPEX line items (design-specific operating costs)
+  opex: CostLineItem[];
+
+  // Technical/Economic parameters (can inherit from project defaults or override)
+  degradation_rate: number;
+  ppa_escalation: number;
+  om_escalation: number;
+  tax_rate: number;
+  discount_rate: number;
+  project_lifetime: number;
+
+  // Financing parameters (design-specific)
+  financing: FinancingParameters;
+
+  // Yield estimation (optional - calculated from location)
+  yieldEstimate?: YieldEstimate;
+
+  // Cached calculation results
+  results?: ProjectResults;
+
+  // Winner flag (denormalized for fast filtering)
+  isWinner: boolean;
+
+  // Metadata
+  createdBy: string;
+  creatorId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================================
+// LEGACY ARCHITECTURE: Project-Level Financial Models (Deprecated)
+// ============================================================================
+// These types are kept for backward compatibility during migration.
+// They will be removed in a future version after all data is migrated.
+
+// Financial Model entity (linked to a Project) - DEPRECATED
 export interface FinancialModel {
   id: string;
   projectId: string; // Foreign key to Project
@@ -162,6 +255,28 @@ export interface FinancialModel {
   createdAt: string;
   updatedAt: string;
 }
+
+// ============================================================================
+// DEFAULT VALUES
+// ============================================================================
+
+// Default financing parameters
+export const DEFAULT_FINANCING_PARAMETERS: FinancingParameters = {
+  gearing_ratio: 0.75,
+  interest_rate: 0.045,
+  debt_tenor: 15,
+  target_dscr: 1.30,
+};
+
+// Default financial assumptions for projects
+export const DEFAULT_FINANCIAL_ASSUMPTIONS: DefaultFinancialAssumptions = {
+  ppa_escalation: 0.0,
+  om_escalation: 0.01,
+  degradation_rate: 0.004,
+  tax_rate: 0.25,
+  discount_rate: 0.08,
+  project_lifetime: 25,
+};
 
 // Default values for 300 MW utility-scale ground mount project
 // P50 Year 0 Yield calculated as: 300 MW × 0.22 CF × 8760 hours = 577,920 MWh

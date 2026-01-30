@@ -227,6 +227,8 @@ export interface Design {
   // Generated layout fields (for Site-to-Design conversion)
   siteId?: string; // Link to source site
   generatedLayout?: GeneratedLayout; // Auto-generated panel layout
+  // Financial winner flag (NEW - synced with DesignFinancialModel.isWinner)
+  isFinancialWinner?: boolean; // True if this design's financial model is marked as winner
 }
 
 export interface DesignVersion {
