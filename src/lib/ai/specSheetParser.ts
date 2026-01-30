@@ -2,14 +2,16 @@
  * LLM-based spec sheet parser
  *
  * Extracts module specifications from PDF datasheets using Gemini API.
- * Reuses existing PDF extraction utilities and follows patterns from documentReview.ts.
+ * Supports multi-model spec sheets (extracting all power variants).
  */
 
 import { loadPDFFromBlob } from '@/components/documents/utils/pdfUtils';
 import { extractDocumentText } from '@/components/documents/utils/pdfTextExtractor';
 import { buildExtractionPrompt } from './specSheetPrompts';
 import type {
-  ExtractedModuleData,
+  ExtractedModuleFamily,
+  SharedModuleSpecs,
+  ModuleVariant,
   ExtractedField,
   SpecSheetParseResult,
   SpecSheetParseOptions,
@@ -21,6 +23,7 @@ const GEMINI_MODEL = 'gemini-3-flash-preview';
 
 /**
  * Parse a module spec sheet PDF and extract specifications
+ * Returns all power variants found in the spec sheet
  */
 export async function parseModuleSpecSheet(
   pdfBlob: Blob,
@@ -92,7 +95,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     generationConfig: {
       temperature: 0.1, // Low temperature for consistent extraction
       topP: 0.8,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192, // Increased for multi-model responses
       responseMimeType: 'application/json',
     },
   };
@@ -142,7 +145,7 @@ async function callGeminiAPI(prompt: string): Promise<string> {
 /**
  * Parse and validate Gemini response
  */
-function parseGeminiResponse(responseText: string): ExtractedModuleData {
+function parseGeminiResponse(responseText: string): ExtractedModuleFamily {
   // Remove markdown code blocks if present
   let jsonText = responseText.trim();
 
@@ -240,36 +243,48 @@ function repairTruncatedJson(jsonText: string): string {
 /**
  * Normalize and validate extracted data
  */
-function normalizeExtractedData(response: Record<string, unknown>): ExtractedModuleData {
-  const specs = (response.specs as Record<string, unknown>) || {};
+function normalizeExtractedData(response: Record<string, unknown>): ExtractedModuleFamily {
+  const sharedRaw = (response.shared as Record<string, unknown>) || {};
+  const variantsRaw = (response.variants as unknown[]) || [];
 
-  return {
-    manufacturer: normalizeField<string>(response.manufacturer),
-    model: normalizeField<string>(response.model),
-    specs: {
-      // Electrical
-      powerRating: normalizeField<number>(specs.powerRating),
-      voc: normalizeField<number>(specs.voc),
-      isc: normalizeField<number>(specs.isc),
-      vmp: normalizeField<number>(specs.vmp),
-      imp: normalizeField<number>(specs.imp),
-      efficiency: normalizeField<number>(specs.efficiency),
-      // Physical
-      length: normalizeField<number>(specs.length),
-      width: normalizeField<number>(specs.width),
-      thickness: normalizeField<number>(specs.thickness),
-      weight: normalizeField<number>(specs.weight),
-      // Cell info
-      cellType: normalizeCellType(specs.cellType),
-      cellCount: normalizeField<number>(specs.cellCount),
-      bifacial: normalizeField<boolean>(specs.bifacial),
-      bifacialityFactor: normalizeField<number>(specs.bifacialityFactor),
-      // Temperature coefficients
-      tempCoeffPmax: normalizeField<number>(specs.tempCoeffPmax),
-      tempCoeffVoc: normalizeField<number>(specs.tempCoeffVoc),
-      tempCoeffIsc: normalizeField<number>(specs.tempCoeffIsc),
-    },
+  // Normalize shared specs
+  const shared: SharedModuleSpecs = {
+    manufacturer: normalizeField<string>(sharedRaw.manufacturer),
+    length: normalizeField<number>(sharedRaw.length),
+    width: normalizeField<number>(sharedRaw.width),
+    thickness: normalizeField<number>(sharedRaw.thickness),
+    weight: normalizeField<number>(sharedRaw.weight),
+    cellType: normalizeCellType(sharedRaw.cellType),
+    cellCount: normalizeField<number>(sharedRaw.cellCount),
+    bifacial: normalizeField<boolean>(sharedRaw.bifacial),
+    bifacialityFactor: normalizeField<number>(sharedRaw.bifacialityFactor),
+    tempCoeffPmax: normalizeField<number>(sharedRaw.tempCoeffPmax),
+    tempCoeffVoc: normalizeField<number>(sharedRaw.tempCoeffVoc),
+    tempCoeffIsc: normalizeField<number>(sharedRaw.tempCoeffIsc),
   };
+
+  // Normalize variants
+  const variants: ModuleVariant[] = variantsRaw.map((v) => {
+    const variant = v as Record<string, unknown>;
+    return {
+      model: normalizeField<string>(variant.model),
+      powerRating: normalizeField<number>(variant.powerRating),
+      efficiency: normalizeField<number>(variant.efficiency),
+      voc: normalizeField<number>(variant.voc),
+      isc: normalizeField<number>(variant.isc),
+      vmp: normalizeField<number>(variant.vmp),
+      imp: normalizeField<number>(variant.imp),
+    };
+  });
+
+  // Sort variants by power rating
+  variants.sort((a, b) => {
+    const powerA = a.powerRating.value ?? 0;
+    const powerB = b.powerRating.value ?? 0;
+    return powerA - powerB;
+  });
+
+  return { shared, variants };
 }
 
 /**
@@ -306,16 +321,16 @@ function normalizeCellType(field: unknown): ExtractedField<string> {
     const value = normalized.value.toLowerCase();
 
     // Map common variations
-    if (value.includes('mono') || value.includes('perc')) {
+    if (value.includes('topcon') || value.includes('tunnel') || value.includes('n-type i-topcon')) {
+      normalized.value = 'TOPCon';
+    } else if (value.includes('hjt') || value.includes('het') || value.includes('hit')) {
+      normalized.value = 'HJT';
+    } else if (value.includes('ibc') || value.includes('back contact')) {
+      normalized.value = 'IBC';
+    } else if (value.includes('mono') || value.includes('perc')) {
       normalized.value = 'mono-Si';
     } else if (value.includes('poly') || value.includes('multi')) {
       normalized.value = 'poly-Si';
-    } else if (value.includes('hjt') || value.includes('het') || value.includes('hit')) {
-      normalized.value = 'HJT';
-    } else if (value.includes('topcon') || value.includes('tunnel')) {
-      normalized.value = 'TOPCon';
-    } else if (value.includes('ibc') || value.includes('back contact')) {
-      normalized.value = 'IBC';
     } else if (
       value.includes('thin') ||
       value.includes('cdte') ||
@@ -334,29 +349,40 @@ function normalizeCellType(field: unknown): ExtractedField<string> {
 /**
  * Generate warnings for low confidence required fields
  */
-function generateWarnings(data: ExtractedModuleData): string[] {
+function generateWarnings(data: ExtractedModuleFamily): string[] {
   const warnings: string[] = [];
 
-  // Required fields that should have high/medium confidence
-  const requiredFields: Array<{
-    name: string;
-    field: ExtractedField<unknown>;
-  }> = [
-    { name: 'Power Rating', field: data.specs.powerRating },
-    { name: 'Voc', field: data.specs.voc },
-    { name: 'Isc', field: data.specs.isc },
-    { name: 'Vmp', field: data.specs.vmp },
-    { name: 'Imp', field: data.specs.imp },
-    { name: 'Efficiency', field: data.specs.efficiency },
-    { name: 'Length', field: data.specs.length },
-    { name: 'Width', field: data.specs.width },
+  // Check shared specs
+  const sharedRequired: Array<{ name: string; field: ExtractedField<unknown> }> = [
+    { name: 'Manufacturer', field: data.shared.manufacturer },
+    { name: 'Length', field: data.shared.length },
+    { name: 'Width', field: data.shared.width },
   ];
 
-  for (const { name, field } of requiredFields) {
+  for (const { name, field } of sharedRequired) {
     if (field.confidence === 'missing') {
       warnings.push(`${name} could not be extracted from the document.`);
     } else if (field.confidence === 'low') {
       warnings.push(`${name} extraction has low confidence. Please verify.`);
+    }
+  }
+
+  // Check if any variants were found
+  if (data.variants.length === 0) {
+    warnings.push('No power variants found in the document.');
+  } else {
+    // Check first variant for required electrical specs
+    const firstVariant = data.variants[0];
+    const variantRequired: Array<{ name: string; field: ExtractedField<unknown> }> = [
+      { name: 'Power Rating', field: firstVariant.powerRating },
+      { name: 'Voc', field: firstVariant.voc },
+      { name: 'Isc', field: firstVariant.isc },
+    ];
+
+    for (const { name, field } of variantRequired) {
+      if (field.confidence === 'missing') {
+        warnings.push(`${name} could not be extracted for some variants.`);
+      }
     }
   }
 

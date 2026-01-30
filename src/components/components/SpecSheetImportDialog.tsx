@@ -1,5 +1,6 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
   Upload,
   Box,
   Check,
@@ -23,16 +29,23 @@ import {
   CircleHelp,
   RefreshCw,
   Sparkles,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { useSpecSheetParser, getStageMessage } from '@/hooks/useSpecSheetParser';
-import type { ExtractedModuleData, ConfidenceLevel, ExtractedField } from '@/lib/types/specSheetParsing';
+import type {
+  SharedModuleSpecs,
+  ModuleVariant,
+  ConfidenceLevel,
+  ExtractedField,
+} from '@/lib/types/specSheetParsing';
 import { cn } from '@/lib/utils';
 import { CELL_TYPES } from '@/lib/types/component';
 
 interface SpecSheetImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport: (data: ExtractedModuleData) => void;
+  onImport: (shared: SharedModuleSpecs, variants: ModuleVariant[], selectedIndices: number[]) => void;
 }
 
 export function SpecSheetImportDialog({
@@ -44,15 +57,28 @@ export function SpecSheetImportDialog({
   const { stage, result, error, warnings, isConfigured, parseFile, reset } =
     useSpecSheetParser();
 
+  // Selection state for variants
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [sharedExpanded, setSharedExpanded] = useState(false);
+
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       reset();
+      setSelectedIndices(new Set());
+      setSharedExpanded(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   }, [open, reset]);
+
+  // Select all variants by default when extraction completes
+  useEffect(() => {
+    if (result?.variants) {
+      setSelectedIndices(new Set(result.variants.map((_, i) => i)));
+    }
+  }, [result]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,23 +105,46 @@ export function SpecSheetImportDialog({
 
   const handleImport = () => {
     if (result) {
-      onImport(result);
+      onImport(result.shared, result.variants, Array.from(selectedIndices));
       onOpenChange(false);
     }
   };
 
   const handleRetry = () => {
     reset();
+    setSelectedIndices(new Set());
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleSelectAll = () => {
+    if (result?.variants) {
+      setSelectedIndices(new Set(result.variants.map((_, i) => i)));
+    }
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIndices(new Set());
+  };
+
+  const toggleVariant = (index: number) => {
+    setSelectedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
 
   const isLoading = stage === 'reading-pdf' || stage === 'extracting-text' || stage === 'analyzing';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
@@ -124,11 +173,11 @@ export function SpecSheetImportDialog({
               Solar, etc. The AI will extract:
             </p>
             <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>All power variants from the spec sheet</li>
               <li>Manufacturer and model information</li>
               <li>Electrical parameters (Voc, Isc, Vmp, Imp, efficiency)</li>
               <li>Physical dimensions and weight</li>
               <li>Temperature coefficients</li>
-              <li>Cell technology and configuration</li>
             </ul>
           </div>
         )}
@@ -195,60 +244,142 @@ export function SpecSheetImportDialog({
           </div>
         )}
 
-        {/* Preview */}
+        {/* Preview - Multi-Model View */}
         {stage === 'complete' && result && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
               <Check className="h-4 w-4" />
-              Extracted: {result.manufacturer.value || 'Unknown'} -{' '}
-              {result.model.value || 'Unknown'}
+              Extracted: {result.shared.manufacturer.value || 'Unknown'} -{' '}
+              {result.variants.length} model{result.variants.length !== 1 ? 's' : ''}
             </div>
 
-            <div className="p-4 border rounded-lg bg-muted/30 space-y-4 max-h-[300px] overflow-y-auto">
-              {/* Electrical */}
-              <SpecSection title="Electrical (STC)">
-                <SpecRow label="Power Rating" field={result.specs.powerRating} unit="Wp" />
-                <SpecRow label="Efficiency" field={result.specs.efficiency} unit="%" />
-                <SpecRow label="Voc" field={result.specs.voc} unit="V" />
-                <SpecRow label="Isc" field={result.specs.isc} unit="A" />
-                <SpecRow label="Vmp" field={result.specs.vmp} unit="V" />
-                <SpecRow label="Imp" field={result.specs.imp} unit="A" />
-              </SpecSection>
+            {/* Shared Specifications (Collapsible) */}
+            <Collapsible open={sharedExpanded} onOpenChange={setSharedExpanded}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start p-2 h-auto">
+                  {sharedExpanded ? (
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 mr-2" />
+                  )}
+                  <span className="text-sm font-medium">Shared Specifications</span>
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {formatDimensions(result.shared)} | {getCellTypeLabel(result.shared.cellType.value)} |{' '}
+                    {result.shared.bifacial.value ? 'Bifacial' : 'Monofacial'}
+                  </span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="p-4 border rounded-lg bg-muted/30 space-y-4 mt-2">
+                  {/* Physical */}
+                  <SpecSection title="Physical">
+                    <SpecRow label="Length" field={result.shared.length} unit="mm" />
+                    <SpecRow label="Width" field={result.shared.width} unit="mm" />
+                    <SpecRow label="Thickness" field={result.shared.thickness} unit="mm" />
+                    <SpecRow label="Weight" field={result.shared.weight} unit="kg" />
+                  </SpecSection>
 
-              {/* Physical */}
-              <SpecSection title="Physical">
-                <SpecRow label="Length" field={result.specs.length} unit="mm" />
-                <SpecRow label="Width" field={result.specs.width} unit="mm" />
-                <SpecRow label="Thickness" field={result.specs.thickness} unit="mm" />
-                <SpecRow label="Weight" field={result.specs.weight} unit="kg" />
-              </SpecSection>
+                  {/* Cell Info */}
+                  <SpecSection title="Cell Info">
+                    <SpecRow
+                      label="Cell Type"
+                      field={result.shared.cellType}
+                      formatter={(v) => getCellTypeLabel(v as string)}
+                    />
+                    <SpecRow label="Cell Count" field={result.shared.cellCount} />
+                    <SpecRow
+                      label="Bifacial"
+                      field={result.shared.bifacial}
+                      formatter={(v) => (v ? 'Yes' : 'No')}
+                    />
+                    <SpecRow
+                      label="Bifaciality"
+                      field={result.shared.bifacialityFactor}
+                      formatter={(v) => `${((v as number) * 100).toFixed(0)}%`}
+                    />
+                  </SpecSection>
 
-              {/* Cell Info */}
-              <SpecSection title="Cell Info">
-                <SpecRow
-                  label="Cell Type"
-                  field={result.specs.cellType}
-                  formatter={(v) => getCellTypeLabel(v as string)}
-                />
-                <SpecRow label="Cell Count" field={result.specs.cellCount} />
-                <SpecRow
-                  label="Bifacial"
-                  field={result.specs.bifacial}
-                  formatter={(v) => (v ? 'Yes' : 'No')}
-                />
-                <SpecRow
-                  label="Bifaciality"
-                  field={result.specs.bifacialityFactor}
-                  formatter={(v) => `${((v as number) * 100).toFixed(0)}%`}
-                />
-              </SpecSection>
+                  {/* Temperature */}
+                  <SpecSection title="Temperature Coefficients">
+                    <SpecRow label="Pmax" field={result.shared.tempCoeffPmax} unit="%/°C" />
+                    <SpecRow label="Voc" field={result.shared.tempCoeffVoc} unit="%/°C" />
+                    <SpecRow label="Isc" field={result.shared.tempCoeffIsc} unit="%/°C" />
+                  </SpecSection>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
-              {/* Temperature */}
-              <SpecSection title="Temperature Coefficients">
-                <SpecRow label="Pmax" field={result.specs.tempCoeffPmax} unit="%/°C" />
-                <SpecRow label="Voc" field={result.specs.tempCoeffVoc} unit="%/°C" />
-                <SpecRow label="Isc" field={result.specs.tempCoeffIsc} unit="%/°C" />
-              </SpecSection>
+            {/* Variant Selection Table */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Select models to import:</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleSelectAll}>
+                    All
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleDeselectAll}>
+                    None
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr className="border-b">
+                      <th className="w-10 p-2"></th>
+                      <th className="text-left p-2 font-medium">Model</th>
+                      <th className="text-right p-2 font-medium">Power</th>
+                      <th className="text-right p-2 font-medium">Eff.</th>
+                      <th className="text-right p-2 font-medium">Voc</th>
+                      <th className="text-right p-2 font-medium">Isc</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.variants.map((variant, index) => (
+                      <tr
+                        key={index}
+                        className={cn(
+                          'border-b last:border-0 cursor-pointer hover:bg-muted/30 transition-colors',
+                          selectedIndices.has(index) && 'bg-primary/5'
+                        )}
+                        onClick={() => toggleVariant(index)}
+                      >
+                        <td className="p-2 text-center">
+                          <Checkbox
+                            checked={selectedIndices.has(index)}
+                            onCheckedChange={() => toggleVariant(index)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </td>
+                        <td className="p-2 font-medium">
+                          {variant.model.value || `Variant ${index + 1}`}
+                          {variant.model.confidence !== 'high' && (
+                            <ConfidenceBadge confidence={variant.model.confidence} />
+                          )}
+                        </td>
+                        <td className="p-2 text-right">
+                          {variant.powerRating.value ? `${variant.powerRating.value} Wp` : '-'}
+                        </td>
+                        <td className="p-2 text-right">
+                          {variant.efficiency.value ? `${variant.efficiency.value}%` : '-'}
+                        </td>
+                        <td className="p-2 text-right">
+                          {variant.voc.value ? `${variant.voc.value} V` : '-'}
+                        </td>
+                        <td className="p-2 text-right">
+                          {variant.isc.value ? `${variant.isc.value} A` : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="text-sm text-muted-foreground">
+                {selectedIndices.size} of {result.variants.length} model
+                {result.variants.length !== 1 ? 's' : ''} selected
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -265,11 +396,11 @@ export function SpecSheetImportDialog({
           </Button>
           <Button
             onClick={handleImport}
-            disabled={stage !== 'complete' || !result}
+            disabled={stage !== 'complete' || !result || selectedIndices.size === 0}
             className="gap-2"
           >
             <Box className="h-4 w-4" />
-            Create Module
+            Import {selectedIndices.size} Module{selectedIndices.size !== 1 ? 's' : ''}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -277,7 +408,28 @@ export function SpecSheetImportDialog({
   );
 }
 
-// Helper components
+// Helper functions
+
+function formatDimensions(shared: SharedModuleSpecs): string {
+  const l = shared.length.value;
+  const w = shared.width.value;
+  const t = shared.thickness.value;
+  if (l && w && t) {
+    return `${l} × ${w} × ${t} mm`;
+  }
+  if (l && w) {
+    return `${l} × ${w} mm`;
+  }
+  return 'Dimensions unknown';
+}
+
+function getCellTypeLabel(value: string | null | undefined): string {
+  if (!value) return 'Unknown';
+  const cellType = CELL_TYPES.find((t) => t.value === value);
+  return cellType?.label || value;
+}
+
+// Spec display components
 
 function SpecSection({
   title,
@@ -374,10 +526,4 @@ function ConfidenceBadge({
       </Tooltip>
     </TooltipProvider>
   );
-}
-
-function getCellTypeLabel(value: string | undefined): string {
-  if (!value) return 'Unknown';
-  const cellType = CELL_TYPES.find((t) => t.value === value);
-  return cellType?.label || value;
 }

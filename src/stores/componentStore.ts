@@ -27,6 +27,7 @@ interface ComponentState {
 
   // Actions
   addComponent: (type: ComponentType, data: AddComponentData) => string | undefined;
+  addComponents: (type: ComponentType, dataArray: AddComponentData[]) => string[];
   updateComponent: (id: string, updates: Partial<Omit<Component, 'id' | 'type' | 'createdAt' | 'creatorId' | 'createdBy'>>) => void;
   deleteComponent: (id: string) => void;
   linkToDesign: (componentId: string, designId: string, quantity: number) => void;
@@ -96,6 +97,65 @@ export const useComponentStore = create<ComponentState>()(
 
         toast.success(`${type === 'module' ? 'Module' : 'Inverter'} created successfully`);
         return newComponent.id;
+      },
+
+      addComponents: (type, dataArray) => {
+        const userState = useUserStore.getState();
+        const currentUser = userState.currentUser;
+
+        if (!currentUser) {
+          toast.error('You must be logged in to create components');
+          return [];
+        }
+
+        const permissions = resolvePermissions(
+          currentUser,
+          'components',
+          undefined,
+          userState.permissionOverrides,
+          userState.roles
+        );
+
+        if (!permissions.create) {
+          toast.error('Permission denied: You do not have permission to create components');
+          return [];
+        }
+
+        if (dataArray.length === 0) {
+          return [];
+        }
+
+        const now = new Date().toISOString();
+        const userFullName = `${currentUser.firstName} ${currentUser.lastName}`;
+
+        const newComponents = dataArray.map((data) => ({
+          id: crypto.randomUUID(),
+          type,
+          manufacturer: data.manufacturer,
+          model: data.model,
+          specs: data.specs,
+          unitPrice: data.unitPrice,
+          currency: data.currency || 'USD',
+          linkedDesigns: data.linkedDesigns || [],
+          createdBy: userFullName,
+          creatorId: currentUser.id,
+          createdAt: now,
+          updatedAt: now,
+        } as Component));
+
+        set((state) => ({
+          components: [...state.components, ...newComponents],
+        }));
+
+        // Log the batch creation
+        logAdminAction('create', 'components', 'batch', `Batch import: ${dataArray.length} ${type}s`, {
+          type,
+          count: dataArray.length,
+          models: dataArray.map((d) => d.model),
+        });
+
+        toast.success(`Created ${dataArray.length} ${type === 'module' ? 'module' : 'inverter'}${dataArray.length !== 1 ? 's' : ''}`);
+        return newComponents.map((c) => c.id);
       },
 
       updateComponent: (id, updates) => {

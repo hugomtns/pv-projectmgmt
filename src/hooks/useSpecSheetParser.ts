@@ -7,7 +7,7 @@
 import { useState, useCallback } from 'react';
 import { parseModuleSpecSheet, isGeminiConfigured } from '@/lib/ai/specSheetParser';
 import type {
-  ExtractedModuleData,
+  ExtractedModuleFamily,
   ParsingStage,
   SpecSheetParseResult,
 } from '@/lib/types/specSheetParsing';
@@ -15,8 +15,8 @@ import type {
 export interface UseSpecSheetParserReturn {
   /** Current parsing stage */
   stage: ParsingStage;
-  /** Parsed result data */
-  result: ExtractedModuleData | null;
+  /** Parsed result data (module family with shared specs and variants) */
+  result: ExtractedModuleFamily | null;
   /** Error message if parsing failed */
   error: string | null;
   /** Non-fatal warnings */
@@ -34,7 +34,7 @@ export interface UseSpecSheetParserReturn {
  */
 export function useSpecSheetParser(): UseSpecSheetParserReturn {
   const [stage, setStage] = useState<ParsingStage>('idle');
-  const [result, setResult] = useState<ExtractedModuleData | null>(null);
+  const [result, setResult] = useState<ExtractedModuleFamily | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
 

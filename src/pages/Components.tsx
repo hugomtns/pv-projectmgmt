@@ -41,13 +41,15 @@ import { FileImportDialog } from '@/components/components/FileImportDialog';
 import { SpecSheetImportDialog } from '@/components/components/SpecSheetImportDialog';
 import type { ParsedPANData } from '@/lib/pan/parser';
 import type { ParsedONDData } from '@/lib/ond/parser';
-import type { ExtractedModuleData, ExtractedField } from '@/lib/types/specSheetParsing';
+import type { SharedModuleSpecs, ModuleVariant, ExtractedField } from '@/lib/types/specSheetParsing';
+import type { ModuleSpecs } from '@/lib/types/component';
 
 type FilterType = 'all' | ComponentType;
 
 export function Components() {
   const components = useComponentStore((state) => state.components);
   const deleteComponent = useComponentStore((state) => state.deleteComponent);
+  const addComponents = useComponentStore((state) => state.addComponents);
   const currentUser = useUserStore((state) => state.currentUser);
 
   const canCreate = usePermission('components', 'create');
@@ -144,37 +146,52 @@ export function Components() {
     return field.value !== null ? field.value : undefined;
   };
 
-  const handleImportFromSpecSheet = (data: ExtractedModuleData) => {
-    // Convert ExtractedModuleData to PrefilledComponentData
-    setPrefilledData({
-      type: 'module',
-      manufacturer: data.manufacturer.value || '',
-      model: data.model.value || '',
-      moduleSpecs: {
-        // Required fields
-        powerRating: extractValue(data.specs.powerRating),
-        voc: extractValue(data.specs.voc),
-        isc: extractValue(data.specs.isc),
-        vmp: extractValue(data.specs.vmp),
-        imp: extractValue(data.specs.imp),
-        efficiency: extractValue(data.specs.efficiency),
-        length: extractValue(data.specs.length),
-        width: extractValue(data.specs.width),
-        // Optional fields
-        thickness: extractValue(data.specs.thickness),
-        weight: extractValue(data.specs.weight),
-        cellType: extractValue(data.specs.cellType),
-        cellCount: extractValue(data.specs.cellCount),
-        bifacial: extractValue(data.specs.bifacial),
-        bifacialityFactor: extractValue(data.specs.bifacialityFactor),
-        tempCoeffPmax: extractValue(data.specs.tempCoeffPmax),
-        tempCoeffVoc: extractValue(data.specs.tempCoeffVoc),
-        tempCoeffIsc: extractValue(data.specs.tempCoeffIsc),
-      },
-      fromSpecSheet: true,
+  // Merge shared specs and variant into a complete ModuleSpecs
+  const mergeSpecs = (shared: SharedModuleSpecs, variant: ModuleVariant): ModuleSpecs => {
+    return {
+      // From variant (electrical)
+      powerRating: extractValue(variant.powerRating) || 0,
+      voc: extractValue(variant.voc) || 0,
+      isc: extractValue(variant.isc) || 0,
+      vmp: extractValue(variant.vmp) || 0,
+      imp: extractValue(variant.imp) || 0,
+      efficiency: extractValue(variant.efficiency) || 0,
+      // From shared (physical)
+      length: extractValue(shared.length) || 0,
+      width: extractValue(shared.width) || 0,
+      thickness: extractValue(shared.thickness),
+      weight: extractValue(shared.weight),
+      // From shared (cell info)
+      cellType: extractValue(shared.cellType),
+      cellCount: extractValue(shared.cellCount),
+      bifacial: extractValue(shared.bifacial),
+      bifacialityFactor: extractValue(shared.bifacialityFactor),
+      // From shared (temperature)
+      tempCoeffPmax: extractValue(shared.tempCoeffPmax),
+      tempCoeffVoc: extractValue(shared.tempCoeffVoc),
+      tempCoeffIsc: extractValue(shared.tempCoeffIsc),
+    };
+  };
+
+  const handleImportFromSpecSheet = (
+    shared: SharedModuleSpecs,
+    variants: ModuleVariant[],
+    selectedIndices: number[]
+  ) => {
+    // Build array of component data for selected variants
+    const componentsToCreate = selectedIndices.map((index) => {
+      const variant = variants[index];
+      return {
+        manufacturer: shared.manufacturer.value || '',
+        model: variant.model.value || '',
+        specs: mergeSpecs(shared, variant),
+        unitPrice: 0, // Default, user can update later
+      };
     });
+
+    // Batch create all selected modules
+    addComponents('module', componentsToCreate);
     setSpecSheetDialogOpen(false);
-    setCreateDialogOpen(true);
   };
 
   const formatDate = (dateString: string) => {

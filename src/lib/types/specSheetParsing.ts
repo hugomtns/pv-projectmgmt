@@ -27,7 +27,77 @@ export interface ExtractedField<T> {
 }
 
 /**
- * Extracted module data with confidence tracking for each field
+ * Shared specs across all variants in a module family
+ * These are typically the same for all power bins on a spec sheet
+ */
+export interface SharedModuleSpecs {
+  /** Manufacturer name */
+  manufacturer: ExtractedField<string>;
+
+  // Physical
+  /** Module length in mm (longer dimension) */
+  length: ExtractedField<number>;
+  /** Module width in mm (shorter dimension) */
+  width: ExtractedField<number>;
+  /** Module thickness/depth in mm */
+  thickness: ExtractedField<number>;
+  /** Module weight in kg */
+  weight: ExtractedField<number>;
+
+  // Cell Info
+  /** Cell technology type */
+  cellType: ExtractedField<string>;
+  /** Number of cells */
+  cellCount: ExtractedField<number>;
+  /** Whether module is bifacial */
+  bifacial: ExtractedField<boolean>;
+  /** Bifaciality factor (0-1) */
+  bifacialityFactor: ExtractedField<number>;
+
+  // Temperature Coefficients
+  /** Power temperature coefficient in %/°C */
+  tempCoeffPmax: ExtractedField<number>;
+  /** Voltage temperature coefficient in %/°C */
+  tempCoeffVoc: ExtractedField<number>;
+  /** Current temperature coefficient in %/°C */
+  tempCoeffIsc: ExtractedField<number>;
+}
+
+/**
+ * Variant-specific specs for a single model in a module family
+ * These differ between power bins on a spec sheet
+ */
+export interface ModuleVariant {
+  /** Model name/number (e.g., "TSM-490", "TSM-495") */
+  model: ExtractedField<string>;
+  /** Peak power rating in Wp */
+  powerRating: ExtractedField<number>;
+  /** Module efficiency as percentage */
+  efficiency: ExtractedField<number>;
+  /** Open circuit voltage in V */
+  voc: ExtractedField<number>;
+  /** Short circuit current in A */
+  isc: ExtractedField<number>;
+  /** Voltage at maximum power point in V */
+  vmp: ExtractedField<number>;
+  /** Current at maximum power point in A */
+  imp: ExtractedField<number>;
+}
+
+/**
+ * A module family extracted from a spec sheet
+ * Contains shared specs and an array of power variants
+ */
+export interface ExtractedModuleFamily {
+  /** Specs shared across all variants */
+  shared: SharedModuleSpecs;
+  /** Array of power variants */
+  variants: ModuleVariant[];
+}
+
+/**
+ * @deprecated Use ExtractedModuleFamily for multi-model support
+ * Kept for backward compatibility
  */
 export interface ExtractedModuleData {
   /** Manufacturer name */
@@ -39,7 +109,8 @@ export interface ExtractedModuleData {
 }
 
 /**
- * Module specifications with confidence tracking
+ * @deprecated Use SharedModuleSpecs + ModuleVariant for multi-model support
+ * Kept for backward compatibility
  */
 export interface ExtractedModuleSpecs {
   // Electrical (STC) - Required
@@ -104,8 +175,8 @@ export type ParsingStage =
 export interface SpecSheetParseResult {
   /** Whether parsing succeeded */
   success: boolean;
-  /** Extracted data if successful */
-  data?: ExtractedModuleData;
+  /** Extracted module family if successful */
+  data?: ExtractedModuleFamily;
   /** Error message if failed */
   error?: string;
   /** Non-fatal warnings */
