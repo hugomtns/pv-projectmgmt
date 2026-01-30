@@ -37,12 +37,13 @@ export interface PrefilledComponentData {
   // From DXF import
   widthMm?: number | null;
   heightMm?: number | null;
-  // From PAN/OND file import
+  // From PAN/OND file import or spec sheet
   manufacturer?: string;
   model?: string;
   moduleSpecs?: Partial<ModuleSpecs>;
   inverterSpecs?: Partial<InverterSpecs>;
   fromPVsyst?: boolean; // true for both PAN and OND imports
+  fromSpecSheet?: boolean; // true for AI-extracted spec sheet imports
 }
 
 interface ComponentDialogProps {
@@ -57,8 +58,10 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
   const updateComponent = useComponentStore((state) => state.updateComponent);
 
   const isEditing = !!component;
-  const isFromDesign = !!prefilledData && !prefilledData.fromPVsyst;
   const isFromPVsyst = !!prefilledData?.fromPVsyst;
+  const isFromSpecSheet = !!prefilledData?.fromSpecSheet;
+  const isFromAIExtraction = isFromPVsyst || isFromSpecSheet;
+  const isFromDesign = !!prefilledData && !isFromAIExtraction;
   const [componentType, setComponentType] = useState<ComponentType>('module');
   const [manufacturer, setManufacturer] = useState('');
   const [model, setModel] = useState('');
@@ -135,8 +138,8 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
         setLinkedDesigns(prefilledData.linkedDesigns || []);
 
         if (prefilledData.type === 'module') {
-          // If from PAN file, use extracted specs only (no fake defaults)
-          if (prefilledData.fromPVsyst && prefilledData.moduleSpecs) {
+          // If from PAN file or spec sheet, use extracted specs only (no fake defaults)
+          if ((prefilledData.fromPVsyst || prefilledData.fromSpecSheet) && prefilledData.moduleSpecs) {
             const panSpecs = prefilledData.moduleSpecs;
             setModuleSpecs({
               // Required fields - use extracted or 0
@@ -185,7 +188,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           }
         } else {
           // Inverter type
-          if (prefilledData.fromPVsyst && prefilledData.inverterSpecs) {
+          if ((prefilledData.fromPVsyst || prefilledData.fromSpecSheet) && prefilledData.inverterSpecs) {
             const ondSpecs = prefilledData.inverterSpecs;
             setInverterSpecs({
               // Required fields - use extracted or 0
@@ -328,6 +331,8 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           <DialogTitle>
             {isEditing
               ? 'Edit Component'
+              : isFromSpecSheet
+              ? 'Add Module from Spec Sheet'
               : isFromPVsyst
               ? prefilledData?.type === 'module'
                 ? 'Add Module from PAN File'
@@ -339,7 +344,7 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
           <DialogDescription>
             {isEditing
               ? 'Update the component specifications and pricing.'
-              : isFromPVsyst
+              : isFromAIExtraction
               ? 'Review the extracted specifications and adjust if needed.'
               : isFromDesign
               ? 'Enter manufacturer and model. Specifications can be added later.'
@@ -348,12 +353,14 @@ export function ComponentDialog({ open, onOpenChange, component, prefilledData }
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Import from PAN file info */}
-          {isFromPVsyst && (
+          {/* Import from PAN file or spec sheet info */}
+          {isFromAIExtraction && (
             <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
               <Upload className="h-4 w-4 text-green-600" />
               <span className="text-sm">
-                Specifications extracted from PAN file. All fields are editable.
+                {isFromSpecSheet
+                  ? 'Specifications extracted from PDF spec sheet using AI. All fields are editable.'
+                  : 'Specifications extracted from PAN file. All fields are editable.'}
               </span>
             </div>
           )}

@@ -34,12 +34,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Box, Cpu, MoreHorizontal, Pencil, Trash2, Plus, Zap, Upload, FileBox } from 'lucide-react';
+import { Box, Cpu, MoreHorizontal, Pencil, Trash2, Plus, Zap, Upload, FileBox, Sparkles } from 'lucide-react';
 import { ComponentDialog, type PrefilledComponentData } from '@/components/components/ComponentDialog';
 import { ImportFromDesignDialog, type ImportedComponentData } from '@/components/components/ImportFromDesignDialog';
 import { FileImportDialog } from '@/components/components/FileImportDialog';
+import { SpecSheetImportDialog } from '@/components/components/SpecSheetImportDialog';
 import type { ParsedPANData } from '@/lib/pan/parser';
 import type { ParsedONDData } from '@/lib/ond/parser';
+import type { ExtractedModuleData, ExtractedField } from '@/lib/types/specSheetParsing';
 
 type FilterType = 'all' | ComponentType;
 
@@ -59,6 +61,7 @@ export function Components() {
   const [editComponent, setEditComponent] = useState<Component | null>(null);
   const [importFromDesignOpen, setImportFromDesignOpen] = useState(false);
   const [fileImportOpen, setFileImportOpen] = useState(false);
+  const [specSheetDialogOpen, setSpecSheetDialogOpen] = useState(false);
   const [prefilledData, setPrefilledData] = useState<PrefilledComponentData | null>(null);
 
   // Filter components based on selected tab
@@ -136,6 +139,44 @@ export function Components() {
     setCreateDialogOpen(true);
   };
 
+  // Helper to extract value from ExtractedField
+  const extractValue = <T,>(field: ExtractedField<T>): T | undefined => {
+    return field.value !== null ? field.value : undefined;
+  };
+
+  const handleImportFromSpecSheet = (data: ExtractedModuleData) => {
+    // Convert ExtractedModuleData to PrefilledComponentData
+    setPrefilledData({
+      type: 'module',
+      manufacturer: data.manufacturer.value || '',
+      model: data.model.value || '',
+      moduleSpecs: {
+        // Required fields
+        powerRating: extractValue(data.specs.powerRating),
+        voc: extractValue(data.specs.voc),
+        isc: extractValue(data.specs.isc),
+        vmp: extractValue(data.specs.vmp),
+        imp: extractValue(data.specs.imp),
+        efficiency: extractValue(data.specs.efficiency),
+        length: extractValue(data.specs.length),
+        width: extractValue(data.specs.width),
+        // Optional fields
+        thickness: extractValue(data.specs.thickness),
+        weight: extractValue(data.specs.weight),
+        cellType: extractValue(data.specs.cellType),
+        cellCount: extractValue(data.specs.cellCount),
+        bifacial: extractValue(data.specs.bifacial),
+        bifacialityFactor: extractValue(data.specs.bifacialityFactor),
+        tempCoeffPmax: extractValue(data.specs.tempCoeffPmax),
+        tempCoeffVoc: extractValue(data.specs.tempCoeffVoc),
+        tempCoeffIsc: extractValue(data.specs.tempCoeffIsc),
+      },
+      fromSpecSheet: true,
+    });
+    setSpecSheetDialogOpen(false);
+    setCreateDialogOpen(true);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -201,6 +242,10 @@ export function Components() {
               <Button variant="outline" onClick={() => setFileImportOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 PAN/OND
+              </Button>
+              <Button variant="outline" onClick={() => setSpecSheetDialogOpen(true)}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Spec Sheet
               </Button>
               <Button onClick={() => setCreateDialogOpen(true)}>
                 New Component
@@ -419,6 +464,13 @@ export function Components() {
         onOpenChange={setFileImportOpen}
         onImportPAN={handleImportFromPAN}
         onImportOND={handleImportFromOND}
+      />
+
+      {/* Spec Sheet Import Dialog */}
+      <SpecSheetImportDialog
+        open={specSheetDialogOpen}
+        onOpenChange={setSpecSheetDialogOpen}
+        onImport={handleImportFromSpecSheet}
       />
     </div>
   );
