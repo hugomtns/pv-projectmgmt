@@ -77,6 +77,10 @@ export function ProjectFinancialOverview() {
     useDesignFinancialStore.getState().markAsWinner(modelId);
   }, []);
 
+  const handleEditModel = useCallback((modelId: string) => {
+    navigate(`/financials/${projectId}/${modelId}`);
+  }, [navigate, projectId]);
+
   const handleChangeWinner = useCallback(() => {
     // User can change winner via comparison table
     // This is a no-op since winner changes happen through the comparison table
@@ -188,6 +192,7 @@ export function ProjectFinancialOverview() {
             projectId={projectId}
             onViewDesign={handleViewDesign}
             onMarkWinner={handleMarkWinner}
+            onEditModel={handleEditModel}
           />
 
           {/* Empty State - No Models */}

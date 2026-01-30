@@ -98,8 +98,9 @@ export function DesignFinancialModelPage() {
         capex_per_mw: undefined,
         ppa_price: model.ppa_price,
         om_cost_per_mw_year: undefined,
-        capex_items: model.capex,
-        opex_items: model.opex,
+        // TODO: Include BOQ items when integrating BOQ as CAPEX source
+        capex_items: model.additionalCapex || [],
+        opex_items: model.opex || [],
         global_margin: model.global_margin,
         degradation_rate: model.degradation_rate,
         ppa_escalation: model.ppa_escalation,

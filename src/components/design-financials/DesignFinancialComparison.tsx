@@ -24,7 +24,7 @@ import {
   TrendingDown,
   Minus,
   Eye,
-  ExternalLink,
+  Edit,
 } from 'lucide-react';
 import { useDesignFinancialStore } from '@/stores/designFinancialStore';
 import { useDesignStore } from '@/stores/designStore';
@@ -33,6 +33,7 @@ interface DesignFinancialComparisonProps {
   projectId: string;
   onViewDesign?: (designId: string) => void;
   onMarkWinner?: (modelId: string) => void;
+  onEditModel?: (modelId: string) => void;
 }
 
 type SortField =
@@ -49,6 +50,7 @@ export function DesignFinancialComparison({
   projectId,
   onViewDesign,
   onMarkWinner,
+  onEditModel,
 }: DesignFinancialComparisonProps) {
   const [sortField, setSortField] = useState<SortField>('equity_irr');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -106,12 +108,13 @@ export function DesignFinancialComparison({
         bValue = b.results?.key_metrics.min_dscr || 0;
         break;
       case 'total_capex':
-        aValue = a.capex.reduce((sum, item) => sum + item.amount, 0);
-        bValue = b.capex.reduce((sum, item) => sum + item.amount, 0);
+        // TODO: Include BOQ totals when available
+        aValue = (a.additionalCapex || []).reduce((sum, item) => sum + item.amount, 0);
+        bValue = (b.additionalCapex || []).reduce((sum, item) => sum + item.amount, 0);
         break;
       case 'total_opex':
-        aValue = a.opex.reduce((sum, item) => sum + item.amount, 0);
-        bValue = b.opex.reduce((sum, item) => sum + item.amount, 0);
+        aValue = (a.opex || []).reduce((sum, item) => sum + item.amount, 0);
+        bValue = (b.opex || []).reduce((sum, item) => sum + item.amount, 0);
         break;
     }
 
@@ -229,7 +232,8 @@ export function DesignFinancialComparison({
             </TableHeader>
             <TableBody>
               {sortedModels.map((model) => {
-                const totalCapex = model.capex.reduce((sum, item) => sum + item.amount, 0);
+                // TODO: Include BOQ totals when available
+                const totalCapex = (model.additionalCapex || []).reduce((sum, item) => sum + item.amount, 0);
                 const results = model.results;
 
                 return (
@@ -302,10 +306,12 @@ export function DesignFinancialComparison({
                               View Design
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onClick={() => window.open(`/designs/${model.designId}/financial`, '_blank')}>
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Open Financial Model
-                          </DropdownMenuItem>
+                          {onEditModel && (
+                            <DropdownMenuItem onClick={() => onEditModel(model.id)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Financial Model
+                            </DropdownMenuItem>
+                          )}
                           {!model.isWinner && onMarkWinner && (
                             <DropdownMenuItem onClick={() => onMarkWinner(model.id)}>
                               <Trophy className="mr-2 h-4 w-4" />

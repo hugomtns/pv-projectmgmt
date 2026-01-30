@@ -32,7 +32,6 @@ import {
   Plus,
   Trash2,
   Edit,
-  Sparkles,
   Package,
 } from 'lucide-react';
 import { useDesignFinancialStore } from '@/stores/designFinancialStore';
@@ -44,13 +43,15 @@ interface CapexManagerProps {
   readOnly?: boolean;
 }
 
-const CAPEX_CATEGORIES = [
-  'PV Equipment',
-  'Electrical Equipment',
-  'Civil Works',
-  'Mechanical Equipment',
-  'Installation',
-  'Engineering',
+// Categories for additional (non-BOQ) capital costs
+const ADDITIONAL_CAPEX_CATEGORIES = [
+  'Development',
+  'Legal & Permitting',
+  'Grid Connection',
+  'Engineering & Design',
+  'Project Management',
+  'Insurance',
+  'Contingency',
   'Other',
 ];
 
@@ -61,13 +62,13 @@ export function CapexManager({ modelId, readOnly = false }: CapexManagerProps) {
   const [editingItem, setEditingItem] = useState<CostLineItem | null>(null);
 
   const model = useDesignFinancialStore((state) => state.getModelById(modelId));
-  const updateCapex = useDesignFinancialStore((state) => state.updateCapex);
+  const updateAdditionalCapex = useDesignFinancialStore((state) => state.updateAdditionalCapex);
 
-  const capexItems = model?.capex || [];
+  const additionalCapexItems = model?.additionalCapex || [];
   const globalMargin = model?.global_margin || 0;
 
-  const totalCapex = capexItems.reduce((sum, item) => sum + item.amount, 0);
-  const totalWithMargin = totalCapex * (1 + globalMargin);
+  const totalAdditionalCapex = additionalCapexItems.reduce((sum, item) => sum + item.amount, 0);
+  const totalWithMargin = totalAdditionalCapex * (1 + globalMargin);
 
   const handleAddItem = (item: Omit<CostLineItem, 'id' | 'amount'>) => {
     const amount = (item.unit_price || 0) * (item.quantity || 1);
@@ -80,9 +81,9 @@ export function CapexManager({ modelId, readOnly = false }: CapexManagerProps) {
       source: 'manual',
     };
 
-    updateCapex(modelId, [...capexItems, newItem]);
+    updateAdditionalCapex(modelId, [...additionalCapexItems, newItem]);
     setAddDialogOpen(false);
-    toast.success('CAPEX item added');
+    toast.success('cost item added');
   };
 
   const handleUpdateItem = (updatedItem: CostLineItem) => {
@@ -94,24 +95,19 @@ export function CapexManager({ modelId, readOnly = false }: CapexManagerProps) {
       amount,
     };
 
-    const newCapex = capexItems.map((item) =>
+    const newCapex = additionalCapexItems.map((item) =>
       item.id === updated.id ? updated : item
     );
 
-    updateCapex(modelId, newCapex);
+    updateAdditionalCapex(modelId, newCapex);
     setEditingItem(null);
-    toast.success('CAPEX item updated');
+    toast.success('cost item updated');
   };
 
   const handleDeleteItem = (itemId: string) => {
-    const newCapex = capexItems.filter((item) => item.id !== itemId);
-    updateCapex(modelId, newCapex);
-    toast.success('CAPEX item deleted');
-  };
-
-  const handleGenerateFromDXF = async () => {
-    toast.info('DXF component extraction - Coming soon in Phase 4');
-    // This will be implemented when we integrate with DXF parsing
+    const newCapex = additionalCapexItems.filter((item) => item.id !== itemId);
+    updateAdditionalCapex(modelId, newCapex);
+    toast.success('cost item deleted');
   };
 
   const formatCurrency = (value: number): string => {
@@ -143,17 +139,9 @@ export function CapexManager({ modelId, readOnly = false }: CapexManagerProps) {
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">CAPEX Summary</CardTitle>
+            <CardTitle className="text-base">Additional Capital Costs</CardTitle>
             {!readOnly && (
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateFromDXF}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate from DXF
-                </Button>
                 <Button
                   size="sm"
                   onClick={() => setAddDialogOpen(true)}
@@ -169,12 +157,12 @@ export function CapexManager({ modelId, readOnly = false }: CapexManagerProps) {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Items</p>
-              <p className="text-2xl font-bold">{capexItems.length}</p>
+              <p className="text-2xl font-bold">{additionalCapexItems.length}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Base CAPEX</p>
+              <p className="text-sm text-muted-foreground">Additional Costs</p>
               <p className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalCapex)}
+                {formatCurrency(totalAdditionalCapex)}
               </p>
             </div>
             <div>
@@ -192,15 +180,15 @@ export function CapexManager({ modelId, readOnly = false }: CapexManagerProps) {
       {/* Items Table */}
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-base">CAPEX Items</CardTitle>
+          <CardTitle className="text-base">Cost Items</CardTitle>
         </CardHeader>
         <CardContent>
-          {capexItems.length === 0 ? (
+          {additionalCapexItems.length === 0 ? (
             <div className="text-center py-12">
               <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <h3 className="text-lg font-medium mb-2">No CAPEX Items</h3>
+              <h3 className="text-lg font-medium mb-2">No Additional Costs</h3>
               <p className="text-muted-foreground mb-4">
-                Add items manually or generate from DXF design
+                Add development, permitting, and other non-equipment costs
               </p>
               {!readOnly && (
                 <Button onClick={() => setAddDialogOpen(true)}>
@@ -224,7 +212,7 @@ export function CapexManager({ modelId, readOnly = false }: CapexManagerProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {capexItems.map((item) => (
+                  {additionalCapexItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
@@ -345,8 +333,8 @@ function ItemDialog({ open, onOpenChange, item, onSave }: ItemDialogProps) {
           <DialogTitle>{item ? 'Edit' : 'Add'} CAPEX Item</DialogTitle>
           <DialogDescription>
             {item
-              ? 'Update the CAPEX item details below.'
-              : 'Add a new CAPEX item to the financial model.'}
+              ? 'Update the cost item details below.'
+              : 'Add a new cost item to the financial model.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -373,7 +361,7 @@ function ItemDialog({ open, onOpenChange, item, onSave }: ItemDialogProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CAPEX_CATEGORIES.map((cat) => (
+                    {ADDITIONAL_CAPEX_CATEGORIES.map((cat) => (
                       <SelectItem key={cat} value={cat}>
                         {cat}
                       </SelectItem>

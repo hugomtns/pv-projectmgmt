@@ -109,12 +109,12 @@ export function WinnerCard({ projectId, onViewDetails, onChangeWinner }: WinnerC
               <p className="font-semibold">{winnerModel.p50_year_0_yield.toLocaleString()} MWh</p>
             </div>
             <div>
-              <p className="text-muted-foreground">CAPEX Items:</p>
-              <p className="font-semibold">{winnerModel.capex.length}</p>
+              <p className="text-muted-foreground">Additional Costs:</p>
+              <p className="font-semibold">{(winnerModel.additionalCapex || []).length}</p>
             </div>
             <div>
               <p className="text-muted-foreground">OPEX Items:</p>
-              <p className="font-semibold">{winnerModel.opex.length}</p>
+              <p className="font-semibold">{(winnerModel.opex || []).length}</p>
             </div>
           </div>
         </div>

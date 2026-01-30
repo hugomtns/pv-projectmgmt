@@ -266,9 +266,7 @@ function extractMigrationData(
 
         case 'create_empty_all': {
           projectDesigns.forEach((design) => {
-            const boq = boqsByDesign.get(design.id);
-            const capexFromBOQ = boq ? convertBOQItemsToCAPEX(boq) : [];
-
+            // BOQ is now the source of equipment CAPEX; additionalCapex is for non-equipment costs
             const newModel: DesignFinancialModel = {
               designId: design.id,
               projectId: oldModel.projectId,
@@ -276,7 +274,7 @@ function extractMigrationData(
               capacity: oldModel.inputs.capacity,
               p50_year_0_yield: oldModel.inputs.p50_year_0_yield,
               ppa_price: oldModel.inputs.ppa_price,
-              capex: capexFromBOQ,
+              additionalCapex: [], // Equipment costs come from BOQ
               opex: [],
               global_margin: 0,
               degradation_rate: oldModel.inputs.degradation_rate,
@@ -307,7 +305,7 @@ function extractMigrationData(
     }
   });
 
-  // Process standalone BOQs
+  // Process standalone BOQs - create empty financial models (BOQ is the CAPEX source)
   boqs.forEach((boq) => {
     const design = designs.find((d) => d.id === boq.designId);
     if (!design) return;
@@ -315,9 +313,9 @@ function extractMigrationData(
     const alreadyMigrated = newDesignModels.some((m) => m.designId === design.id);
     if (alreadyMigrated) return;
 
-    const capexFromBOQ = convertBOQItemsToCAPEX(boq);
     const projectSettings = newProjectSettings.find((s) => s.projectId === design.projectId);
 
+    // BOQ is the source of equipment CAPEX; additionalCapex is for non-equipment costs
     const newModel: DesignFinancialModel = {
       id: crypto.randomUUID(),
       designId: design.id,
@@ -326,7 +324,7 @@ function extractMigrationData(
       capacity: 100,
       p50_year_0_yield: 192_640,
       ppa_price: 65,
-      capex: capexFromBOQ,
+      additionalCapex: [], // Equipment costs come from BOQ
       opex: [],
       global_margin: 0,
       ...(projectSettings?.defaultAssumptions || DEFAULT_FINANCIAL_ASSUMPTIONS),

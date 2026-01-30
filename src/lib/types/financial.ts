@@ -203,8 +203,9 @@ export interface DesignFinancialModel {
   p50_year_0_yield: number;   // MWh - Year 0/Year 1 energy production
   ppa_price: number;          // $/MWh
 
-  // CAPEX line items (replaces/merges BOQ functionality)
-  capex: CostLineItem[];
+  // Additional CAPEX line items (financial-only costs not in BOQ)
+  // Equipment costs come from BOQ; these are for: development, legal, permits, contingency, etc.
+  additionalCapex: CostLineItem[];
   global_margin: number;      // CAPEX margin percentage
 
   // OPEX line items (design-specific operating costs)

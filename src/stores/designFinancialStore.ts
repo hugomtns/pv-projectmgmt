@@ -33,7 +33,7 @@ interface DesignFinancialState {
   deleteModel: (id: string) => void;
 
   // Specific Update Actions
-  updateCapex: (id: string, capex: CostLineItem[]) => void;
+  updateAdditionalCapex: (id: string, additionalCapex: CostLineItem[]) => void;
   updateOpex: (id: string, opex: CostLineItem[]) => void;
   updateFinancing: (id: string, financing: Partial<FinancingParameters>) => void;
   updateResults: (id: string, results: ProjectResults) => void;
@@ -118,7 +118,7 @@ export const useDesignFinancialStore = create<DesignFinancialState>()(
           ppa_price: 65, // $/MWh
 
           // Cost line items
-          capex: [],
+          additionalCapex: [], // Financial-only costs (dev, legal, permits); equipment costs come from BOQ
           opex: [],
           global_margin: 0,
 
@@ -247,12 +247,12 @@ export const useDesignFinancialStore = create<DesignFinancialState>()(
         toast.success('Financial model deleted');
       },
 
-      updateCapex: (id, capex) => {
+      updateAdditionalCapex: (id, additionalCapex) => {
         const userState = useUserStore.getState();
         const currentUser = userState.currentUser;
 
         if (!currentUser) {
-          toast.error('You must be logged in to update CAPEX');
+          toast.error('You must be logged in to update additional CAPEX');
           return;
         }
 
@@ -283,7 +283,7 @@ export const useDesignFinancialStore = create<DesignFinancialState>()(
             m.id === id
               ? {
                   ...m,
-                  capex,
+                  additionalCapex,
                   results: undefined, // Clear cached results when CAPEX changes
                   updatedAt: new Date().toISOString(),
                 }
@@ -292,8 +292,8 @@ export const useDesignFinancialStore = create<DesignFinancialState>()(
         }));
 
         logAdminAction('update', 'financials', id, model.name, {
-          action: 'update_capex',
-          capexItems: capex.length,
+          action: 'update_additional_capex',
+          additionalCapexItems: additionalCapex.length,
         });
       },
 

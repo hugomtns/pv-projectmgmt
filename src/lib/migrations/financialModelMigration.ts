@@ -196,8 +196,11 @@ export function convertFinancialModelToDesign(
     p50_year_0_yield: inputs.p50_year_0_yield,
     ppa_price: inputs.ppa_price,
 
-    // CAPEX: Use existing BOQ-converted items or old capex_items
-    capex: existingCAPEX || inputs.capex_items.filter((item) => item.is_capex),
+    // Additional CAPEX: Non-equipment costs (equipment costs now come from BOQ)
+    // If BOQ exists, only migrate manual items; otherwise migrate all old items
+    additionalCapex: existingCAPEX
+      ? inputs.capex_items.filter((item) => item.is_capex && item.source === 'manual')
+      : inputs.capex_items.filter((item) => item.is_capex),
     global_margin: inputs.global_margin,
 
     // OPEX: Use old opex_items
@@ -443,10 +446,9 @@ export function migrateFinancialData(
         }
 
         case 'create_empty_all': {
-          // Create empty models for all designs (with BOQ if exists)
+          // Create empty models for all designs (BOQ is now source of equipment CAPEX)
           projectDesigns.forEach((design) => {
             const boq = boqsByDesign.get(design.id);
-            const capexFromBOQ = boq ? convertBOQItemsToCAPEX(boq) : [];
 
             const newModel: DesignFinancialModel = {
               designId: design.id,
@@ -455,7 +457,7 @@ export function migrateFinancialData(
               capacity: oldModel.inputs.capacity,
               p50_year_0_yield: oldModel.inputs.p50_year_0_yield,
               ppa_price: oldModel.inputs.ppa_price,
-              capex: capexFromBOQ,
+              additionalCapex: [], // Equipment costs come from BOQ
               opex: [],
               global_margin: 0,
               degradation_rate: oldModel.inputs.degradation_rate,
@@ -511,13 +513,13 @@ export function migrateFinancialData(
     const alreadyMigrated = newDesignModels.some((m) => m.designId === design.id);
     if (alreadyMigrated) return;
 
-    // Create design financial model from BOQ alone
-    const capexFromBOQ = convertBOQItemsToCAPEX(boq);
+    // Create design financial model for design with BOQ
+    // BOQ is now the source of equipment CAPEX; additionalCapex is for non-equipment costs
 
     // Get project settings if they exist
     const projectSettings = newProjectSettings.find((s) => s.projectId === design.projectId);
 
-    // Create minimal model with BOQ as CAPEX
+    // Create minimal model (equipment costs come from BOQ)
     const newModel: DesignFinancialModel = {
       id: crypto.randomUUID(),
       designId: design.id,
@@ -526,7 +528,7 @@ export function migrateFinancialData(
       capacity: 100, // Default
       p50_year_0_yield: 192_640, // Default (100 MW × 0.22 CF × 8760)
       ppa_price: 65, // Default
-      capex: capexFromBOQ,
+      additionalCapex: [], // Equipment costs come from BOQ
       opex: [],
       global_margin: 0,
       ...(projectSettings?.defaultAssumptions || {
@@ -570,7 +572,7 @@ export function migrateFinancialData(
 export function validateMigration(
   newDesignModels: DesignFinancialModel[],
   oldModels: FinancialModel[],
-  boqs: BOQ[]
+  _boqs: BOQ[] // Kept for API compatibility; BOQ is now separate from financial model
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -606,19 +608,13 @@ export function validateMigration(
     }
   });
 
-  // Check 4: CAPEX totals match (if model came from BOQ)
-  // This is a warning, not an error, as CAPEX can be modified
+  // Check 4: Additional CAPEX validation
+  // Note: Equipment CAPEX now comes from BOQ, additionalCapex is for non-equipment costs
   newDesignModels.forEach((model) => {
-    const matchingBOQ = boqs.find((boq) => boq.designId === model.designId);
-    if (matchingBOQ && model.capex.length > 0) {
-      const capexTotal = model.capex.reduce((sum, item) => sum + item.amount, 0);
-      const boqTotal = matchingBOQ.totalValue;
-      const diff = Math.abs(capexTotal - boqTotal);
-
-      if (diff > 1) { // Allow for rounding
-        warnings.push(
-          `Model "${model.name}" CAPEX total (${capexTotal}) differs from BOQ "${matchingBOQ.name}" total (${boqTotal})`
-        );
+    if (model.additionalCapex.length > 0) {
+      const additionalTotal = model.additionalCapex.reduce((sum, item) => sum + item.amount, 0);
+      if (additionalTotal < 0) {
+        warnings.push(`Model "${model.name}" has negative additional CAPEX total (${additionalTotal})`);
       }
     }
   });

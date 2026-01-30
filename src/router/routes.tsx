@@ -8,7 +8,8 @@ import SiteDetailPage from '@/pages/SiteDetailPage';
 import { Financials } from '@/pages/Financials';
 import { FinancialModelPage } from '@/pages/FinancialModelPage';
 import { ProjectFinancialOverview } from '@/pages/ProjectFinancialOverview';
-import { DesignFinancialModelPage } from '@/pages/DesignFinancialModelPage';
+import { FinancialModelEditorPage } from '@/pages/FinancialModelEditorPage';
+import { LegacyFinancialRedirect } from '@/pages/LegacyFinancialRedirect';
 import { Components } from '@/pages/Components';
 import { WorkflowSettings } from '@/pages/WorkflowSettings';
 import { Users } from '@/pages/Users';
@@ -26,11 +27,12 @@ export const router = createBrowserRouter([
       { path: 'projects', element: <Projects /> },
       { path: 'projects/:projectId', element: <ProjectDetailPage /> },
       { path: 'designs/:designId', element: <DesignDetailPage /> },
-      { path: 'designs/:designId/financial', element: <DesignFinancialModelPage /> },
+      { path: 'designs/:designId/financial', element: <LegacyFinancialRedirect /> },
       { path: 'documents/:documentId', element: <DocumentViewerPage /> },
       { path: 'sites/:siteId', element: <SiteDetailPage /> },
       { path: 'financials', element: <Financials /> },
       { path: 'financials/:projectId', element: <ProjectFinancialOverview /> },
+      { path: 'financials/:projectId/:modelId', element: <FinancialModelEditorPage /> },
       { path: 'financials-old/:projectId', element: <FinancialModelPage /> },
       { path: 'components', element: <Components /> },
       { path: 'workflow', element: <WorkflowSettings /> },
