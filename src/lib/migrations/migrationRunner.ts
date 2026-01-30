@@ -14,6 +14,8 @@ import {
   validateMigration,
   detectMigrationConflicts,
   getMigrationStats,
+  convertBOQItemsToCAPEX,
+  convertFinancialModelToDesign,
   type ConflictResolution,
   type MigrationResult,
   type MigrationStats,
@@ -151,9 +153,6 @@ function extractMigrationData(
 } {
   const newDesignModels: DesignFinancialModel[] = [];
   const newProjectSettings: ProjectFinancialSettings[] = [];
-
-  // Import conversion functions
-  const { convertBOQItemsToCAPEX, convertFinancialModelToDesign } = require('./financialModelMigration');
 
   // Group BOQs by designId
   const boqsByDesign = new Map<string, BOQ>();
