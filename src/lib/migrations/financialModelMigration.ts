@@ -35,6 +35,7 @@ export interface MigrationConflict {
 
 export type ConflictResolutionStrategy =
   | 'assign_to_first'      // Assign model to first design, create empty for others
+  | 'assign_to_specific'   // Assign model to specific design
   | 'duplicate_to_all'     // Duplicate model to all designs
   | 'create_empty_all'     // Create empty models for all designs
   | 'skip';                // Skip this conflict
@@ -43,6 +44,7 @@ export interface ConflictResolution {
   conflictType: MigrationConflictType;
   projectId: string;
   strategy: ConflictResolutionStrategy;
+  designId?: string;       // For 'assign_to_specific' strategy
 }
 
 export interface MigrationResult {

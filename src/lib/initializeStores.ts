@@ -6,6 +6,10 @@ import { useDocumentStore } from '@/stores/documentStore';
 import { useDisplayStore } from '@/stores/displayStore';
 import { useSiteStore } from '@/stores/siteStore';
 import { useEquipmentStore } from '@/stores/equipmentStore';
+import { useFinancialStore } from '@/stores/financialStore';
+import { useBOQStore } from '@/stores/boqStore';
+import { useDesignFinancialStore } from '@/stores/designFinancialStore';
+import { useProjectFinancialSettingsStore } from '@/stores/projectFinancialSettingsStore';
 import { defaultWorkflow, mockProjects } from '@/data/seedData';
 import { seedUsers, seedGroups, seedRoles } from '@/data/seedUserData';
 import { toast } from 'sonner';
@@ -27,6 +31,47 @@ function createSeededProjects(): Project[] {
 
 // Data version - increment this to force a data refresh
 const DATA_VERSION = 10;
+
+/**
+ * Check if financial data migration is needed
+ * Returns information about old data that needs migration
+ */
+export function checkFinancialMigrationNeeded(): {
+  needed: boolean;
+  oldModelsCount: number;
+  oldBoqsCount: number;
+  hasMigratedData: boolean;
+} {
+  const oldModels = useFinancialStore.getState().financialModels || [];
+  const boqs = useBOQStore.getState().boqs || [];
+  const newModels = useDesignFinancialStore.getState().designFinancialModels || [];
+  const settings = useProjectFinancialSettingsStore.getState().settings || [];
+
+  // Check if migration has already been completed
+  const migrationCompleted = localStorage.getItem('financial-migration-completed') === 'true';
+  const hasMigratedData = newModels.length > 0 || settings.length > 0;
+
+  // Migration is needed if:
+  // 1. There is old data (models or BOQs)
+  // 2. Migration hasn't been marked as complete
+  const needed = !migrationCompleted && (oldModels.length > 0 || boqs.length > 0);
+
+  return {
+    needed,
+    oldModelsCount: oldModels.length,
+    oldBoqsCount: boqs.length,
+    hasMigratedData,
+  };
+}
+
+/**
+ * Mark financial migration as completed
+ * Called after successful migration
+ */
+export function markFinancialMigrationCompleted() {
+  localStorage.setItem('financial-migration-completed', 'true');
+  console.log('✓ Financial migration marked as completed');
+}
 
 /**
  * Migrate old task data structure from 'name' to 'title' field
