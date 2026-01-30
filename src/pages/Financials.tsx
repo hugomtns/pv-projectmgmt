@@ -87,7 +87,6 @@ export function Financials() {
 
   const handleDismissMigration = useCallback(() => {
     // User dismissed the banner - they can see it again on next visit
-    console.log('Migration banner dismissed');
   }, []);
 
   const handleMigrationComplete = useCallback(() => {

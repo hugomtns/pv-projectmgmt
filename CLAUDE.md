@@ -77,12 +77,27 @@ The application uses several Zustand stores with localStorage persistence:
    - Permission checks: only creator or admin can update/delete
    - Storage key: `design-storage`
 
-6. **financialStore** (`src/stores/financialStore.ts`)
-   - Manages financial models linked to projects (one model per project)
-   - Stores inputs (capacity, PPA price, CapEx/OpEx items, financing parameters) and cached calculation results
-   - Supports detailed cost line items for CapEx and OpEx with margin calculations
-   - Permission checks: admins can update/delete any, users only their own models
-   - Storage key: `financial-storage`
+6. **Design-Level Financial System** (NEW ARCHITECTURE)
+   - **designFinancialStore** (`src/stores/designFinancialStore.ts`)
+     - Manages financial models at the design level (multiple models per project)
+     - Each design can have ONE financial model; projects can have MANY designs with models
+     - Features: CAPEX/OPEX tracking, NPV/IRR calculations, winner selection, sensitivity analysis
+     - Winner selection: One model per project can be marked as winner for comparison
+     - Storage key: `design-financial-storage`
+
+   - **projectFinancialSettingsStore** (`src/stores/projectFinancialSettingsStore.ts`)
+     - Manages project-level financial assumptions and settings
+     - One settings object per project; shared across all design financial models
+     - Settings: discount rate, financing terms, tax rates, inflation assumptions
+     - Auto-created during migration or when first design model is created
+     - Storage key: `project-financial-settings-storage`
+
+   - **financialStore** (`src/stores/financialStore.ts`) - DEPRECATED
+     - Legacy project-level financial models (one per project)
+     - Maintained for backward compatibility and migration
+     - New projects should use designFinancialStore instead
+     - Migration utility available to convert old models to design-level
+     - Storage key: `financial-storage`
 
 7. **componentStore** (`src/stores/componentStore.ts`)
    - Manages PV module and inverter specifications library
@@ -132,6 +147,40 @@ Projects have an optional NTP checklist (`project.ntpChecklist`) for tracking du
 - **Store actions**: `initializeNtpChecklist`, `addNtpChecklistItem`, `updateNtpChecklistItem`, `deleteNtpChecklistItem`, `toggleNtpChecklistItemStatus`
 - **Types**: `src/lib/types/ntpChecklist.ts`
 - **Components**: `src/components/ntp-checklist/`
+
+### Financial Data Migration
+
+The application supports migration from the legacy project-level financial system to the new design-level architecture:
+
+- **Migration Components** (`src/components/migration/`)
+  - **FinancialMigrationBanner**: Alert banner shown when old financial data is detected
+  - **FinancialMigrationDialog**: 4-step migration wizard (preview → conflicts → migrating → complete)
+  - **ConflictResolutionDialog**: Interactive conflict resolution for edge cases
+
+- **Migration Utility** (`src/lib/migrations/financialModelMigration.ts`)
+  - `previewMigration()`: Analyzes old data and identifies conflicts
+  - `runMigration()`: Executes migration with conflict resolutions
+  - Handles conflicts: multiple designs per project, orphan models, orphan BOQs
+
+- **Conflict Resolution Strategies**:
+  - `assign_to_first`: Assign to first design, create empty for others
+  - `assign_to_specific`: User selects target design
+  - `duplicate_to_all`: Clone model for each design
+  - `create_empty_all`: Skip model, create empty for all
+  - `skip`: Preserve original data, skip migration
+
+- **Migration Flow**:
+  1. Old data detected on financial pages → banner shown
+  2. User clicks "Start Migration" → preview dialog with stats
+  3. If conflicts exist → step-by-step resolution wizard
+  4. Migration executes → creates design models + project settings
+  5. Success/error summary → completion marked in localStorage
+  6. Original data preserved for rollback capability
+
+- **Migration Detection**: `checkFinancialMigrationNeeded()` in `src/lib/initializeStores.ts`
+  - Checks for old financial models and BOQs
+  - Verifies migration not previously completed
+  - Returns counts and migration status
 
 ### Key Architecture Patterns
 
@@ -189,7 +238,13 @@ Projects have an optional NTP checklist (`project.ntpChecklist`) for tracking du
 **Routing:**
 - Uses `react-router-dom` with centralized route definitions in `src/router/routes.tsx`
 - `RootLayout` wraps all pages with `AppShell` for consistent navigation
-- Detail pages use URL params: `/projects/:projectId`, `/designs/:designId`, `/documents/:documentId`, `/financials/:projectId`
+- Detail pages use URL params:
+  - `/projects/:projectId` - Project detail page
+  - `/designs/:designId` - Design detail with financial tab
+  - `/documents/:documentId` - Document viewer
+  - `/financials` - All projects financial overview (NEW)
+  - `/financials/:projectId` - Project financial overview (NEW)
+- Design financial models accessed via `/designs/:designId?tab=financial` (NEW)
 
 **Keyboard Shortcuts:**
 - Custom hook `useKeyboardShortcuts` supports both single keys and sequences
@@ -208,23 +263,41 @@ Projects have an optional NTP checklist (`project.ntpChecklist`) for tracking du
 
 ```
 components/
-├── layout/          # AppShell, Header, Sidebar, LoadingScreen
-├── projects/        # Project views (List, Board, Card, Detail, Filters)
-├── tasks/           # Task management (TaskList, TaskItem, TaskDetail)
-├── workflow/        # Workflow editor (StageCard, StageEditor)
-├── documents/       # Document viewer, upload, comments, version control
-├── designs/         # Design viewer, upload, comments, version control
-├── components/      # PV component library (ComponentDialog, FileImportDialog)
-├── financials/      # Financial model editor, charts, reports
-├── ntp-checklist/   # NTP checklist management (AddNtpItemDialog, NtpChecklistSection)
-└── ui/              # shadcn/ui components
+├── layout/            # AppShell, Header, Sidebar, LoadingScreen
+├── projects/          # Project views (List, Board, Card, Detail, Filters)
+├── tasks/             # Task management (TaskList, TaskItem, TaskDetail)
+├── workflow/          # Workflow editor (StageCard, StageEditor)
+├── documents/         # Document viewer, upload, comments, version control
+├── designs/           # Design viewer, upload, comments, version control
+├── components/        # PV component library (ComponentDialog, FileImportDialog)
+├── financials/        # Legacy financial model editor (DEPRECATED)
+├── design-financials/ # Design-level financial components (NEW)
+│   ├── WinnerCard.tsx                       # Winner model display
+│   ├── DesignFinancialComparison.tsx        # Multi-model comparison table
+│   ├── DesignFinancialModelEditor.tsx       # CAPEX/OPEX line item editor
+│   ├── ProjectFinancialSettingsDialog.tsx   # Project settings editor
+│   └── FinancialCalculations.tsx            # NPV/IRR display
+├── migration/         # Financial migration UI
+│   ├── FinancialMigrationBanner.tsx         # Migration alert banner
+│   ├── FinancialMigrationDialog.tsx         # Migration wizard
+│   └── ConflictResolutionDialog.tsx         # Conflict resolution UI
+├── ntp-checklist/     # NTP checklist management (AddNtpItemDialog, NtpChecklistSection)
+└── ui/                # shadcn/ui components
 ```
 
 ### Types & Constants
 
 - **src/lib/types.ts** - Core types: `Project`, `Task`, `Stage`, `Workflow`, `Priority` (0-4), `TaskStatus`, `Document`, `Design`
 - **src/lib/types/document.ts** - Document types: `DocumentVersion`, `DocumentComment`, `Drawing`, `WorkflowEvent`, `LocationAnchor`, `DocumentStatus`
-- **src/lib/types/financial.ts** - Financial types: `FinancialModel`, `FinancialInputs`, `ProjectResults`, `CostLineItem`
+- **src/lib/types/financial.ts** - Legacy financial types (DEPRECATED): `FinancialModel`, `FinancialInputs`, `ProjectResults`, `CostLineItem`
+- **src/lib/types/designFinancial.ts** - Design-level financial types (NEW):
+  - `DesignFinancialModel`: Financial model scoped to a design
+  - `ProjectFinancialSettings`: Project-wide financial assumptions
+  - `FinancialResults`: NPV, IRR, payback period calculations
+  - `CapexLineItem`, `OpexLineItem`: Cost line items with quantities and margins
+- **src/lib/types/migration.ts** - Migration types:
+  - `MigrationConflict`, `MigrationStats`, `ConflictResolution`
+  - `MigrationOutput`: Results of migration execution
 - **src/lib/types/component.ts** - Component types: `Component`, `ModuleSpecs`, `InverterSpecs`, `DesignUsage`
 - **src/lib/types/ntpChecklist.ts** - NTP types: `NtpChecklist`, `NtpChecklistItem`, `NtpCategory`
 - **src/lib/types/boq.ts** - BOQ types: `BOQ`, `BOQItem`, `BOQGenerationOptions`
@@ -252,6 +325,17 @@ Workflow stages define templates. When a project enters a stage, templates becom
 **Document Locking:**
 Documents can be locked by users to prevent concurrent edits. Only the user who locked the document or an admin can unlock it. Admins can upload new versions to locked documents, but other users cannot.
 
+**Design-Level Financial Architecture:**
+The application uses a new design-level financial system (replacing the legacy project-level system):
+
+- **One model per design**: Each design can have ONE financial model with CAPEX/OPEX tracking
+- **Multiple models per project**: Projects can have MANY designs, each with their own financial model
+- **Winner selection**: One model per project can be marked as the "winner" for comparison and reporting
+- **Project-wide settings**: Financial assumptions (discount rate, tax rates, etc.) are shared across all design models in a project
+- **Migration path**: Legacy project-level models can be migrated to design-level via interactive wizard
+- **Conflict resolution**: Migration handles edge cases (multiple designs, orphan data) through user prompts
+- **Backward compatibility**: Old financial data is preserved during migration for rollback capability
+
 **Path Aliases:**
 `@/` resolves to `src/` (configured in `vite.config.ts` and `tsconfig.app.json`)
 
@@ -274,10 +358,19 @@ App shows a loading screen for 300ms on mount to ensure Zustand persistence has 
 - `src/pages/Projects.tsx` - Main project page with keyboard shortcuts
 - `src/pages/DocumentViewerPage.tsx` - Document viewer with annotations
 - `src/pages/DesignDetailPage.tsx` - Design viewer with comments
-- `src/stores/financialStore.ts` - Financial model state and calculations
+- `src/pages/Financials.tsx` - All projects financial overview (NEW)
+- `src/pages/ProjectFinancialOverview.tsx` - Project-specific financial overview (NEW)
+- `src/pages/DesignFinancialModelPage.tsx` - Design financial model editor (NEW)
+- `src/stores/designFinancialStore.ts` - Design-level financial model state (NEW)
+- `src/stores/projectFinancialSettingsStore.ts` - Project financial settings state (NEW)
+- `src/stores/financialStore.ts` - Legacy financial model state (DEPRECATED)
 - `src/stores/componentStore.ts` - PV module and inverter library
-- `src/lib/types/financial.ts` - Financial types and defaults
+- `src/lib/types/designFinancial.ts` - Design financial types (NEW)
+- `src/lib/types/migration.ts` - Migration types (NEW)
+- `src/lib/types/financial.ts` - Legacy financial types (DEPRECATED)
 - `src/lib/types/component.ts` - Module and inverter spec types
+- `src/lib/migrations/financialModelMigration.ts` - Financial migration utility (NEW)
+- `src/components/migration/` - Migration UI components (NEW)
 - `src/lib/dxf/componentExtractor.ts` - Extract component data from DXF designs
 - `src/lib/pan/parser.ts` - PVsyst PAN file parser (modules)
 - `src/lib/ond/parser.ts` - PVsyst OND file parser (inverters)
