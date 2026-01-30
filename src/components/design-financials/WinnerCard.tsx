@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +13,11 @@ interface WinnerCardProps {
 }
 
 export function WinnerCard({ projectId, onViewDetails, onChangeWinner }: WinnerCardProps) {
-  const winnerModel = useDesignFinancialStore((state) =>
-    state.getWinnerModelByProject(projectId)
+  // Memoize to prevent infinite loops
+  const allModels = useDesignFinancialStore((state) => state.designFinancialModels);
+  const winnerModel = useMemo(
+    () => allModels.find((m) => m.projectId === projectId && m.isWinner),
+    [allModels, projectId]
   );
   const designs = useDesignStore((state) => state.designs);
 

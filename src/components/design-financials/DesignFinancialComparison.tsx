@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,7 +53,12 @@ export function DesignFinancialComparison({
   const [sortField, setSortField] = useState<SortField>('equity_irr');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  const models = useDesignFinancialStore((state) => state.getModelsByProject(projectId));
+  // Memoize to prevent infinite loops
+  const allModels = useDesignFinancialStore((state) => state.designFinancialModels);
+  const models = useMemo(
+    () => allModels.filter((m) => m.projectId === projectId),
+    [allModels, projectId]
+  );
   const designs = useDesignStore((state) => state.designs);
 
   if (models.length === 0) {

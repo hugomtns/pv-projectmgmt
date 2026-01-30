@@ -18,7 +18,6 @@
       "Bash(npm run test:*)",
       "Bash(npm run dev:*)",
       "mcp__shadcn__getComponent",
-      "Bash(Progress\", and \"Complete\". Each status option displays with a visual\nindicator \\(gray ○, blue •, green ✓\\) for clear identification.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(npx shadcn@latest add:*)",
       "Skill(shadcn-ui)",
       "Bash(ls:*)",
@@ -50,18 +49,12 @@
       "mcp__shadcn__get_add_command_for_items",
       "mcp__ide__getDiagnostics",
       "Bash(git pull:*)",
-      "Bash(for file in *.kml)",
-      "Bash(do)",
-      "Bash(echo:*)",
-      "Bash(done)",
       "Bash(git fetch:*)",
-      "Bash(for branch in feature/comment-tasks feature/digital-twin feature/asset-management feature/boq feature/on-site-inspections)",
-      "Bash(do echo \"=== $branch vs master ===\")",
       "Bash(npm run lint:*)"
     ]
   },
   "enabledMcpjsonServers": [
-    "filesystem",
     "shadcn"
-  ]
+  ],
+  "enableAllProjectMcpServers": true
 }

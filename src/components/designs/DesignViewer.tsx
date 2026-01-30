@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db, getBlob } from '@/lib/db';
 import { blobCache } from '@/lib/blobCache';
 import { useDesignStore } from '@/stores/designStore';
+import { useDesignFinancialStore } from '@/stores/designFinancialStore';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { DesignCommentPanel } from './DesignCommentPanel';
 import { DesignVersionHistory } from './DesignVersionHistory';
 import { DesignWorkflowActions } from './DesignWorkflowActions';
@@ -30,6 +33,8 @@ import {
     ClipboardList,
     Sun,
     Radio,
+    TrendingUp,
+    Trophy,
 } from 'lucide-react';
 
 interface DesignViewerProps {
@@ -42,6 +47,7 @@ interface DesignViewerProps {
 }
 
 export function DesignViewer({ designId, onClose, initialHighlightCommentId, initialCommentTab }: DesignViewerProps) {
+    const navigate = useNavigate();
     const designs = useDesignStore((state) => state.designs);
     const addVersion = useDesignStore((state) => state.addVersion);
     const updateDesign = useDesignStore((state) => state.updateDesign);
@@ -49,6 +55,11 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
 
     const design = designs.find((d) => d.id === designId);
     const versionId = design?.currentVersionId;
+
+    // Get financial model for this design
+    const financialModel = useDesignFinancialStore((state) =>
+        state.getModelByDesign(designId)
+    );
 
     // For generated layouts without uploaded files, use a synthetic version ID
     const effectiveVersionId = versionId ?? (design?.generatedLayout ? 'generated' : undefined);
@@ -277,6 +288,12 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
                         </div>
                     </div>
                     <DesignStatusBadge status={design.status} />
+                    {design.isFinancialWinner && (
+                        <Badge className="bg-yellow-500 hover:bg-yellow-600 gap-1">
+                            <Trophy className="h-3 w-3" />
+                            Financial Winner
+                        </Badge>
+                    )}
                     <DesignWorkflowActions designId={design.id} currentStatus={design.status} />
                 </div>
 
@@ -343,6 +360,20 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
                         >
                             <Sun className="h-4 w-4" />
                             Yield
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => navigate(`/designs/${designId}/financial`)}
+                        >
+                            <TrendingUp className="h-4 w-4" />
+                            Financial
+                            {financialModel && (
+                                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                                    {financialModel.results ? '✓' : '○'}
+                                </Badge>
+                            )}
                         </Button>
                         <Button
                             variant={activeTab === 'digitaltwin' ? 'secondary' : 'ghost'}

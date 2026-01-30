@@ -1,299 +1,289 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useMemo, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
-import { useFinancialStore } from '@/stores/financialStore';
+import { useDesignFinancialStore } from '@/stores/designFinancialStore';
+import { useProjectFinancialSettingsStore } from '@/stores/projectFinancialSettingsStore';
 import { useProjectStore } from '@/stores/projectStore';
-import { useUserStore } from '@/stores/userStore';
-import { usePermission } from '@/hooks/usePermission';
+import { useDesignStore } from '@/stores/designStore';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { DollarSign, Calculator, MoreHorizontal, Pencil, Trash2, ExternalLink } from 'lucide-react';
+  DollarSign,
+  TrendingUp,
+  Trophy,
+  ExternalLink,
+  ArrowRight,
+  Package,
+} from 'lucide-react';
 
 export function Financials() {
   const navigate = useNavigate();
-  const financialModels = useFinancialStore((state) => state.financialModels);
-  const addFinancialModel = useFinancialStore((state) => state.addFinancialModel);
-  const deleteFinancialModel = useFinancialStore((state) => state.deleteFinancialModel);
   const projects = useProjectStore((state) => state.projects);
-  const currentUser = useUserStore((state) => state.currentUser);
+  const designs = useDesignStore((state) => state.designs);
+  const designFinancialModels = useDesignFinancialStore((state) => state.designFinancialModels);
+  const allSettings = useProjectFinancialSettingsStore((state) => state.settings);
 
-  const canCreate = usePermission('financials', 'create');
-  const canUpdate = usePermission('financials', 'update');
-  const canDelete = usePermission('financials', 'delete');
+  // Build project data with financial statistics (memoized to prevent infinite loops)
+  const projectsWithFinancials = useMemo(() => {
+    return projects.map((project) => {
+      const projectDesigns = designs.filter((d) => d.projectId === project.id);
+      const projectModels = designFinancialModels.filter((m) => m.projectId === project.id);
+      const modelsWithResults = projectModels.filter((m) => m.results);
+      const winnerModel = projectModels.find((m) => m.isWinner);
+      const settings = allSettings.find((s) => s.projectId === project.id);
 
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [modelToDelete, setModelToDelete] = useState<string | null>(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+      return {
+        project,
+        designCount: projectDesigns.length,
+        modelCount: projectModels.length,
+        resultsCount: modelsWithResults.length,
+        winnerModel,
+        hasSettings: !!settings,
+      };
+    });
+  }, [projects, designs, designFinancialModels, allSettings]);
 
-  // Projects that don't have a financial model yet
-  const projectsWithoutModels = projects.filter(
-    (project) => !financialModels.some((model) => model.projectId === project.id)
-  );
+  // Filter to only show projects with financial models or settings
+  const projectsWithFinancialActivity = useMemo(() => {
+    return projectsWithFinancials.filter(
+      (p) => p.modelCount > 0 || p.hasSettings
+    );
+  }, [projectsWithFinancials]);
 
-  // Get project name for each model
-  const modelsWithProjects = financialModels.map((model) => {
-    const project = projects.find((p) => p.id === model.projectId);
-    return { model, project };
-  });
-
-  // Check if current user can modify a specific model
-  const canModifyModel = (creatorId: string) => {
-    if (!currentUser) return false;
-    const isAdmin = currentUser.roleId === 'role-admin';
-    const isCreator = creatorId === currentUser.id;
-    return isAdmin || isCreator;
-  };
-
-  const handleDeleteClick = (modelId: string) => {
-    setModelToDelete(modelId);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (modelToDelete) {
-      deleteFinancialModel(modelToDelete);
-      setModelToDelete(null);
-    }
-    setDeleteDialogOpen(false);
-  };
-
-  const handleCreateModel = () => {
-    if (!selectedProjectId) return;
-    const project = projects.find((p) => p.id === selectedProjectId);
-    if (!project) return;
-
-    const modelId = addFinancialModel(selectedProjectId, `${project.name} - Financial Model`);
-    if (modelId) {
-      setCreateDialogOpen(false);
-      setSelectedProjectId('');
-      navigate(`/financials/${selectedProjectId}`);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
-  };
+  }, []);
+
+  const handleNavigateToProject = useCallback((projectId: string) => {
+    navigate(`/financials/${projectId}`);
+  }, [navigate]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <Header title="Financial Models">
+      <Header title="Financial Analysis">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Calculator className="h-4 w-4" />
-            <span>Manage financial analysis for your projects</span>
+            <TrendingUp className="h-4 w-4" />
+            <span>Compare and analyze design financial models</span>
           </div>
-          {canCreate && projectsWithoutModels.length > 0 && (
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              New Financial Model
-            </Button>
-          )}
         </div>
       </Header>
 
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto p-6">
-          {financialModels.length === 0 ? (
+          {projectsWithFinancialActivity.length === 0 ? (
             /* Empty State */
-            <div className="text-center py-12">
-              <DollarSign className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No financial models yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Financial models are created from the project's financial analysis page.
-              </p>
-              {projectsWithoutModels.length > 0 ? (
-                <Button onClick={() => setCreateDialogOpen(true)}>
-                  Create First Model
-                </Button>
-              ) : projects.length > 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  All projects already have financial models.
+            <Card className="border-dashed">
+              <CardContent className="py-12 text-center">
+                <DollarSign className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Financial Models Yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Create design financial models from the project or design detail pages.
                 </p>
-              ) : (
-                <Button asChild>
-                  <Link to="/projects">Go to Projects</Link>
-                </Button>
-              )}
-            </div>
+                {projects.length > 0 ? (
+                  <Button asChild>
+                    <Link to="/projects">
+                      Go to Projects
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Create a project first to get started.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           ) : (
-            <div className="border rounded-lg bg-card overflow-hidden">
-              {/* Header Row */}
-              <div
-                className="grid border-b border-border bg-muted/50"
-                style={{ gridTemplateColumns: 'minmax(250px, 2fr) minmax(200px, 1.5fr) 100px 100px minmax(120px, 1fr) 120px 70px' }}
-              >
-                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Model Name</div>
-                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Project</div>
-                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Capacity</div>
-                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">PPA Price</div>
-                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Created By</div>
-                <div className="px-4 py-3 text-sm font-medium text-muted-foreground">Created</div>
-                <div className="px-4 py-3 text-sm font-medium text-muted-foreground text-right">Actions</div>
+            <div className="space-y-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
+                        <Package className="h-6 w-6 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Projects</p>
+                        <p className="text-2xl font-bold">{projectsWithFinancialActivity.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                        <TrendingUp className="h-6 w-6 text-green-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Models</p>
+                        <p className="text-2xl font-bold">
+                          {projectsWithFinancialActivity.reduce((sum, p) => sum + p.modelCount, 0)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-purple-500/10 flex items-center justify-center">
+                        <DollarSign className="h-6 w-6 text-purple-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">With Results</p>
+                        <p className="text-2xl font-bold">
+                          {projectsWithFinancialActivity.reduce((sum, p) => sum + p.resultsCount, 0)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                        <Trophy className="h-6 w-6 text-yellow-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Winners Selected</p>
+                        <p className="text-2xl font-bold">
+                          {projectsWithFinancialActivity.filter((p) => p.winnerModel).length}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Data Rows */}
-              {modelsWithProjects.map(({ model, project }) => {
-                const showModifyActions = canModifyModel(model.creatorId);
-
-                return (
-                  <div
-                    key={model.id}
-                    className="grid border-b border-border last:border-b-0 hover:bg-muted/50 cursor-pointer"
-                    style={{ gridTemplateColumns: 'minmax(250px, 2fr) minmax(200px, 1.5fr) 100px 100px minmax(120px, 1fr) 120px 70px' }}
-                    onClick={() => navigate(`/financials/${model.projectId}`)}
-                  >
-                    <div className="px-4 py-3 flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/10 shrink-0">
-                        <DollarSign className="h-4 w-4 text-primary" />
+              {/* Projects List */}
+              <Card>
+                <CardContent className="p-0">
+                  <div className="border rounded-lg bg-card overflow-hidden">
+                    {/* Header Row */}
+                    <div
+                      className="grid border-b border-border bg-muted/50"
+                      style={{
+                        gridTemplateColumns: 'minmax(250px, 2fr) 120px 120px 120px minmax(200px, 1.5fr) 120px 80px',
+                      }}
+                    >
+                      <div className="px-4 py-3 text-sm font-medium text-muted-foreground">
+                        Project
                       </div>
-                      <span className="text-sm font-medium truncate">{model.name}</span>
+                      <div className="px-4 py-3 text-sm font-medium text-muted-foreground text-center">
+                        Designs
+                      </div>
+                      <div className="px-4 py-3 text-sm font-medium text-muted-foreground text-center">
+                        Models
+                      </div>
+                      <div className="px-4 py-3 text-sm font-medium text-muted-foreground text-center">
+                        Results
+                      </div>
+                      <div className="px-4 py-3 text-sm font-medium text-muted-foreground">
+                        Winner Design
+                      </div>
+                      <div className="px-4 py-3 text-sm font-medium text-muted-foreground">
+                        Updated
+                      </div>
+                      <div className="px-4 py-3 text-sm font-medium text-muted-foreground text-right">
+                        Actions
+                      </div>
                     </div>
-                    <div className="px-4 py-3 flex items-center" onClick={(e) => e.stopPropagation()}>
-                      {project ? (
-                        <Link
-                          to={`/projects/${project.id}`}
-                          className="text-sm text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1 truncate"
+
+                    {/* Data Rows */}
+                    {projectsWithFinancialActivity.map(({ project, designCount, modelCount, resultsCount, winnerModel }) => {
+                      const winnerDesign = winnerModel
+                        ? designs.find((d) => d.id === winnerModel.designId)
+                        : null;
+
+                      return (
+                        <div
+                          key={project.id}
+                          className="grid border-b border-border last:border-b-0 hover:bg-muted/50 cursor-pointer"
+                          style={{
+                            gridTemplateColumns:
+                              'minmax(250px, 2fr) 120px 120px 120px minmax(200px, 1.5fr) 120px 80px',
+                          }}
+                          onClick={() => handleNavigateToProject(project.id)}
                         >
-                          {project.name}
-                          <ExternalLink className="h-3 w-3 shrink-0" />
-                        </Link>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Unknown Project</span>
-                      )}
-                    </div>
-                    <div className="px-4 py-3 flex items-center text-sm">{model.inputs.capacity} MW</div>
-                    <div className="px-4 py-3 flex items-center text-sm">${model.inputs.ppa_price}/MWh</div>
-                    <div className="px-4 py-3 flex items-center text-sm text-muted-foreground truncate">
-                      {model.createdBy}
-                    </div>
-                    <div className="px-4 py-3 flex items-center text-sm text-muted-foreground">
-                      {formatDate(model.createdAt)}
-                    </div>
-                    <div className="px-4 py-3 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                      {showModifyActions && (canUpdate || canDelete) && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
+                          <div className="px-4 py-3 flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full flex items-center justify-center bg-primary/10 shrink-0">
+                              <DollarSign className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <span className="text-sm font-medium truncate">{project.name}</span>
+                              <div
+                                className="text-xs text-muted-foreground"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Link
+                                  to={`/projects/${project.id}`}
+                                  className="hover:text-foreground hover:underline inline-flex items-center gap-1"
+                                >
+                                  View Project
+                                  <ExternalLink className="h-3 w-3" />
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="px-4 py-3 flex items-center justify-center">
+                            <Badge variant="secondary">{designCount}</Badge>
+                          </div>
+                          <div className="px-4 py-3 flex items-center justify-center">
+                            <Badge variant={modelCount > 0 ? 'default' : 'outline'}>
+                              {modelCount}
+                            </Badge>
+                          </div>
+                          <div className="px-4 py-3 flex items-center justify-center">
+                            <Badge variant={resultsCount > 0 ? 'default' : 'outline'}>
+                              {resultsCount}
+                            </Badge>
+                          </div>
+                          <div className="px-4 py-3 flex items-center">
+                            {winnerDesign ? (
+                              <div className="flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-yellow-500" />
+                                <span className="text-sm truncate">{winnerDesign.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">None</span>
+                            )}
+                          </div>
+                          <div className="px-4 py-3 flex items-center text-sm text-muted-foreground">
+                            {formatDate(project.updatedAt)}
+                          </div>
+                          <div className="px-4 py-3 flex items-center justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNavigateToProject(project.id);
+                              }}
+                            >
+                              <ArrowRight className="h-4 w-4" />
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {canUpdate && (
-                              <DropdownMenuItem
-                                onClick={() => navigate(`/financials/${model.projectId}`)}
-                              >
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                            )}
-                            {canDelete && (
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => handleDeleteClick(model.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
       </div>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Financial Model</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this financial model? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Financial Model</DialogTitle>
-            <DialogDescription>
-              Select a project to create a financial model for.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projectsWithoutModels.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateModel} disabled={!selectedProjectId}>
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
