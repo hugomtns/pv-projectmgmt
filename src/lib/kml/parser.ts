@@ -1,4 +1,5 @@
 import type {
+  SiteCoordinate,
   SiteBoundary,
   SiteExclusionZone,
   ExclusionZoneType,
@@ -241,8 +242,21 @@ export async function parseKMLFile(content: string): Promise<KMLParseResult> {
     }
   });
 
-  // Calculate centroid from all boundary coordinates
-  const centroid = calculateCentroid(boundaries);
+  // Try to extract centroid from Point placemarks (e.g., PVSDZ "Parcel Marker")
+  let pointCentroid: { latitude: number; longitude: number } | undefined;
+  placemarks.forEach((placemark) => {
+    if (pointCentroid) return; // only need the first one
+    const point = placemark.querySelector('Point coordinates');
+    if (point) {
+      const coords = parseCoordinateString(point.textContent || '');
+      if (coords.length > 0) {
+        pointCentroid = { latitude: coords[0].lat, longitude: coords[0].lng };
+      }
+    }
+  });
+
+  // Calculate centroid from boundaries, or fall back to Point marker
+  const centroid = calculateCentroid(boundaries) || pointCentroid;
   const totalArea = boundaries.reduce((sum, b) => sum + (b.area || 0), 0);
 
   console.log('[KML Parser] Parsed results:', {
@@ -291,7 +305,7 @@ export async function parseKMZFile(file: File): Promise<KMLParseResult> {
  */
 function extractPolygonCoordinates(
   polygon: Element
-): Array<{ lat: number; lng: number }> {
+): SiteCoordinate[] {
   const outerBoundary = polygon.querySelector(
     'outerBoundaryIs LinearRing coordinates'
   );
@@ -308,11 +322,12 @@ function extractPolygonCoordinates(
 
 /**
  * Parse KML coordinate string (lng,lat,elevation format)
+ * Preserves elevation when present.
  */
 function parseCoordinateString(
   coordString: string
-): Array<{ lat: number; lng: number }> {
-  const coordinates: Array<{ lat: number; lng: number }> = [];
+): SiteCoordinate[] {
+  const coordinates: SiteCoordinate[] = [];
 
   // KML format: "lng,lat,elevation lng,lat,elevation ..."
   // Coordinates are separated by whitespace (spaces, newlines, tabs)
@@ -324,7 +339,14 @@ function parseCoordinateString(
       const lng = parseFloat(parts[0]);
       const lat = parseFloat(parts[1]);
       if (!isNaN(lng) && !isNaN(lat)) {
-        coordinates.push({ lat, lng });
+        const coord: SiteCoordinate = { lat, lng };
+        if (parts.length >= 3) {
+          const elevation = parseFloat(parts[2]);
+          if (!isNaN(elevation)) {
+            coord.elevation = elevation;
+          }
+        }
+        coordinates.push(coord);
       }
     }
   }
@@ -427,7 +449,7 @@ function detectZoneType(
  * Calculate polygon area using Shoelace formula (in square meters, approximate)
  */
 function calculatePolygonArea(
-  coordinates: Array<{ lat: number; lng: number }>
+  coordinates: SiteCoordinate[]
 ): number {
   if (coordinates.length < 3) return 0;
 
@@ -479,18 +501,21 @@ function calculateCentroid(
 }
 
 /**
- * Main entry point for parsing KML or KMZ files
+ * Main entry point for parsing site files (KML, KMZ, or PVSDZ)
  */
 export async function parseSiteFile(file: File): Promise<KMLParseResult> {
   const fileName = file.name.toLowerCase();
 
-  if (fileName.endsWith('.kmz')) {
+  if (fileName.endsWith('.pvsdz')) {
+    const { parsePVSDZFile } = await import('@/lib/pvsdz/parser');
+    return parsePVSDZFile(file);
+  } else if (fileName.endsWith('.kmz')) {
     return parseKMZFile(file);
   } else if (fileName.endsWith('.kml')) {
     const content = await file.text();
     return parseKMLFile(content);
   } else {
-    throw new Error('Unsupported file type. Please upload a KML or KMZ file.');
+    throw new Error('Unsupported file type. Please upload a KML, KMZ, or PVSDZ file.');
   }
 }
 

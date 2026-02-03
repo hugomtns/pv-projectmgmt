@@ -8,10 +8,17 @@
 import type { SiteScorecard } from './siteScorecard';
 import type { SiteComment } from './siteComment';
 
+/** A single coordinate point with optional elevation (meters above sea level) */
+export interface SiteCoordinate {
+  lat: number;
+  lng: number;
+  elevation?: number;
+}
+
 export interface SiteBoundary {
   id: string;
   name: string;
-  coordinates: Array<{ lat: number; lng: number }>;
+  coordinates: SiteCoordinate[];
   area?: number; // Area in square meters
 }
 
@@ -30,9 +37,22 @@ export interface SiteExclusionZone {
   id: string;
   name: string;
   type: ExclusionZoneType;
-  coordinates: Array<{ lat: number; lng: number }>;
+  coordinates: SiteCoordinate[];
   area?: number; // Area in square meters
   description?: string;
+}
+
+export interface SiteImportMetadata {
+  source: 'kml' | 'kmz' | 'pvsdz';
+  prospectVersion?: string;    // e.g. "3.4.1" (PVSDZ only)
+  prospectProjectId?: string;  // PVcase project ID (PVSDZ only)
+  prospectExportDate?: string; // ISO timestamp (PVSDZ only)
+}
+
+export interface ElevationRange {
+  min: number;
+  max: number;
+  avg: number;
 }
 
 export interface Site {
@@ -45,11 +65,16 @@ export interface Site {
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 
-  // KML source file info
+  // Source file info (generic)
+  sourceFileName?: string;
+  sourceFileSize?: number;
+  importMetadata?: SiteImportMetadata;
+
+  // Legacy KML fields (backwards compat)
   kmlFileName?: string;
   kmlFileSize?: number;
 
-  // Parsed KML data
+  // Parsed site data
   boundaries: SiteBoundary[];
   exclusionZones: SiteExclusionZone[];
 
@@ -57,6 +82,7 @@ export interface Site {
   centroid?: { latitude: number; longitude: number };
   totalArea?: number; // Total boundary area in square meters
   usableArea?: number; // Total minus exclusions
+  elevationRange?: ElevationRange;
 
   // Optional link to design
   linkedDesignId?: string;

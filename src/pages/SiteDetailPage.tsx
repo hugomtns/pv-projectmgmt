@@ -246,19 +246,36 @@ export default function SiteDetailPage() {
                   </div>
                 )}
 
-                {/* KML file info */}
-                {site.kmlFileName && (
+                {/* Elevation */}
+                {site.elevationRange && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">Elevation</h3>
+                    <div className="text-sm text-muted-foreground">
+                      <div>Min: {site.elevationRange.min.toFixed(1)}m</div>
+                      <div>Max: {site.elevationRange.max.toFixed(1)}m</div>
+                      <div>Avg: {site.elevationRange.avg.toFixed(1)}m</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Source file info */}
+                {(site.sourceFileName || site.kmlFileName) && (
                   <div>
                     <h3 className="text-sm font-medium mb-2">Source File</h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <FileUp className="h-4 w-4" />
-                      <span>{site.kmlFileName}</span>
-                      {site.kmlFileSize && (
+                      <span>{site.sourceFileName || site.kmlFileName}</span>
+                      {(site.sourceFileSize || site.kmlFileSize) && (
                         <span className="text-xs">
-                          ({(site.kmlFileSize / 1024).toFixed(1)} KB)
+                          ({((site.sourceFileSize || site.kmlFileSize)! / 1024).toFixed(1)} KB)
                         </span>
                       )}
                     </div>
+                    {site.importMetadata?.source === 'pvsdz' && site.importMetadata.prospectVersion && (
+                      <div className="text-xs text-muted-foreground mt-1 ml-6">
+                        PVcase Prospect v{site.importMetadata.prospectVersion}
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
 import { LatLngBounds } from 'leaflet';
 import type { Site, ExclusionZoneType } from '@/lib/types';
@@ -11,8 +11,13 @@ import {
 } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mountain, Map, Box } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+
+const SiteTerrainView = lazy(() =>
+  import('./SiteTerrainView').then((m) => ({ default: m.SiteTerrainView }))
+);
 
 interface SiteMapPreviewProps {
   site: Site;
@@ -51,6 +56,10 @@ const createInitialVisibility = (): LayerVisibility => ({
 });
 
 export function SiteMapPreview({ site }: SiteMapPreviewProps) {
+  // View mode: 2D (Leaflet) or 3D (Three.js terrain)
+  const hasElevation = site.elevationRange != null;
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+
   // Layer visibility state
   const [visibility, setVisibility] = useState<LayerVisibility>(createInitialVisibility);
 
@@ -141,6 +150,37 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
     }));
   }, [site.exclusionZones]);
 
+  // 3D terrain view
+  if (viewMode === '3d' && hasElevation) {
+    return (
+      <div className="h-full w-full rounded-lg overflow-hidden border relative">
+        <Suspense
+          fallback={
+            <div className="h-full w-full flex items-center justify-center bg-slate-900 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              Loading 3D view...
+            </div>
+          }
+        >
+          <SiteTerrainView site={site} />
+        </Suspense>
+
+        {/* View toggle */}
+        <div className="absolute top-4 left-4 z-[10]">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="gap-1.5 shadow-lg"
+            onClick={() => setViewMode('2d')}
+          >
+            <Map className="h-3.5 w-3.5" />
+            2D Map
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full rounded-lg overflow-hidden border relative">
       <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true}>
@@ -167,6 +207,12 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
                 {poly.area && (
                   <div className="mt-1">
                     {squareMetersToAcres(poly.area).toFixed(2)} acres
+                  </div>
+                )}
+                {site.elevationRange && (
+                  <div className="mt-1 text-muted-foreground">
+                    Elevation: {site.elevationRange.min.toFixed(0)}&ndash;{site.elevationRange.max.toFixed(0)}m
+                    (avg {site.elevationRange.avg.toFixed(1)}m)
                   </div>
                 )}
               </div>
@@ -274,6 +320,21 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
         )}
       </div>
 
+      {/* 3D view toggle (only when elevation data available) */}
+      {hasElevation && (
+        <div className="absolute top-4 left-4 z-[1000]">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="gap-1.5 shadow-lg"
+            onClick={() => setViewMode('3d')}
+          >
+            <Box className="h-3.5 w-3.5" />
+            3D Terrain
+          </Button>
+        </div>
+      )}
+
       {/* Site info overlay */}
       <div className="absolute top-4 right-4 bg-background/90 backdrop-blur rounded-lg p-3 text-xs z-[1000] shadow-lg border">
         <div className="font-medium">{site.name}</div>
@@ -309,6 +370,12 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             </div>
           );
         })()}
+        {site.elevationRange && (
+          <div className="text-muted-foreground mt-1 flex items-center gap-1">
+            <Mountain className="h-3 w-3" />
+            {site.elevationRange.min.toFixed(0)}&ndash;{site.elevationRange.max.toFixed(0)}m
+          </div>
+        )}
         {site.centroid && (
           <div className="text-muted-foreground mt-1">
             {site.centroid.latitude.toFixed(5)}, {site.centroid.longitude.toFixed(5)}

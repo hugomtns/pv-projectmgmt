@@ -7,10 +7,13 @@ import type {
   KMLParseResult,
   SiteBoundary,
   SiteExclusionZone,
+  SiteCoordinate,
   ScorecardCategory,
   ScorecardRating,
   SiteScorecard,
   SiteComment,
+  SiteImportMetadata,
+  ElevationRange,
 } from '@/lib/types';
 import {
   createEmptyScorecard,
@@ -147,6 +150,31 @@ function calculateUsableArea(
   }
 }
 
+/**
+ * Compute elevation range from all boundary coordinates
+ */
+function computeElevationRange(
+  boundaries: SiteBoundary[],
+  exclusionZones: SiteExclusionZone[]
+): ElevationRange | undefined {
+  const allCoords: SiteCoordinate[] = [
+    ...boundaries.flatMap(b => b.coordinates),
+    ...exclusionZones.flatMap(ez => ez.coordinates),
+  ];
+
+  const elevations = allCoords
+    .map(c => c.elevation)
+    .filter((e): e is number => e != null);
+
+  if (elevations.length === 0) return undefined;
+
+  return {
+    min: Math.min(...elevations),
+    max: Math.max(...elevations),
+    avg: elevations.reduce((sum, e) => sum + e, 0) / elevations.length,
+  };
+}
+
 interface SiteState {
   // State
   sites: Site[];
@@ -158,14 +186,15 @@ interface SiteState {
   updateSite: (id: string, updates: Partial<Site>) => void;
   deleteSite: (id: string) => void;
 
-  // KML import convenience method
+  // Site file import convenience method
   createSiteFromKML: (
     projectId: string,
     name: string,
     description: string,
     kmlFileName: string,
     kmlFileSize: number,
-    parseResult: KMLParseResult
+    parseResult: KMLParseResult,
+    importMetadata?: SiteImportMetadata
   ) => string | undefined;
 
   // Design linking
@@ -345,7 +374,8 @@ export const useSiteStore = create<SiteState>()(
         description,
         kmlFileName,
         kmlFileSize,
-        parseResult
+        parseResult,
+        importMetadata
       ) => {
         const { boundaries, exclusionZones, centroid, totalArea } = parseResult;
 
@@ -353,23 +383,32 @@ export const useSiteStore = create<SiteState>()(
         // This clips exclusion zones to the boundary so areas outside don't count
         const usableArea = calculateUsableArea(boundaries, exclusionZones, totalArea || 0);
 
+        // Compute elevation range if elevation data is present
+        const elevationRange = computeElevationRange(boundaries, exclusionZones);
+
         console.log('[createSiteFromKML] Calculation:', {
           totalArea,
           exclusionCount: exclusionZones.length,
           usableArea,
+          elevationRange,
+          source: importMetadata?.source || 'kml',
         });
 
         return get().addSite({
           projectId,
           name,
           description,
+          sourceFileName: kmlFileName,
+          sourceFileSize: kmlFileSize,
           kmlFileName,
           kmlFileSize,
+          importMetadata,
           boundaries,
           exclusionZones,
           centroid,
           totalArea,
           usableArea,
+          elevationRange,
         });
       },
 

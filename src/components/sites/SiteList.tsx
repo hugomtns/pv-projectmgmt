@@ -159,7 +159,7 @@ export function SiteList({ projectId }: SiteListProps) {
       {sites.length === 0 ? (
         <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground text-sm">
           {projectSites.length === 0
-            ? 'No sites yet. Upload a KML file to add site boundaries.'
+            ? 'No sites yet. Upload a KML, KMZ, or PVSDZ file to add site boundaries.'
             : 'No sites match the current filter.'}
         </div>
       ) : (

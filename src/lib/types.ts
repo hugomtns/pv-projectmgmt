@@ -159,10 +159,13 @@ export { NTP_CATEGORY_LABELS, NTP_CATEGORY_ORDER } from './types/ntpChecklist';
 // Site Management
 export type {
   Site,
+  SiteCoordinate,
   SiteBoundary,
   SiteExclusionZone,
   ExclusionZoneType,
   KMLParseResult,
+  SiteImportMetadata,
+  ElevationRange,
 } from './types/site';
 export { EXCLUSION_ZONE_LABELS } from './types/site';
 
