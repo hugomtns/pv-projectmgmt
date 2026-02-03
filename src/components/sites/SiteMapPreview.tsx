@@ -11,8 +11,7 @@ import {
 } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff, Mountain, Map, Box } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Mountain, Map, Box, Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 const SiteTerrainView = lazy(() =>
@@ -56,30 +55,23 @@ const createInitialVisibility = (): LayerVisibility => ({
 });
 
 export function SiteMapPreview({ site }: SiteMapPreviewProps) {
-  // View mode: 2D (Leaflet) or 3D (Three.js terrain)
   const hasElevation = site.elevationRange != null;
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
-
-  // Layer visibility state
   const [visibility, setVisibility] = useState<LayerVisibility>(createInitialVisibility);
 
-  // Get unique exclusion types present in this site
   const exclusionTypesInSite = useMemo(() => {
     const types = new Set(site.exclusionZones.map(ez => ez.type));
     return Array.from(types) as ExclusionZoneType[];
   }, [site.exclusionZones]);
 
-  // Toggle a single layer's visibility
   const toggleLayer = (layer: keyof LayerVisibility) => {
     setVisibility(prev => ({ ...prev, [layer]: !prev[layer] }));
   };
 
-  // Show all layers
   const showAllLayers = () => {
     setVisibility(createInitialVisibility());
   };
 
-  // Hide all exclusion layers (keep boundaries visible)
   const hideAllExclusions = () => {
     setVisibility({
       boundaries: true,
@@ -95,10 +87,8 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
     });
   };
 
-  // Check if any exclusion layers are hidden
   const hasHiddenExclusions = exclusionTypesInSite.some(type => !visibility[type]);
 
-  // Calculate map bounds from all coordinates
   const bounds = useMemo(() => {
     const allCoords: Array<[number, number]> = [];
 
@@ -115,21 +105,18 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
     });
 
     if (allCoords.length === 0) {
-      // Default to centroid or fallback
       if (site.centroid) {
         return new LatLngBounds(
           [site.centroid.latitude - 0.01, site.centroid.longitude - 0.01],
           [site.centroid.latitude + 0.01, site.centroid.longitude + 0.01]
         );
       }
-      // Fallback to a default location
       return new LatLngBounds([37.77, -122.42], [37.78, -122.41]);
     }
 
     return new LatLngBounds(allCoords);
   }, [site]);
 
-  // Convert coordinates to Leaflet format
   const boundaryPolygons = useMemo(() => {
     return site.boundaries.map((b) => ({
       id: b.id,
@@ -150,10 +137,12 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
     }));
   }, [site.exclusionZones]);
 
-  // 3D terrain view
-  if (viewMode === '3d' && hasElevation) {
-    return (
-      <div className="h-full w-full rounded-lg overflow-hidden border relative">
+  const is3D = viewMode === '3d' && hasElevation;
+
+  return (
+    <div className="h-full w-full rounded-lg overflow-hidden border relative">
+      {/* Canvas area — either Leaflet 2D or Three.js 3D */}
+      {is3D ? (
         <Suspense
           fallback={
             <div className="h-full w-full flex items-center justify-center bg-slate-900 text-muted-foreground">
@@ -162,102 +151,105 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             </div>
           }
         >
-          <SiteTerrainView site={site} />
+          <SiteTerrainView site={site} visibility={visibility} />
         </Suspense>
+      ) : (
+        <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+          />
 
-        {/* View toggle */}
-        <div className="absolute top-4 left-4 z-[10]">
+          {/* Render site boundaries */}
+          {visibility.boundaries && boundaryPolygons.map((poly) => (
+            <Polygon
+              key={poly.id}
+              positions={poly.positions}
+              pathOptions={{
+                color: '#22c55e',
+                weight: 3,
+                fillOpacity: 0,
+              }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <div className="font-medium">{poly.name}</div>
+                  <div className="text-muted-foreground">Site Boundary</div>
+                  {poly.area && (
+                    <div className="mt-1">
+                      {squareMetersToAcres(poly.area).toFixed(2)} acres
+                    </div>
+                  )}
+                  {site.elevationRange && (
+                    <div className="mt-1 text-muted-foreground">
+                      Elevation: {site.elevationRange.min.toFixed(0)}&ndash;{site.elevationRange.max.toFixed(0)}m
+                      (avg {site.elevationRange.avg.toFixed(1)}m)
+                    </div>
+                  )}
+                </div>
+              </Popup>
+            </Polygon>
+          ))}
+
+          {/* Render exclusion zones (filtered by visibility) */}
+          {exclusionPolygons
+            .filter((poly) => visibility[poly.type])
+            .map((poly) => (
+            <Polygon
+              key={poly.id}
+              positions={poly.positions}
+              pathOptions={{
+                color: EXCLUSION_COLORS[poly.type] || EXCLUSION_COLORS.other,
+                weight: 2,
+                fillColor: EXCLUSION_COLORS[poly.type] || EXCLUSION_COLORS.other,
+                fillOpacity: 0.15,
+                dashArray: '5, 5',
+              }}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <div className="font-medium">{poly.name}</div>
+                  <div className="text-muted-foreground">
+                    {EXCLUSION_ZONE_LABELS[poly.type]} (Exclusion Zone)
+                  </div>
+                  {poly.area && (
+                    <div className="mt-1">
+                      {squareMetersToAcres(poly.area).toFixed(2)} acres
+                    </div>
+                  )}
+                  {poly.description && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {poly.description}
+                    </div>
+                  )}
+                </div>
+              </Popup>
+            </Polygon>
+          ))}
+        </MapContainer>
+      )}
+
+      {/* === Shared overlays — always rendered regardless of view mode === */}
+
+      {/* View mode toggle (only when elevation data available) */}
+      {hasElevation && (
+        <div className="absolute top-[80px] left-[10px] z-[1000]">
           <Button
             variant="secondary"
             size="sm"
             className="gap-1.5 shadow-lg"
-            onClick={() => setViewMode('2d')}
+            onClick={() => setViewMode(is3D ? '2d' : '3d')}
           >
-            <Map className="h-3.5 w-3.5" />
-            2D Map
+            {is3D ? (
+              <><Map className="h-3.5 w-3.5" /> 2D Map</>
+            ) : (
+              <><Box className="h-3.5 w-3.5" /> 3D Terrain</>
+            )}
           </Button>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="h-full w-full rounded-lg overflow-hidden border relative">
-      <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true}>
-        <TileLayer
-          attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        />
-
-        {/* Render site boundaries */}
-        {visibility.boundaries && boundaryPolygons.map((poly) => (
-          <Polygon
-            key={poly.id}
-            positions={poly.positions}
-            pathOptions={{
-              color: '#22c55e',
-              weight: 3,
-              fillOpacity: 0,
-            }}
-          >
-            <Popup>
-              <div className="text-sm">
-                <div className="font-medium">{poly.name}</div>
-                <div className="text-muted-foreground">Site Boundary</div>
-                {poly.area && (
-                  <div className="mt-1">
-                    {squareMetersToAcres(poly.area).toFixed(2)} acres
-                  </div>
-                )}
-                {site.elevationRange && (
-                  <div className="mt-1 text-muted-foreground">
-                    Elevation: {site.elevationRange.min.toFixed(0)}&ndash;{site.elevationRange.max.toFixed(0)}m
-                    (avg {site.elevationRange.avg.toFixed(1)}m)
-                  </div>
-                )}
-              </div>
-            </Popup>
-          </Polygon>
-        ))}
-
-        {/* Render exclusion zones (filtered by visibility) */}
-        {exclusionPolygons
-          .filter((poly) => visibility[poly.type])
-          .map((poly) => (
-          <Polygon
-            key={poly.id}
-            positions={poly.positions}
-            pathOptions={{
-              color: EXCLUSION_COLORS[poly.type] || EXCLUSION_COLORS.other,
-              weight: 2,
-              fillColor: EXCLUSION_COLORS[poly.type] || EXCLUSION_COLORS.other,
-              fillOpacity: 0.15,
-              dashArray: '5, 5',
-            }}
-          >
-            <Popup>
-              <div className="text-sm">
-                <div className="font-medium">{poly.name}</div>
-                <div className="text-muted-foreground">
-                  {EXCLUSION_ZONE_LABELS[poly.type]} (Exclusion Zone)
-                </div>
-                {poly.area && (
-                  <div className="mt-1">
-                    {squareMetersToAcres(poly.area).toFixed(2)} acres
-                  </div>
-                )}
-                {poly.description && (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {poly.description}
-                  </div>
-                )}
-              </div>
-            </Popup>
-          </Polygon>
-        ))}
-      </MapContainer>
-
-      {/* Legend with visibility toggles */}
+      {/* Layers panel */}
       <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur rounded-lg p-3 text-xs z-[1000] shadow-lg border max-w-[200px]">
         <div className="flex items-center justify-between mb-2">
           <div className="font-medium">Layers</div>
@@ -278,7 +270,6 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
           )}
         </div>
 
-        {/* Boundary layer toggle */}
         <label className="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1">
           <Checkbox
             checked={visibility.boundaries}
@@ -295,7 +286,6 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
           <>
             <div className="border-t my-1.5" />
             <div className="text-muted-foreground mb-1">Exclusion Zones:</div>
-            {/* Only show legend items for exclusion types that exist */}
             {exclusionTypesInSite.map((type) => (
               <label key={type} className="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1">
                 <Checkbox
@@ -319,21 +309,6 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
           </>
         )}
       </div>
-
-      {/* 3D view toggle (only when elevation data available) */}
-      {hasElevation && (
-        <div className="absolute top-4 left-4 z-[1000]">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="gap-1.5 shadow-lg"
-            onClick={() => setViewMode('3d')}
-          >
-            <Box className="h-3.5 w-3.5" />
-            3D Terrain
-          </Button>
-        </div>
-      )}
 
       {/* Site info overlay */}
       <div className="absolute top-4 right-4 bg-background/90 backdrop-blur rounded-lg p-3 text-xs z-[1000] shadow-lg border">
