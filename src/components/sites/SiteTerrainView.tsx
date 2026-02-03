@@ -5,6 +5,11 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import type { Site, SiteCoordinate, ExclusionZoneType } from '@/lib/types';
 import { SatelliteGround } from '@/components/designs/viewer3d/SatelliteGround';
+import {
+  getTileCoordinates,
+  getTileBounds,
+  getTileSizeInMeters,
+} from '@/lib/satelliteImagery';
 
 export interface SiteTerrainViewRef {
   zoomIn: () => void;
@@ -232,24 +237,61 @@ function TerrainScene({
 
   const visibleExclusions = site.exclusionZones.filter((ez) => visibility[ez.type]);
 
-  // Ground plane size — cover the site extent plus margin
-  const groundSize = sceneExtent * 3;
+  // Calculate satellite ground alignment so tiles match polygon coordinates
+  const satelliteAlignment = useMemo(() => {
+    if (!site.centroid) return null;
+
+    const zoom = 17;
+    const tileSizeMeters = getTileSizeInMeters(site.centroid.latitude, zoom);
+    const desiredCoverage = sceneExtent * 3;
+
+    // Mirror SatelliteGround's internal gridSize calculation
+    const tilesNeeded = Math.ceil(desiredCoverage / tileSizeMeters);
+    const gridSize = tilesNeeded <= 1 ? 1 : tilesNeeded <= 3 ? 3 : 5;
+
+    // Use exact tile size so satellite imagery renders at true geographic scale
+    const groundSizeMeters = gridSize * tileSizeMeters;
+
+    // Calculate offset: the tile grid center is the center of the tile
+    // containing the centroid, NOT the centroid itself. We need to shift
+    // the tile grid so the centroid's position in the imagery lands at (0,0,0).
+    const tileCoords = getTileCoordinates(
+      site.centroid.latitude,
+      site.centroid.longitude,
+      zoom
+    );
+    const bounds = getTileBounds(tileCoords.x, tileCoords.y, zoom);
+    const tileCenterLat = (bounds.north + bounds.south) / 2;
+    const tileCenterLng = (bounds.east + bounds.west) / 2;
+
+    const metersPerDegreeLat = 111139;
+    const metersPerDegreeLng =
+      111139 * Math.cos((site.centroid.latitude * Math.PI) / 180);
+
+    // Vector from centroid to tile center, in our 3D coordinate system
+    const offsetX = (tileCenterLng - site.centroid.longitude) * metersPerDegreeLng;
+    const offsetZ = -(tileCenterLat - site.centroid.latitude) * metersPerDegreeLat;
+
+    return { zoom, groundSizeMeters, offsetX, offsetZ };
+  }, [site.centroid, sceneExtent]);
 
   return (
     <>
       <ambientLight intensity={0.6} />
       <directionalLight position={[50, 100, 50]} intensity={0.8} />
 
-      {/* Satellite imagery ground plane */}
-      {site.centroid ? (
-        <SatelliteGround
-          gpsCoordinates={{
-            latitude: site.centroid.latitude,
-            longitude: site.centroid.longitude,
-          }}
-          zoom={16}
-          groundSizeMeters={groundSize}
-        />
+      {/* Satellite imagery ground plane — offset to align with polygon coordinates */}
+      {site.centroid && satelliteAlignment ? (
+        <group position={[satelliteAlignment.offsetX, 0, satelliteAlignment.offsetZ]}>
+          <SatelliteGround
+            gpsCoordinates={{
+              latitude: site.centroid.latitude,
+              longitude: site.centroid.longitude,
+            }}
+            zoom={satelliteAlignment.zoom}
+            groundSizeMeters={satelliteAlignment.groundSizeMeters}
+          />
+        </group>
       ) : (
         <Grid
           args={[sceneExtent * 4, sceneExtent * 4]}
