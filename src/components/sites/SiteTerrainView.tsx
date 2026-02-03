@@ -83,7 +83,7 @@ function BoundaryMesh({
     const colors: number[] = [];
 
     for (const [x, y, z] of localPoints) {
-      vertices.push(x, y, z);
+      vertices.push(x, y + 0.5, z);
       const elev = y + elevationBase;
       const color = getElevationColor(elev, elevationRange.min, elevationRange.max);
       colors.push(color.r, color.g, color.b);
@@ -94,7 +94,7 @@ function BoundaryMesh({
     const centerZ = localPoints.reduce((s, p) => s + p[2], 0) / localPoints.length;
 
     const centerIdx = localPoints.length;
-    vertices.push(centerX, centerY, centerZ);
+    vertices.push(centerX, centerY + 0.5, centerZ);
     const centerColor = getElevationColor(
       centerY + elevationBase,
       elevationRange.min,
@@ -112,7 +112,6 @@ function BoundaryMesh({
     geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geom.setIndex(indices);
-    geom.computeVertexNormals();
 
     return geom;
   }, [coordinates, centroid, elevationBase, elevationRange]);
@@ -121,7 +120,7 @@ function BoundaryMesh({
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial vertexColors side={THREE.DoubleSide} transparent opacity={0.7} />
+      <meshBasicMaterial vertexColors side={THREE.DoubleSide} transparent opacity={0.7} depthWrite={false} />
     </mesh>
   );
 }
