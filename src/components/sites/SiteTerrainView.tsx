@@ -1,19 +1,21 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Text, Line } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import type { Site, SiteCoordinate, ExclusionZoneType } from '@/lib/types';
+import { SatelliteGround } from '@/components/designs/viewer3d/SatelliteGround';
+
+export interface SiteTerrainViewRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+}
 
 interface SiteTerrainViewProps {
   site: Site;
-  /** Layer visibility — boundaries and exclusion types can be toggled */
   visibility: { boundaries: boolean } & Record<ExclusionZoneType, boolean>;
 }
 
-/**
- * Convert lat/lng/elevation coordinates to local meters relative to a centroid.
- * X = east-west (lng), Z = north-south (lat), Y = elevation.
- */
 function toLocalCoords(
   coord: SiteCoordinate,
   centroid: { latitude: number; longitude: number },
@@ -30,9 +32,6 @@ function toLocalCoords(
   return [x, y, z];
 }
 
-/**
- * Get color for an elevation value using a green-to-brown gradient
- */
 function getElevationColor(
   elevation: number,
   min: number,
@@ -48,9 +47,6 @@ function getElevationColor(
   return new THREE.Color(r, g, b);
 }
 
-/**
- * Build a triangulated mesh from polygon coordinates with elevation.
- */
 function BoundaryMesh({
   coordinates,
   centroid,
@@ -120,14 +116,11 @@ function BoundaryMesh({
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial vertexColors side={THREE.DoubleSide} />
+      <meshStandardMaterial vertexColors side={THREE.DoubleSide} transparent opacity={0.7} />
     </mesh>
   );
 }
 
-/**
- * Render boundary outline as a 3D line
- */
 function BoundaryOutline({
   coordinates,
   centroid,
@@ -189,25 +182,25 @@ const EXCLUSION_3D_COLORS: Record<string, string> = {
 };
 
 /**
- * Pure Three.js terrain canvas — no overlays.
- * All UI overlays (stats, layers, toggle) are rendered by the parent SiteMapPreview.
+ * Inner scene that has access to OrbitControls ref for zoom
  */
-export function SiteTerrainView({ site, visibility }: SiteTerrainViewProps) {
-  const centroid = site.centroid || { latitude: 0, longitude: 0 };
-  const elevationBase = site.elevationRange?.min ?? 0;
-  const elevationRange = site.elevationRange ?? { min: 0, max: 0 };
-
-  const sceneExtent = useMemo(() => {
-    let maxDist = 50;
-    for (const b of site.boundaries) {
-      for (const c of b.coordinates) {
-        const [x, , z] = toLocalCoords(c, centroid, elevationBase);
-        maxDist = Math.max(maxDist, Math.abs(x), Math.abs(z));
-      }
-    }
-    return maxDist * 1.5;
-  }, [site.boundaries, centroid, elevationBase]);
-
+function TerrainScene({
+  site,
+  visibility,
+  centroid,
+  elevationBase,
+  elevationRange,
+  sceneExtent,
+  controlsRef,
+}: {
+  site: Site;
+  visibility: SiteTerrainViewProps['visibility'];
+  centroid: { latitude: number; longitude: number };
+  elevationBase: number;
+  elevationRange: { min: number; max: number };
+  sceneExtent: number;
+  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
+}) {
   const elevationLabels = useMemo(() => {
     const labels: Array<{ position: [number, number, number]; elevation: number }> = [];
     const allCoords = site.boundaries.flatMap((b) => b.coordinates);
@@ -237,34 +230,39 @@ export function SiteTerrainView({ site, visibility }: SiteTerrainViewProps) {
     return labels;
   }, [site.boundaries, centroid, elevationBase]);
 
-  // Filter exclusions by visibility
   const visibleExclusions = site.exclusionZones.filter((ez) => visibility[ez.type]);
 
+  // Ground plane size — cover the site extent plus margin
+  const groundSize = sceneExtent * 3;
+
   return (
-    <Canvas
-      className="h-full w-full"
-      style={{ background: '#0f172a' }}
-      camera={{
-        position: [sceneExtent * 0.7, sceneExtent * 0.5, sceneExtent * 0.7],
-        fov: 50,
-        near: 0.1,
-        far: sceneExtent * 10,
-      }}
-    >
+    <>
       <ambientLight intensity={0.6} />
       <directionalLight position={[50, 100, 50]} intensity={0.8} />
 
-      <Grid
-        args={[sceneExtent * 4, sceneExtent * 4]}
-        cellSize={sceneExtent / 10}
-        sectionSize={sceneExtent / 2}
-        cellColor="#444444"
-        sectionColor="#666666"
-        fadeDistance={sceneExtent * 3}
-        position={[0, -0.1, 0]}
-      />
+      {/* Satellite imagery ground plane */}
+      {site.centroid ? (
+        <SatelliteGround
+          gpsCoordinates={{
+            latitude: site.centroid.latitude,
+            longitude: site.centroid.longitude,
+          }}
+          zoom={16}
+          groundSizeMeters={groundSize}
+        />
+      ) : (
+        <Grid
+          args={[sceneExtent * 4, sceneExtent * 4]}
+          cellSize={sceneExtent / 10}
+          sectionSize={sceneExtent / 2}
+          cellColor="#444444"
+          sectionColor="#666666"
+          fadeDistance={sceneExtent * 3}
+          position={[0, -0.1, 0]}
+        />
+      )}
 
-      {/* Boundary surfaces (respects visibility) */}
+      {/* Boundary surfaces */}
       {visibility.boundaries && site.boundaries.map((b) => (
         <group key={b.id}>
           <BoundaryMesh
@@ -282,7 +280,7 @@ export function SiteTerrainView({ site, visibility }: SiteTerrainViewProps) {
         </group>
       ))}
 
-      {/* Exclusion zone outlines (respects visibility) */}
+      {/* Exclusion zone outlines */}
       {visibleExclusions.map((ez) => (
         <BoundaryOutline
           key={ez.id}
@@ -303,11 +301,83 @@ export function SiteTerrainView({ site, visibility }: SiteTerrainViewProps) {
       ))}
 
       <OrbitControls
+        ref={controlsRef}
         makeDefault
         enableDamping
         dampingFactor={0.1}
         maxPolarAngle={Math.PI / 2 - 0.05}
       />
-    </Canvas>
+    </>
   );
 }
+
+/**
+ * Pure Three.js terrain canvas — no overlays.
+ * Exposes zoomIn/zoomOut via ref for external zoom buttons.
+ */
+export const SiteTerrainView = forwardRef<SiteTerrainViewRef, SiteTerrainViewProps>(
+  function SiteTerrainView({ site, visibility }, ref) {
+    const centroid = site.centroid || { latitude: 0, longitude: 0 };
+    const elevationBase = site.elevationRange?.min ?? 0;
+    const elevationRange = site.elevationRange ?? { min: 0, max: 0 };
+    const controlsRef = useRef<OrbitControlsImpl | null>(null);
+
+    const sceneExtent = useMemo(() => {
+      let maxDist = 50;
+      for (const b of site.boundaries) {
+        for (const c of b.coordinates) {
+          const [x, , z] = toLocalCoords(c, centroid, elevationBase);
+          maxDist = Math.max(maxDist, Math.abs(x), Math.abs(z));
+        }
+      }
+      return maxDist * 1.5;
+    }, [site.boundaries, centroid, elevationBase]);
+
+    useImperativeHandle(ref, () => ({
+      zoomIn: () => {
+        const controls = controlsRef.current;
+        if (controls) {
+          // Dolly in by moving camera closer to target
+          const camera = controls.object;
+          const direction = new THREE.Vector3();
+          direction.subVectors(controls.target, camera.position).normalize();
+          camera.position.addScaledVector(direction, sceneExtent * 0.15);
+          controls.update();
+        }
+      },
+      zoomOut: () => {
+        const controls = controlsRef.current;
+        if (controls) {
+          const camera = controls.object;
+          const direction = new THREE.Vector3();
+          direction.subVectors(controls.target, camera.position).normalize();
+          camera.position.addScaledVector(direction, -sceneExtent * 0.15);
+          controls.update();
+        }
+      },
+    }), [sceneExtent]);
+
+    return (
+      <Canvas
+        className="h-full w-full"
+        style={{ background: '#0f172a' }}
+        camera={{
+          position: [sceneExtent * 0.7, sceneExtent * 0.5, sceneExtent * 0.7],
+          fov: 50,
+          near: 0.1,
+          far: sceneExtent * 10,
+        }}
+      >
+        <TerrainScene
+          site={site}
+          visibility={visibility}
+          centroid={centroid}
+          elevationBase={elevationBase}
+          elevationRange={elevationRange}
+          sceneExtent={sceneExtent}
+          controlsRef={controlsRef}
+        />
+      </Canvas>
+    );
+  }
+);

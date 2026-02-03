@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
 import { LatLngBounds } from 'leaflet';
 import type { Site, ExclusionZoneType } from '@/lib/types';
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Eye, EyeOff, Mountain, Map, Box, Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+import type { SiteTerrainViewRef } from './SiteTerrainView';
 
 const SiteTerrainView = lazy(() =>
   import('./SiteTerrainView').then((m) => ({ default: m.SiteTerrainView }))
@@ -58,6 +59,7 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
   const hasElevation = site.elevationRange != null;
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [visibility, setVisibility] = useState<LayerVisibility>(createInitialVisibility);
+  const terrainRef = useRef<SiteTerrainViewRef>(null);
 
   const exclusionTypesInSite = useMemo(() => {
     const types = new Set(site.exclusionZones.map(ez => ez.type));
@@ -151,7 +153,7 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             </div>
           }
         >
-          <SiteTerrainView site={site} visibility={visibility} />
+          <SiteTerrainView ref={terrainRef} site={site} visibility={visibility} />
         </Suspense>
       ) : (
         <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true}>
@@ -230,6 +232,26 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
       )}
 
       {/* === Shared overlays — always rendered regardless of view mode === */}
+
+      {/* Zoom buttons for 3D mode (Leaflet provides its own in 2D) */}
+      {is3D && (
+        <div className="absolute top-[10px] left-[10px] z-[1000] flex flex-col rounded-sm border-2 border-gray-400/50 overflow-hidden shadow">
+          <button
+            className="w-[30px] h-[30px] bg-white hover:bg-gray-100 text-lg leading-none text-gray-700 border-b border-gray-300 flex items-center justify-center"
+            onClick={() => terrainRef.current?.zoomIn()}
+            title="Zoom in"
+          >
+            +
+          </button>
+          <button
+            className="w-[30px] h-[30px] bg-white hover:bg-gray-100 text-lg leading-none text-gray-700 flex items-center justify-center"
+            onClick={() => terrainRef.current?.zoomOut()}
+            title="Zoom out"
+          >
+            &minus;
+          </button>
+        </div>
+      )}
 
       {/* View mode toggle (only when elevation data available) */}
       {hasElevation && (
