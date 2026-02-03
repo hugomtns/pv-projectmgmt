@@ -32,7 +32,9 @@ function toLocalCoords(
 
   const x = (coord.lng - centroid.longitude) * metersPerDegreeLng;
   const z = -(coord.lat - centroid.latitude) * metersPerDegreeLat;
-  const y = (coord.elevation ?? elevationBase) - elevationBase;
+  // Use raw elevation so the mesh sits at its true altitude above the
+  // ground plane (Y=0).  This naturally prevents z-fighting.
+  const y = coord.elevation ?? elevationBase;
 
   return [x, y, z];
 }
@@ -83,9 +85,8 @@ function BoundaryMesh({
     const colors: number[] = [];
 
     for (const [x, y, z] of localPoints) {
-      vertices.push(x, y + 0.5, z);
-      const elev = y + elevationBase;
-      const color = getElevationColor(elev, elevationRange.min, elevationRange.max);
+      vertices.push(x, y, z);
+      const color = getElevationColor(y, elevationRange.min, elevationRange.max);
       colors.push(color.r, color.g, color.b);
     }
 
@@ -94,9 +95,9 @@ function BoundaryMesh({
     const centerZ = localPoints.reduce((s, p) => s + p[2], 0) / localPoints.length;
 
     const centerIdx = localPoints.length;
-    vertices.push(centerX, centerY + 0.5, centerZ);
+    vertices.push(centerX, centerY, centerZ);
     const centerColor = getElevationColor(
-      centerY + elevationBase,
+      centerY,
       elevationRange.min,
       elevationRange.max
     );
@@ -347,6 +348,7 @@ function TerrainScene({
         enableDamping
         dampingFactor={0.1}
         maxPolarAngle={Math.PI / 2 - 0.05}
+        target={[0, elevationBase, 0]}
       />
     </>
   );
@@ -403,10 +405,10 @@ export const SiteTerrainView = forwardRef<SiteTerrainViewRef, SiteTerrainViewPro
         className="h-full w-full"
         style={{ background: '#0f172a' }}
         camera={{
-          position: [sceneExtent * 0.7, sceneExtent * 0.5, sceneExtent * 0.7],
+          position: [sceneExtent * 0.7, elevationBase + sceneExtent * 0.5, sceneExtent * 0.7],
           fov: 50,
           near: 0.1,
-          far: sceneExtent * 10,
+          far: sceneExtent * 10 + elevationBase,
         }}
       >
         <TerrainScene
