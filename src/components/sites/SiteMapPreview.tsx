@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup } from 'react-leaflet';
 import { LatLngBounds } from 'leaflet';
 import type { Site, ExclusionZoneType } from '@/lib/types';
@@ -60,6 +60,13 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [visibility, setVisibility] = useState<LayerVisibility>(createInitialVisibility);
   const terrainRef = useRef<SiteTerrainViewRef>(null);
+  // Track whether 3D was ever activated so the Canvas stays mounted (avoids
+  // ResizeObserver race with lazy-load causing an empty first render).
+  const [terrainMounted, setTerrainMounted] = useState(false);
+  const activate3D = useCallback(() => {
+    setTerrainMounted(true);
+    setViewMode('3d');
+  }, []);
 
   const exclusionTypesInSite = useMemo(() => {
     const types = new Set(site.exclusionZones.map(ez => ez.type));
@@ -143,19 +150,8 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
 
   return (
     <div className="h-full w-full rounded-lg overflow-hidden border relative">
-      {/* Canvas area — either Leaflet 2D or Three.js 3D */}
-      {is3D ? (
-        <Suspense
-          fallback={
-            <div className="h-full w-full flex items-center justify-center bg-slate-900 text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              Loading 3D view...
-            </div>
-          }
-        >
-          <SiteTerrainView ref={terrainRef} site={site} visibility={visibility} />
-        </Suspense>
-      ) : (
+      {/* Canvas area — Leaflet 2D hidden when 3D active, Three.js stays mounted once activated */}
+      <div className="h-full w-full" style={{ display: is3D ? 'none' : 'block' }}>
         <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true}>
           <TileLayer
             attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
@@ -229,6 +225,20 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             </Polygon>
           ))}
         </MapContainer>
+      </div>
+      {terrainMounted && (
+        <div className="h-full w-full absolute inset-0" style={{ display: is3D ? 'block' : 'none' }}>
+          <Suspense
+            fallback={
+              <div className="h-full w-full flex items-center justify-center bg-slate-900 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                Loading 3D view...
+              </div>
+            }
+          >
+            <SiteTerrainView ref={terrainRef} site={site} visibility={visibility} />
+          </Suspense>
+        </div>
       )}
 
       {/* === Shared overlays — always rendered regardless of view mode === */}
@@ -260,7 +270,7 @@ export function SiteMapPreview({ site }: SiteMapPreviewProps) {
             variant="secondary"
             size="sm"
             className="gap-1.5 shadow-lg"
-            onClick={() => setViewMode(is3D ? '2d' : '3d')}
+            onClick={() => is3D ? setViewMode('2d') : activate3D()}
           >
             {is3D ? (
               <><Map className="h-3.5 w-3.5" /> 2D Map</>
