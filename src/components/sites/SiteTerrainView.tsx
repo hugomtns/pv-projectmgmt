@@ -241,13 +241,22 @@ function TerrainScene({
   const satelliteAlignment = useMemo(() => {
     if (!site.centroid) return null;
 
-    const zoom = 17;
-    const tileSizeMeters = getTileSizeInMeters(site.centroid.latitude, zoom);
     const desiredCoverage = sceneExtent * 3;
+    const maxTilesPerSide = 9; // cap at 9×9 = 81 tiles
 
-    // Mirror SatelliteGround's internal gridSize calculation
+    // Pick the highest zoom where we don't exceed the tile cap.
+    // Start at zoom 17 (detail) and step down if the site is too large.
+    let zoom = 17;
+    while (zoom > 13) {
+      const ts = getTileSizeInMeters(site.centroid.latitude, zoom);
+      const needed = Math.ceil(desiredCoverage / ts);
+      if (needed <= maxTilesPerSide) break;
+      zoom--;
+    }
+
+    const tileSizeMeters = getTileSizeInMeters(site.centroid.latitude, zoom);
     const tilesNeeded = Math.ceil(desiredCoverage / tileSizeMeters);
-    const gridSize = tilesNeeded <= 1 ? 1 : tilesNeeded <= 3 ? 3 : 5;
+    const gridSize = tilesNeeded <= 1 ? 1 : tilesNeeded % 2 === 0 ? tilesNeeded + 1 : tilesNeeded;
 
     // Use exact tile size so satellite imagery renders at true geographic scale
     const groundSizeMeters = gridSize * tileSizeMeters;

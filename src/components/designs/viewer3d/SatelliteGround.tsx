@@ -28,11 +28,11 @@ function SatelliteTexturedPlane({
   const gridSize = useMemo(() => {
     if (!groundSizeMeters) return 1;
     const tilesNeeded = Math.ceil(groundSizeMeters / tileSizeMeters);
-    // Clamp to supported grid sizes: 1, 3, or 5
     if (tilesNeeded <= 1) return 1;
-    if (tilesNeeded <= 3) return 3;
-    return 5;
-  }, [groundSizeMeters, tileSizeMeters]) as 1 | 3 | 5;
+    // Round up to nearest odd number for symmetric grid
+    const odd = tilesNeeded % 2 === 0 ? tilesNeeded + 1 : tilesNeeded;
+    return odd;
+  }, [groundSizeMeters, tileSizeMeters]);
 
   // Calculate final ground plane size
   const finalSize = groundSizeMeters || tileSizeMeters;

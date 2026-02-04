@@ -71,7 +71,7 @@ export function getSurroundingTileURLs(
   lat: number,
   lon: number,
   zoom: number,
-  gridSize: 1 | 3 | 5 = 3
+  gridSize: number = 3
 ): { url: string; offsetX: number; offsetY: number }[] {
   const { x, y } = getTileCoordinates(lat, lon, zoom);
   const tiles: { url: string; offsetX: number; offsetY: number }[] = [];
