@@ -142,8 +142,8 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
         }
     }, [designId, updateDesign]);
 
-    // Build design context for AI image generation
-    const designContext = useMemo((): DesignContext => {
+    // Build design context for AI image generation (reads ref on demand)
+    const getDesignContext = useCallback((): DesignContext => {
         const parsedData = pv3DCanvasRef.current?.parsedData;
         const cameraMode = pv3DCanvasRef.current?.cameraMode ?? '3d';
 
@@ -484,7 +484,7 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
                 open={showImageModal}
                 onOpenChange={setShowImageModal}
                 onCapture={handleCaptureCanvas}
-                designContext={designContext}
+                getDesignContext={getDesignContext}
             />
 
             {/* Yield Estimate Modal */}

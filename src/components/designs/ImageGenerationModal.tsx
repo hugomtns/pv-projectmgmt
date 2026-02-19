@@ -23,15 +23,14 @@ import { toast } from 'sonner';
 import { generateRealisticImage } from '@/lib/gemini';
 import type { DesignContext } from '@/lib/gemini';
 
-// Reuse the same unlock key as AI Review
-const AI_REVIEW_UNLOCKED_KEY = 'ai-review-unlocked';
+const AI_IMAGE_GEN_UNLOCKED_KEY = 'ai-image-gen-unlocked';
 
 function isFeatureUnlocked(): boolean {
-  return localStorage.getItem(AI_REVIEW_UNLOCKED_KEY) === 'true';
+  return localStorage.getItem(AI_IMAGE_GEN_UNLOCKED_KEY) === 'true';
 }
 
 function unlockFeature(): void {
-  localStorage.setItem(AI_REVIEW_UNLOCKED_KEY, 'true');
+  localStorage.setItem(AI_IMAGE_GEN_UNLOCKED_KEY, 'true');
 }
 
 function validateUnlockCode(code: string): boolean {
@@ -48,7 +47,7 @@ interface ImageGenerationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCapture: () => string; // Returns canvas base64
-  designContext: DesignContext;
+  getDesignContext: () => DesignContext; // Getter — reads live data from the 3D canvas ref
 }
 
 type Stage = 'locked' | 'ready' | 'generating' | 'done' | 'error';
@@ -57,17 +56,25 @@ export function ImageGenerationModal({
   open,
   onOpenChange,
   onCapture,
-  designContext,
+  getDesignContext,
 }: ImageGenerationModalProps) {
   const [stage, setStage] = useState<Stage>('ready');
   const [unlockCode, setUnlockCode] = useState('');
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [designContext, setDesignContext] = useState<DesignContext>({
+    panelCount: 0,
+    panelDimensions: { width: 2, height: 1 },
+    tiltAngle: 0,
+    equipmentTypes: [],
+    cameraMode: '3d',
+  });
 
-  // Reset state when dialog opens
+  // Snapshot design context and reset state when dialog opens
   useEffect(() => {
     if (open) {
+      setDesignContext(getDesignContext());
       if (isUnlockCodeRequired() && !isFeatureUnlocked()) {
         setStage('locked');
       } else {
@@ -77,7 +84,7 @@ export function ImageGenerationModal({
       setUnlockError(null);
       setErrorMessage(null);
     }
-  }, [open, generatedImage]);
+  }, [open, generatedImage, getDesignContext]);
 
   const handleUnlock = () => {
     if (validateUnlockCode(unlockCode)) {
