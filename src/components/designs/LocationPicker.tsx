@@ -173,6 +173,7 @@ export function LocationPicker({ value, onChange, groundSize = DEFAULT_GROUND_SI
               onClick={() => setMapSheetOpen(true)}
             >
               <MapContainer
+                key={`${value.latitude},${value.longitude}`}
                 center={mapPosition}
                 zoom={15}
                 className="h-full w-full"
