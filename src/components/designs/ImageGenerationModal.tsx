@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, Loader2, Lock, Download, RefreshCw } from 'lucide-react';
+import { Sparkles, Loader2, Lock, Download, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +63,7 @@ export function ImageGenerationModal({
   const [unlockError, setUnlockError] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [designContext, setDesignContext] = useState<DesignContext>({
     panelCount: 0,
     panelDimensions: { width: 2, height: 1 },
@@ -143,12 +144,13 @@ export function ImageGenerationModal({
 
   const handleRegenerate = () => {
     setGeneratedImage(null);
+    setExpanded(false);
     setStage('ready');
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className={expanded ? "max-w-[90vw] max-h-[90vh] flex flex-col" : "max-w-2xl"}>
         <DialogHeader>
           <DialogTitle>AI Image Generation</DialogTitle>
           <DialogDescription>
@@ -233,15 +235,18 @@ export function ImageGenerationModal({
 
         {/* Done state */}
         {stage === 'done' && generatedImage && (
-          <div className="space-y-4">
-            <div className="rounded-lg overflow-hidden border bg-muted/30">
+          <div className={expanded ? "flex-1 min-h-0 flex flex-col gap-4" : "space-y-4"}>
+            <div className={`rounded-lg overflow-auto border bg-muted/30 ${expanded ? 'flex-1 min-h-0' : ''}`}>
               <img
                 src={`data:image/png;base64,${generatedImage}`}
                 alt="AI-generated photorealistic render"
-                className="w-full h-auto"
+                className={expanded ? "max-w-full max-h-full object-contain mx-auto" : "w-full h-auto"}
               />
             </div>
-            <DialogFooter>
+            <DialogFooter className="shrink-0">
+              <Button variant="outline" size="icon" onClick={() => setExpanded(!expanded)} title={expanded ? 'Collapse' : 'Expand'}>
+                {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </Button>
               <Button variant="outline" onClick={handleRegenerate}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Regenerate
