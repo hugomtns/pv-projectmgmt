@@ -89,21 +89,27 @@ export function PVLayoutRenderer({
 
       {/* Boundaries and Areas */}
       {showBoundaries && (
-        <BoundaryLines boundaries={parsedData.boundaries} />
+        <group name="boundary-lines">
+          <BoundaryLines boundaries={parsedData.boundaries} />
+        </group>
       )}
 
       {/* Electrical Components - Lines (cables) */}
       {showElectrical && (
-        <ElectricalLines electrical={parsedData.electrical} />
+        <group name="electrical-cables">
+          <ElectricalLines electrical={parsedData.electrical} />
+        </group>
       )}
 
       {/* Electrical Components - 3D Equipment (inverters, transformers) */}
       {showElectrical && (
-        <Equipment3D
-          equipment={parsedData.electrical}
-          elementCommentMode={elementCommentMode}
-          onElementSelected={onElementSelected}
-        />
+        <group name="equipment-3d">
+          <Equipment3D
+            equipment={parsedData.electrical}
+            elementCommentMode={elementCommentMode}
+            onElementSelected={onElementSelected}
+          />
+        </group>
       )}
 
       {/* Trees for shading visualization */}
@@ -113,24 +119,28 @@ export function PVLayoutRenderer({
 
       {/* Element Comment Markers */}
       {designId && versionId && (
-        <ElementCommentMarkers
-          panels={parsedData.panels}
-          electrical={parsedData.electrical}
-          designId={designId}
-          versionId={versionId}
-          onBadgeClick={onBadgeClick}
-          highlightedElementKey={highlightedElementKey}
-          showPins={showPins}
-        />
+        <group name="comment-markers">
+          <ElementCommentMarkers
+            panels={parsedData.panels}
+            electrical={parsedData.electrical}
+            designId={designId}
+            versionId={versionId}
+            onBadgeClick={onBadgeClick}
+            highlightedElementKey={highlightedElementKey}
+            showPins={showPins}
+          />
+        </group>
       )}
 
       {/* Digital Twin: Equipment Status Overlay */}
       {telemetry && showDigitalTwinMetrics && (
-        <EquipmentStatusOverlay
-          equipment={parsedData.electrical}
-          telemetry={telemetry}
-          showMetrics={cameraMode === '3d'}
-        />
+        <group name="equipment-overlays">
+          <EquipmentStatusOverlay
+            equipment={parsedData.electrical}
+            telemetry={telemetry}
+            showMetrics={cameraMode === '3d'}
+          />
+        </group>
       )}
 
       {/* Digital Twin: Panel Performance Heatmap

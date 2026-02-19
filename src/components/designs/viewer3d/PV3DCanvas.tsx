@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle, type MutableRefObject } from 'react';
+import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Grid } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
@@ -14,6 +15,14 @@ import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
 import { useDigitalTwinStore } from '@/stores/digitalTwinStore';
 import { Loader2 } from 'lucide-react';
 
+/** Groups to hide when capturing a clean scene for AI image generation */
+const AI_CAPTURE_HIDDEN_GROUPS = [
+  'electrical-cables',
+  'boundary-lines',
+  'comment-markers',
+  'equipment-overlays',
+];
+
 /**
  * CanvasCaptureProvider - Internal component to capture canvas
  * Must be used inside a Canvas component to access useThree()
@@ -21,16 +30,34 @@ import { Loader2 } from 'lucide-react';
 function CanvasCaptureProvider({
   captureRef,
 }: {
-  captureRef: MutableRefObject<(() => string) | null>;
+  captureRef: MutableRefObject<((options?: { forAI?: boolean }) => string) | null>;
 }) {
   const { gl, scene, camera } = useThree();
 
   useEffect(() => {
-    captureRef.current = () => {
-      // Ensure the current frame is rendered
+    captureRef.current = (options) => {
+      const hidden: THREE.Object3D[] = [];
+
+      // For AI capture: hide cables, boundaries, comment markers, overlays
+      // so the model sees only physical objects (panels, equipment boxes, trees)
+      if (options?.forAI) {
+        scene.traverse((obj) => {
+          if (AI_CAPTURE_HIDDEN_GROUPS.includes(obj.name) && obj.visible) {
+            obj.visible = false;
+            hidden.push(obj);
+          }
+        });
+      }
+
+      // Render and capture
       gl.render(scene, camera);
-      // Get the canvas data URL and extract the base64 portion
       const dataUrl = gl.domElement.toDataURL('image/png');
+
+      // Restore hidden groups
+      for (const obj of hidden) {
+        obj.visible = true;
+      }
+
       return dataUrl.split(',')[1];
     };
   }, [gl, scene, camera, captureRef]);
@@ -40,7 +67,7 @@ function CanvasCaptureProvider({
 
 export interface PV3DCanvasRef {
   focusOnElement: (elementType: string, elementId: string) => void;
-  captureCanvas: () => string;
+  captureCanvas: (options?: { forAI?: boolean }) => string;
   cameraMode: '3d' | '2d';
   parsedData: DXFParsedData | null;
 }
@@ -91,7 +118,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   const zoomRef = useRef(8);
   const cameraControlsRef = useRef<CameraControlsRef>(null);
   // Canvas capture function ref (populated by CanvasCaptureProvider inside Canvas)
-  const captureRef = useRef<(() => string) | null>(null);
+  const captureRef = useRef<((options?: { forAI?: boolean }) => string) | null>(null);
 
   // DXF parsing state
   const [parsedData, setParsedData] = useState<DXFParsedData | null>(null);
@@ -246,7 +273,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
     focusOnElement,
-    captureCanvas: () => captureRef.current?.() ?? '',
+    captureCanvas: (options?: { forAI?: boolean }) => captureRef.current?.(options) ?? '',
     cameraMode,
     parsedData,
   }), [focusOnElement, cameraMode, parsedData]);

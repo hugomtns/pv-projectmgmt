@@ -39,53 +39,41 @@ export interface GenerateImageResult {
  */
 function buildPrompt(context: DesignContext): string {
   const treeSection = context.treeCount > 0
-    ? `\n- ${context.treeCount} tree(s) present on site`
+    ? `\n- Realistic trees where the schematic shows green tree shapes`
     : '';
 
-  const boundarySection = context.boundaryTypes.length > 0
-    ? `\n- Site boundaries: ${context.boundaryTypes.join(', ')}`
-    : '';
-
-  const inverterCount = context.electricalCounts['inverter'] ?? 0;
   const transformerCount = context.electricalCounts['transformer'] ?? 0;
-  const combinerCount = context.electricalCounts['combiner'] ?? 0;
+  const transformerSection = transformerCount > 0
+    ? `\n- There are ${transformerCount} LARGE colored box(es) in the schematic — these are padmount transformers. Replace each one with a realistic green/gray padmount transformer at that exact location.`
+    : '';
 
-  // Only mention equipment that actually exists
-  const equipmentDesc: string[] = [];
-  if (inverterCount > 0) equipmentDesc.push(`${inverterCount} small string inverter cabinet(s)`);
-  if (transformerCount > 0) equipmentDesc.push(`${transformerCount} padmount transformer(s)`);
-  if (combinerCount > 0) equipmentDesc.push(`${combinerCount} combiner box(es)`);
+  return `You are given a 3D schematic of a solar PV installation. Use it as a spatial blueprint to produce a photorealistic aerial photograph of the same site.
 
-  const equipmentSentence = equipmentDesc.length > 0
-    ? `The site includes ${equipmentDesc.join(', ')} — these are visible as small 3D box shapes in the schematic.`
-    : 'There is no electrical equipment on this site beyond the panels and racking.';
-
-  return `You are given a 3D schematic of a solar PV installation. Use it ONLY as a spatial blueprint to produce a photorealistic aerial photograph of the same site.
-
-The schematic contains colored lines and wireframe boxes that represent the engineering design. These are NOT real objects — they are abstract design overlays. Your job is to completely remove all schematic artifacts (colored lines, wireframe overlays, colored boxes, labels) and replace the entire scene with a realistic photograph.
+The schematic contains colored lines and colored boxes that represent the engineering design. These are abstract overlays — not real objects. Ignore all colored lines and all SMALL boxes. The only boxes you should convert to real objects are the few LARGE boxes (transformers).
 
 SITE DETAILS:
 - ${context.panelCount} solar panel tables tilted at ${context.tiltAngle.toFixed(0)}° on ground-mount steel racking
-- Panel table dimensions: ${context.panelDimensions.width.toFixed(1)}m × ${context.panelDimensions.height.toFixed(1)}m${treeSection}${boundarySection}
-- ${equipmentSentence}
-- Gravel or compacted earth access roads run between the panel rows
+- Panel table dimensions: ${context.panelDimensions.width.toFixed(1)}m × ${context.panelDimensions.height.toFixed(1)}m${transformerSection}
 
-WHAT THE FINAL IMAGE SHOULD LOOK LIKE:
-Imagine a real drone photograph taken at midday over this solar farm. You should see:
-- Rows of dark blue/black solar panels on galvanized steel racking, casting shadows on the ground
+WHAT THE FINAL IMAGE MUST LOOK LIKE:
+A real drone photograph taken at midday over this solar farm:
+- Rows of dark blue/black solar panels on galvanized steel racking, casting realistic shadows
+- Preserve the EXACT row layout, spacing, and arrangement from the schematic
 - Natural terrain (grass, dirt, gravel) between and around the panel rows
-- Gravel maintenance roads between panel sections${context.treeCount > 0 ? '\n- Realistic trees where the schematic shows tree shapes' : ''}${inverterCount > 0 ? '\n- Small gray/white inverter cabinets on posts — only where the schematic shows small box shapes near panels' : ''}${transformerCount > 0 ? '\n- Green/gray padmount transformers — only where the schematic shows larger box shapes' : ''}
-- No visible cables or wiring (all underground)
+- Gravel maintenance roads between panel sections${treeSection}${transformerCount > 0 ? '\n- Realistic padmount transformers ONLY where the schematic shows large boxes' : ''}
 - Natural surroundings extending beyond the site
 
-WHAT MUST NOT APPEAR IN THE FINAL IMAGE:
-- No colored lines of any kind (no red, blue, purple, orange, green, or gray lines)
-- No wireframe overlays or schematic markings
-- No colored boxes — replace each box with the corresponding realistic equipment at that location
-- No labels, annotations, or grid lines
-- No equipment in locations where the schematic shows empty ground
+IMPORTANT — DO NOT ADD:
+- Do NOT add any small electrical equipment (no inverters, no combiner boxes, no cabinets, no small enclosures)
+- Do NOT add any wires, cables, or conduits
+- Do NOT draw any colored lines
+- Do NOT place any equipment where the schematic shows empty ground
 
-Use the schematic purely for spatial arrangement — the position of every panel, road, tree, and piece of equipment. Then render everything as if photographed by a real camera.`;
+WHAT TO REMOVE:
+- All colored lines (these are engineering overlays, not real objects)
+- All small colored boxes (these are schematic markers, not real objects)
+- All wireframe outlines and grid lines
+- Replace the entire scene with photorealistic equivalents`;
 }
 
 /**
