@@ -147,14 +147,25 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
         const parsedData = pv3DCanvasRef.current?.parsedData;
         const cameraMode = pv3DCanvasRef.current?.cameraMode ?? '3d';
 
+        const empty: DesignContext = {
+            panelCount: 0,
+            panelDimensions: { width: 2, height: 1 },
+            tiltAngle: 0,
+            equipmentTypes: [],
+            cameraMode,
+            electricalCounts: {},
+            treeCount: 0,
+            boundaryTypes: [],
+        };
+
         if (!parsedData || parsedData.panels.length === 0) {
-            return {
-                panelCount: 0,
-                panelDimensions: { width: 2, height: 1 },
-                tiltAngle: 0,
-                equipmentTypes: [],
-                cameraMode,
-            };
+            return empty;
+        }
+
+        // Count electrical components by type
+        const electricalCounts: Record<string, number> = {};
+        for (const e of parsedData.electrical) {
+            electricalCounts[e.type] = (electricalCounts[e.type] ?? 0) + 1;
         }
 
         const firstPanel = parsedData.panels[0];
@@ -167,6 +178,9 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
             tiltAngle: firstPanel.tiltAngle ?? 0,
             equipmentTypes: [...new Set(parsedData.electrical.map((e) => e.type))],
             cameraMode,
+            electricalCounts,
+            treeCount: parsedData.trees.length,
+            boundaryTypes: [...new Set(parsedData.boundaries.map((b) => b.type))],
         };
     }, []);
 

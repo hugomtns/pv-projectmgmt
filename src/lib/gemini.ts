@@ -15,6 +15,12 @@ export interface DesignContext {
   tiltAngle: number;
   equipmentTypes: string[];
   cameraMode: '3d' | '2d';
+  /** Counts of electrical components by type */
+  electricalCounts: Record<string, number>;
+  /** Number of trees in the scene */
+  treeCount: number;
+  /** Boundary types present (e.g. fence, road, pv_area) */
+  boundaryTypes: string[];
 }
 
 export interface GenerateImageParams {
@@ -32,28 +38,57 @@ export interface GenerateImageResult {
  * Build the prompt for Gemini to generate a realistic solar installation image
  */
 function buildPrompt(context: DesignContext): string {
-  const equipmentList = context.equipmentTypes.length > 0
-    ? context.equipmentTypes.join(', ')
-    : 'none visible';
+  // Build equipment summary
+  const equipmentLines: string[] = [];
+  for (const [type, count] of Object.entries(context.electricalCounts)) {
+    if (count > 0) equipmentLines.push(`  - ${count} ${type.replace(/_/g, ' ')}(s)`);
+  }
+  const equipmentSection = equipmentLines.length > 0
+    ? equipmentLines.join('\n')
+    : '  - None visible';
 
-  return `Generate a photorealistic aerial view of a solar installation based on this 3D rendering.
+  const treeSection = context.treeCount > 0
+    ? `\n- ${context.treeCount} tree(s) present on site`
+    : '';
 
-Design specifications:
-- ${context.panelCount} solar panels
-- Panel size: ${context.panelDimensions.width.toFixed(2)}m x ${context.panelDimensions.height.toFixed(2)}m
-- Tilt angle: ${context.tiltAngle.toFixed(1)} degrees
-- Equipment: ${equipmentList}
-- View: ${context.cameraMode === '3d' ? 'Perspective view' : 'Top-down orthographic view'}
+  const boundarySection = context.boundaryTypes.length > 0
+    ? `\n- Site boundaries: ${context.boundaryTypes.join(', ')}`
+    : '';
 
-Transform the 3D schematic into a realistic photograph showing:
-- Actual solar panel textures with anti-reflective coating and typical blue/black coloring
-- Realistic shadows based on panel tilt and sun position
-- Surrounding landscape (grass, gravel, or appropriate ground cover)
-- Natural midday lighting conditions
-- Any visible electrical equipment (inverters, transformers)
-- Mounting structures and racking systems
+  return `Transform this 3D schematic rendering of a solar PV installation into a photorealistic aerial photograph.
 
-Important: Maintain the exact panel placement and layout from the reference image. Do not add or remove panels.`;
+DESIGN SPECIFICATIONS:
+- ${context.panelCount} solar panel tables on ground-mount racking
+- Panel table size: ${context.panelDimensions.width.toFixed(2)}m × ${context.panelDimensions.height.toFixed(2)}m
+- Tilt angle: ${context.tiltAngle.toFixed(1)}°
+- View: ${context.cameraMode === '3d' ? 'Perspective / oblique aerial' : 'Top-down orthographic'}${treeSection}${boundarySection}
+- Equipment on site:
+${equipmentSection}
+
+COLOR LEGEND — what each color in the schematic represents:
+- Dark blue/black tilted rectangles = Solar panel tables (rows of PV modules on steel racking)
+- Small GREEN boxes = String inverters (wall-mounted electrical cabinets, roughly 0.6m × 0.4m × 0.2m)
+- Larger PURPLE/VIOLET boxes = Transformers (padmount oil-cooled, roughly 2m × 1.5m × 1.5m)
+- RED lines = DC string cables (run from panels to inverters — these are mostly routed along racking or in cable trays, barely visible from above)
+- BLUE lines = AC cables (run from inverters to transformers — also mostly concealed in underground trenches)
+- PURPLE/MAGENTA lines or paths = Maintenance corridors / access roads between panel rows (gravel or compacted earth paths)
+- Dashed GRAY lines = Underground cable trenches (not visible on surface — show as subtle ground disturbance at most)
+- ORANGE lines = Generic cabling (routed along structures, barely visible)
+- GREEN tree shapes (trunk + crown) = Existing trees on the site
+- Gray/white boundary lines = Fences, roads, or site perimeter
+
+RENDERING INSTRUCTIONS:
+1. PANELS: Replace the schematic rectangles with realistic solar modules — dark blue/black cells with anti-reflective coating, silver aluminum frames, visible cell grid pattern. Keep the exact same placement, count, and tilt angle.
+2. RACKING: Add realistic galvanized steel ground-mount racking/torque tubes supporting the panels.
+3. INVERTERS: Replace green boxes with realistic small gray/white electrical enclosures mounted on simple support posts.
+4. TRANSFORMERS: Replace purple boxes with realistic green or gray padmount transformers with cooling fins.
+5. CABLES: DC and AC cables should be mostly INVISIBLE from this aerial view — they run underground in trenches or along racking. Do NOT draw colored lines on the ground. At most, show subtle parallel ground marks where trenches were dug.
+6. CORRIDORS: Replace purple paths with realistic gravel or compacted earth maintenance roads/paths between panel rows.
+7. TREES: Render as realistic trees matching the size and species typical for the region.
+8. GROUND: Natural terrain — grass, gravel, or dry earth depending on the landscape. Include realistic shadows from panels and trees based on midday sun.
+9. SURROUNDINGS: Extend the landscape naturally beyond the site boundary with appropriate terrain.
+
+CRITICAL: Maintain the EXACT layout, spacing, and arrangement from the reference image. Do not add, remove, or rearrange any elements. The spatial arrangement is the engineering design.`;
 }
 
 /**

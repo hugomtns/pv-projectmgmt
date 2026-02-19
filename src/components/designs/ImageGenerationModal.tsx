@@ -69,6 +69,9 @@ export function ImageGenerationModal({
     tiltAngle: 0,
     equipmentTypes: [],
     cameraMode: '3d',
+    electricalCounts: {},
+    treeCount: 0,
+    boundaryTypes: [],
   });
 
   // Snapshot design context and reset state when dialog opens
