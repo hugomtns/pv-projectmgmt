@@ -1,9 +1,13 @@
 /**
  * Gemini API Integration for AI Image Generation
  *
- * Uses Google's Gemini 2.5 Flash Image Preview to generate
+ * Uses Google's Gemini 3 Pro Image Preview to generate
  * photorealistic images from 3D canvas captures of solar layouts.
  */
+
+import { aiLogger } from './aiLogger';
+
+const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 export interface DesignContext {
   panelCount: number;
@@ -72,9 +76,20 @@ export async function generateRealisticImage(
 
   const prompt = buildPrompt(params.designContext);
 
+  const finish = aiLogger.start({
+    feature: 'image-generation',
+    model: IMAGE_MODEL,
+    promptLength: prompt.length,
+    hasImageInput: true,
+    metadata: {
+      panelCount: params.designContext.panelCount,
+      cameraMode: params.designContext.cameraMode,
+    },
+  });
+
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -104,6 +119,7 @@ export async function generateRealisticImage(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error?.message || `API request failed: ${response.status}`;
+      finish({ status: 'error', httpStatus: response.status, error: errorMessage });
       return {
         success: false,
         error: errorMessage,
@@ -111,6 +127,16 @@ export async function generateRealisticImage(
     }
 
     const data = await response.json();
+
+    // Extract token usage if available
+    const usageMetadata = data.usageMetadata;
+    const tokenUsage = usageMetadata
+      ? {
+          promptTokens: usageMetadata.promptTokenCount,
+          completionTokens: usageMetadata.candidatesTokenCount,
+          totalTokens: usageMetadata.totalTokenCount,
+        }
+      : undefined;
 
     // Extract the generated image from the response
     const imagePart = data.candidates?.[0]?.content?.parts?.find(
@@ -122,18 +148,22 @@ export async function generateRealisticImage(
       const textPart = data.candidates?.[0]?.content?.parts?.find(
         (part: { text?: string }) => part.text
       );
+      const error = textPart?.text || 'No image was generated. Please try again.';
+      finish({ status: 'error', httpStatus: response.status, error, tokenUsage });
       return {
         success: false,
-        error: textPart?.text || 'No image was generated. Please try again.',
+        error,
       };
     }
 
+    finish({ status: 'success', httpStatus: response.status, tokenUsage });
     return {
       success: true,
       image: imagePart.inlineData.data,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error occurred';
+    finish({ status: 'error', error: `Failed to generate image: ${message}` });
     return {
       success: false,
       error: `Failed to generate image: ${message}`,

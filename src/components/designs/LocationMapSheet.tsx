@@ -169,7 +169,7 @@ export function LocationMapSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[75vh] flex flex-col">
+      <SheetContent side="bottom" className="h-[75vh] flex flex-col z-[1200]" overlayClassName="z-[1200]">
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />

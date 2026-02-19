@@ -13,6 +13,7 @@ import { Users } from '@/pages/Users';
 import { Groups } from '@/pages/Groups';
 import { Permissions } from '@/pages/Permissions';
 import { AdminLog } from '@/pages/AdminLog';
+import { AiLog } from '@/pages/AiLog';
 import NotFound from '@/pages/NotFound';
 
 export const router = createBrowserRouter([
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: 'groups', element: <Groups /> },
       { path: 'permissions', element: <Permissions /> },
       { path: 'admin-log', element: <AdminLog /> },
+      { path: 'ai-log', element: <AiLog /> },
       { path: '*', element: <NotFound /> },
     ],
   },

@@ -15,6 +15,7 @@ import {
   type DocumentTextData,
 } from '@/components/documents/utils/pdfTextExtractor';
 import type { HighlightColor } from '@/lib/types/document';
+import { aiLogger } from '@/lib/aiLogger';
 
 /**
  * Types of changes that can be identified
@@ -300,6 +301,8 @@ function parseGeminiResponse(responseText: string): {
   };
 }
 
+const REVIEW_MODEL = 'gemini-2.5-flash';
+
 /**
  * Call the Gemini API for document comparison
  */
@@ -312,8 +315,12 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     );
   }
 
-  console.log('[AI Review] Calling Gemini API...');
-  console.log('[AI Review] Prompt length:', prompt.length, 'characters');
+  const finish = aiLogger.start({
+    feature: 'document-review',
+    model: REVIEW_MODEL,
+    promptLength: prompt.length,
+    hasImageInput: false,
+  });
 
   const requestBody = {
     contents: [
@@ -329,38 +336,54 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     },
   };
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    }
-  );
-
-  console.log('[AI Review] Gemini API response status:', response.status);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${REVIEW_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Network error';
+    finish({ status: 'error', error: message });
+    throw err;
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    console.error('[AI Review] Gemini API error:', errorData);
 
+    let errorMessage: string;
     if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again in a few minutes.');
-    }
-    if (response.status === 400) {
+      errorMessage = 'Rate limit exceeded. Please try again in a few minutes.';
+    } else if (response.status === 400) {
       const errorMsg = (errorData as { error?: { message?: string } }).error?.message || '';
-      throw new Error(`Request error: ${errorMsg || 'Try with a smaller document.'}`);
+      errorMessage = `Request error: ${errorMsg || 'Try with a smaller document.'}`;
+    } else {
+      errorMessage =
+        (errorData as { error?: { message?: string } }).error?.message ||
+        `API request failed: ${response.status}`;
     }
-    const errorMessage =
-      (errorData as { error?: { message?: string } }).error?.message ||
-      `API request failed: ${response.status}`;
+
+    finish({ status: 'error', httpStatus: response.status, error: errorMessage });
     throw new Error(errorMessage);
   }
 
   const data = await response.json();
-  console.log('[AI Review] Gemini API response received');
+
+  // Extract token usage if available
+  const usageMetadata = data.usageMetadata;
+  const tokenUsage = usageMetadata
+    ? {
+        promptTokens: usageMetadata.promptTokenCount,
+        completionTokens: usageMetadata.candidatesTokenCount,
+        totalTokens: usageMetadata.totalTokenCount,
+      }
+    : undefined;
 
   // Extract text from response
   const textPart = data.candidates?.[0]?.content?.parts?.find(
@@ -368,10 +391,11 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   );
 
   if (!textPart?.text) {
-    console.error('[AI Review] No text in response:', JSON.stringify(data, null, 2));
+    finish({ status: 'error', httpStatus: response.status, error: 'No text in response', tokenUsage });
     throw new Error('No response received from AI. Please try again.');
   }
 
+  finish({ status: 'success', httpStatus: response.status, tokenUsage });
   return textPart.text;
 }
 

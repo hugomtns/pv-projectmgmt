@@ -8,6 +8,7 @@
 import { loadPDFFromBlob } from '@/components/documents/utils/pdfUtils';
 import { extractDocumentText } from '@/components/documents/utils/pdfTextExtractor';
 import { buildModuleExtractionPrompt, buildInverterExtractionPrompt } from './specSheetPrompts';
+import { aiLogger } from '@/lib/aiLogger';
 import type {
   ExtractedModuleFamily,
   SharedModuleSpecs,
@@ -143,6 +144,13 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     );
   }
 
+  const finish = aiLogger.start({
+    feature: 'spec-sheet-parsing',
+    model: GEMINI_MODEL,
+    promptLength: prompt.length,
+    hasImageInput: false,
+  });
+
   const requestBody = {
     contents: [
       {
@@ -157,35 +165,54 @@ async function callGeminiAPI(prompt: string): Promise<string> {
     },
   };
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    }
-  );
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Network error';
+    finish({ status: 'error', error: message });
+    throw err;
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
 
+    let errorMessage: string;
     if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again in a few minutes.');
-    }
-    if (response.status === 400) {
+      errorMessage = 'Rate limit exceeded. Please try again in a few minutes.';
+    } else if (response.status === 400) {
       const errorMsg = (errorData as { error?: { message?: string } }).error?.message || '';
-      throw new Error(`Request error: ${errorMsg || 'Try with a smaller document.'}`);
+      errorMessage = `Request error: ${errorMsg || 'Try with a smaller document.'}`;
+    } else {
+      errorMessage =
+        (errorData as { error?: { message?: string } }).error?.message ||
+        `API request failed: ${response.status}`;
     }
 
-    const errorMessage =
-      (errorData as { error?: { message?: string } }).error?.message ||
-      `API request failed: ${response.status}`;
+    finish({ status: 'error', httpStatus: response.status, error: errorMessage });
     throw new Error(errorMessage);
   }
 
   const data = await response.json();
+
+  // Extract token usage if available
+  const usageMetadata = data.usageMetadata;
+  const tokenUsage = usageMetadata
+    ? {
+        promptTokens: usageMetadata.promptTokenCount,
+        completionTokens: usageMetadata.candidatesTokenCount,
+        totalTokens: usageMetadata.totalTokenCount,
+      }
+    : undefined;
 
   // Extract text from response
   const textPart = data.candidates?.[0]?.content?.parts?.find(
@@ -193,9 +220,11 @@ async function callGeminiAPI(prompt: string): Promise<string> {
   );
 
   if (!textPart?.text) {
+    finish({ status: 'error', httpStatus: response.status, error: 'No text in response', tokenUsage });
     throw new Error('No response received from AI. Please try again.');
   }
 
+  finish({ status: 'success', httpStatus: response.status, tokenUsage });
   return textPart.text;
 }
 

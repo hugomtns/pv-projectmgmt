@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import type { DocumentVersion, Drawing, DocumentComment, WorkflowEvent } from './types/document';
 import type { DesignVersion, DesignComment, DesignWorkflowEvent } from './types';
 import type { AdminLogEntry } from './types/adminLog';
+import type { AiLogEntry } from './types/aiLog';
 
 // Blob storage record
 interface BlobRecord {
@@ -24,6 +25,7 @@ class DocumentDatabase extends Dexie {
   designComments!: EntityTable<DesignComment, 'id'>;
   designWorkflowEvents!: EntityTable<DesignWorkflowEvent, 'id'>;
   adminLogs!: EntityTable<AdminLogEntry, 'id'>;
+  aiLogs!: EntityTable<AiLogEntry, 'id'>;
 
   constructor() {
     super('pv-projectmgmt-documents');
@@ -68,6 +70,20 @@ class DocumentDatabase extends Dexie {
       designComments: 'id, designId, versionId, createdAt',
       designWorkflowEvents: 'id, designId, timestamp',
       adminLogs: 'id, timestamp, userId, action, entityType',
+    });
+
+    // Version 5: Add aiLogs table for LLM call observability
+    this.version(5).stores({
+      documentVersions: 'id, documentId, versionNumber, uploadedAt',
+      drawings: 'id, [documentId+page], documentId, page, createdBy',
+      documentComments: 'id, documentId, versionId, type, createdAt',
+      workflowEvents: 'id, documentId, timestamp',
+      blobs: 'id',
+      designVersions: 'id, designId, versionNumber, uploadedAt',
+      designComments: 'id, designId, versionId, createdAt',
+      designWorkflowEvents: 'id, designId, timestamp',
+      adminLogs: 'id, timestamp, userId, action, entityType',
+      aiLogs: 'id, timestamp, feature, model, status',
     });
   }
 }
