@@ -4,6 +4,9 @@
  * Projects equipment bounding-box corners from Three.js world space into
  * normalized screen coordinates (0–1) using the active camera. Results are
  * dimension-agnostic so they can be applied to any output image size.
+ *
+ * Both the top face (at equipment height) and bottom face (at ground level)
+ * are projected so the compositing layer can draw perspective-correct 3D boxes.
  */
 
 import * as THREE from 'three';
@@ -20,9 +23,17 @@ const EQUIPMENT_DIMS: Record<string, { width: number; height: number; depth: num
 export interface ProjectedEquipment {
   id: string;
   type: 'inverter' | 'transformer' | 'combiner';
-  /** Normalised screen-space corners of the top face (clockwise: TL, TR, BR, BL). */
+  /**
+   * Normalised screen-space corners of the TOP face (clockwise: TL, TR, BR, BL).
+   * TL = left-front, TR = right-front, BR = right-back, BL = left-back.
+   */
   topFace: ReadonlyArray<readonly [number, number]>;
-  /** Normalised screen-space centre of the equipment. */
+  /**
+   * Normalised screen-space corners of the BOTTOM face (ground level),
+   * same corner order as topFace.
+   */
+  bottomFace: ReadonlyArray<readonly [number, number]>;
+  /** Normalised screen-space centre of the equipment (top face centroid). */
   cx: number;
   cy: number;
   /** False when the item is behind the camera or projects outside reasonable bounds. */
@@ -30,20 +41,20 @@ export interface ProjectedEquipment {
 }
 
 /**
- * Convert DXF equipment coordinates to Three.js world space.
+ * Return the world-space centre of the equipment top face.
  * Replicates the transform in Equipment3D.tsx (including transformer INSERT offset).
  */
-function dxfToWorld(
+function getWorldCenter(
   item: ElectricalComponent,
   centerOffset: { x: number; z: number },
-): THREE.Vector3 {
+): { x: number; y: number; z: number } {
   const dims = EQUIPMENT_DIMS[item.type] ?? { width: 1, height: 1, depth: 1 };
   const isTransformer = item.type === 'transformer';
-  return new THREE.Vector3(
-    item.position[0] + (isTransformer ? 4.5 : 0) + centerOffset.x,
-    dims.height,          // top face — view from above looks at the roof
-    -item.position[1] + (isTransformer ? 7 : 0) + centerOffset.z,
-  );
+  return {
+    x: item.position[0] + (isTransformer ? 4.5 : 0) + centerOffset.x,
+    y: dims.height,
+    z: -item.position[1] + (isTransformer ? 7 : 0) + centerOffset.z,
+  };
 }
 
 /**
@@ -84,35 +95,45 @@ export function projectEquipment(
     }
 
     const dims = EQUIPMENT_DIMS[item.type] ?? { width: 1, height: 1, depth: 1 };
-    const topCenter = dxfToWorld(item, centerOffset);
+    const wc   = getWorldCenter(item, centerOffset);
 
     const hw = dims.width  / 2;
     const hd = dims.depth  / 2;
-    const y  = topCenter.y;
-    const x  = topCenter.x;
-    const z  = topCenter.z;
 
     // Top-face corners: TL, TR, BR, BL (clockwise from above)
-    const worldCorners = [
-      new THREE.Vector3(x - hw, y, z - hd),
-      new THREE.Vector3(x + hw, y, z - hd),
-      new THREE.Vector3(x + hw, y, z + hd),
-      new THREE.Vector3(x - hw, y, z + hd),
+    // TL = left-front (−x, −z), TR = right-front (+x, −z)
+    // BR = right-back  (+x, +z), BL = left-back  (−x, +z)
+    const topWorldCorners = [
+      new THREE.Vector3(wc.x - hw, wc.y, wc.z - hd),
+      new THREE.Vector3(wc.x + hw, wc.y, wc.z - hd),
+      new THREE.Vector3(wc.x + hw, wc.y, wc.z + hd),
+      new THREE.Vector3(wc.x - hw, wc.y, wc.z + hd),
     ];
 
-    const screenCorners = worldCorners.map(wc => project(wc, camera));
-    const centerScreen  = project(topCenter, camera);
+    // Bottom-face corners at ground level (y = 0), same order
+    const botWorldCorners = [
+      new THREE.Vector3(wc.x - hw, 0, wc.z - hd),
+      new THREE.Vector3(wc.x + hw, 0, wc.z - hd),
+      new THREE.Vector3(wc.x + hw, 0, wc.z + hd),
+      new THREE.Vector3(wc.x - hw, 0, wc.z + hd),
+    ];
+
+    const topScreen = topWorldCorners.map(c => project(c, camera));
+    const botScreen = botWorldCorners.map(c => project(c, camera));
+    const center    = project(new THREE.Vector3(wc.x, wc.y, wc.z), camera);
 
     const visible =
-      centerScreen !== null &&
-      screenCorners.every(sc => sc !== null);
+      center !== null &&
+      topScreen.every(c => c !== null) &&
+      botScreen.every(c => c !== null);
 
     results.push({
-      id:      item.id,
-      type:    item.type as 'inverter' | 'transformer' | 'combiner',
-      topFace: (screenCorners as ReadonlyArray<readonly [number, number]>),
-      cx:      centerScreen?.[0] ?? 0,
-      cy:      centerScreen?.[1] ?? 0,
+      id:         item.id,
+      type:       item.type as 'inverter' | 'transformer' | 'combiner',
+      topFace:    topScreen    as ReadonlyArray<readonly [number, number]>,
+      bottomFace: botScreen    as ReadonlyArray<readonly [number, number]>,
+      cx:         center?.[0] ?? 0,
+      cy:         center?.[1] ?? 0,
       visible,
     });
   }
