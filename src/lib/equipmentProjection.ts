@@ -122,16 +122,23 @@ export function projectEquipment(
     const botScreen = botWorldCorners.map(c => project(c, camera));
     const center    = project(new THREE.Vector3(wc.x, wc.y, wc.z), camera);
 
+    // Visible = center and all top corners project in front of the camera.
+    // Bottom corners are not required — if they fail we fall back to the
+    // corresponding top corner so the box still renders (flat but visible).
     const visible =
       center !== null &&
-      topScreen.every(c => c !== null) &&
-      botScreen.every(c => c !== null);
+      topScreen.every(c => c !== null);
+
+    // Safe bottom face: fall back to top corner if ground corner is behind camera
+    const safeBot: Array<[number, number]> = botScreen.map(
+      (c, i) => c ?? (topScreen[i] as [number, number]),
+    );
 
     results.push({
       id:         item.id,
       type:       item.type as 'inverter' | 'transformer' | 'combiner',
-      topFace:    topScreen    as ReadonlyArray<readonly [number, number]>,
-      bottomFace: botScreen    as ReadonlyArray<readonly [number, number]>,
+      topFace:    topScreen as ReadonlyArray<readonly [number, number]>,
+      bottomFace: safeBot   as ReadonlyArray<readonly [number, number]>,
       cx:         center?.[0] ?? 0,
       cy:         center?.[1] ?? 0,
       visible,
