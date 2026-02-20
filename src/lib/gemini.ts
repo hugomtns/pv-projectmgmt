@@ -42,9 +42,14 @@ function buildPrompt(context: DesignContext): string {
     ? `\n- Realistic trees where the schematic shows green tree shapes`
     : '';
 
+  const hasRoads = context.boundaryTypes.includes('road') || context.boundaryTypes.includes('alignment');
+  const roadSection = hasRoads
+    ? '\n- Gravel or paved access roads exactly where the schematic shows road/path boundaries — preserve all road routes and widths'
+    : '\n- Gravel maintenance paths between panel sections';
+
   return `You are given a 3D schematic of a solar PV installation. Use it as a spatial blueprint to produce a photorealistic aerial photograph of the same site.
 
-The schematic contains colored lines and colored boxes representing the engineering design — these are abstract overlays, not real objects.
+The schematic contains colored lines and colored boxes representing the engineering design — these are abstract overlays, not real objects. Your job is to replace this entire scene with a realistic photograph while preserving the EXACT spatial layout.
 
 SITE DETAILS:
 - ${context.panelCount} solar panel tables tilted at ${context.tiltAngle.toFixed(0)}° on ground-mount steel racking
@@ -53,12 +58,11 @@ SITE DETAILS:
 WHAT THE FINAL IMAGE MUST LOOK LIKE:
 A real drone photograph taken at midday over this solar farm:
 - Rows of dark blue/black solar panels on galvanized steel racking, casting realistic shadows
-- Preserve the EXACT row layout, spacing, and arrangement from the schematic
-- Natural terrain (grass, dirt, gravel) between and around the panel rows
-- Gravel maintenance roads between panel sections${treeSection}
+- Preserve the EXACT row layout, spacing, and arrangement from the schematic${roadSection}${treeSection}
+- Natural terrain (grass, dirt, gravel) around the panels
 - Natural surroundings extending beyond the site
 
-DO NOT ADD ANY ELECTRICAL EQUIPMENT — no inverters, no transformers, no cabinets, no enclosures, no boxes of any kind. Equipment will be added separately in post-processing.
+DO NOT ADD ANY ELECTRICAL EQUIPMENT — no inverters, no transformers, no cabinets, no enclosures, no boxes of any kind. Equipment will be composited in post-processing.
 
 WHAT TO REMOVE:
 - All colored lines and colored boxes (engineering overlays — ignore them entirely)

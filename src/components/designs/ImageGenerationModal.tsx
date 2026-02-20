@@ -113,6 +113,10 @@ export function ImageGenerationModal({
     const canvasImage = onCapture();
     const equipmentPositions = getEquipmentPositions();
 
+    console.log('[AI image] Equipment positions:', equipmentPositions.length,
+      equipmentPositions.map(e => ({ type: e.type, visible: e.visible, cx: e.cx.toFixed(3), cy: e.cy.toFixed(3) }))
+    );
+
     if (!canvasImage) {
       setErrorMessage('Failed to capture canvas. Make sure a design is loaded.');
       setStage('error');
@@ -130,13 +134,14 @@ export function ImageGenerationModal({
     if (result.success && result.image) {
       // Composite equipment at projected positions onto the AI-generated image
       const visibleEquipment = equipmentPositions.filter(e => e.visible);
+      console.log('[AI image] Compositing', visibleEquipment.length, 'visible equipment items');
       if (visibleEquipment.length > 0) {
         try {
           const composited = await compositeEquipmentOntoImage(result.image, visibleEquipment);
           setGeneratedImage(composited);
         } catch (err) {
-          // Compositing failed — fall back to raw AI image
-          console.warn('[AI compositing] Failed, using raw image:', err);
+          console.error('[AI compositing] Failed:', err);
+          toast.warning('Equipment overlay failed — showing AI image without equipment');
           setGeneratedImage(result.image);
         }
       } else {

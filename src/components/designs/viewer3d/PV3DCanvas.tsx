@@ -30,14 +30,19 @@ const AI_CAPTURE_HIDDEN_GROUPS = [
  */
 function CanvasCaptureProvider({
   captureRef,
-  equipmentProjectionRef,
-  parsedData,
+  cameraRef,
 }: {
   captureRef: MutableRefObject<((options?: { forAI?: boolean }) => string) | null>;
-  equipmentProjectionRef: MutableRefObject<(() => ProjectedEquipment[]) | null>;
-  parsedData: DXFParsedData | null;
+  cameraRef: MutableRefObject<THREE.Camera | null>;
 }) {
   const { gl, scene, camera } = useThree();
+
+  // Keep cameraRef pointing at the live Three.js camera object.
+  // The camera object is mutated in-place as the user pans/zooms, so any
+  // code that reads cameraRef.current later always gets the current state.
+  useEffect(() => {
+    cameraRef.current = camera;
+  }, [camera, cameraRef]);
 
   useEffect(() => {
     captureRef.current = (options) => {
@@ -66,14 +71,6 @@ function CanvasCaptureProvider({
       return dataUrl.split(',')[1];
     };
   }, [gl, scene, camera, captureRef]);
-
-  // Equipment projection: uses live camera to map 3D positions → normalised 2D
-  useEffect(() => {
-    equipmentProjectionRef.current = () => {
-      if (!parsedData) return [];
-      return projectEquipment(parsedData, camera);
-    };
-  }, [parsedData, camera, equipmentProjectionRef]);
 
   return null;
 }
@@ -134,8 +131,8 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   const cameraControlsRef = useRef<CameraControlsRef>(null);
   // Canvas capture function ref (populated by CanvasCaptureProvider inside Canvas)
   const captureRef = useRef<((options?: { forAI?: boolean }) => string) | null>(null);
-  // Equipment projection ref (populated by CanvasCaptureProvider inside Canvas)
-  const equipmentProjectionRef = useRef<(() => ProjectedEquipment[]) | null>(null);
+  // Live Three.js camera ref (populated by CanvasCaptureProvider inside Canvas)
+  const cameraRef = useRef<THREE.Camera | null>(null);
 
   // DXF parsing state
   const [parsedData, setParsedData] = useState<DXFParsedData | null>(null);
@@ -291,7 +288,12 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   useImperativeHandle(ref, () => ({
     focusOnElement,
     captureCanvas: (options?: { forAI?: boolean }) => captureRef.current?.(options) ?? '',
-    getEquipmentPositions: () => equipmentProjectionRef.current?.() ?? [],
+    getEquipmentPositions: () => {
+      if (!parsedData || !cameraRef.current) return [];
+      // Ensure camera matrices are current before projecting
+      cameraRef.current.updateMatrixWorld();
+      return projectEquipment(parsedData, cameraRef.current);
+    },
     cameraMode,
     parsedData,
   }), [focusOnElement, cameraMode, parsedData]);
@@ -342,8 +344,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         {/* Canvas capture provider - must be inside Canvas */}
         <CanvasCaptureProvider
           captureRef={captureRef}
-          equipmentProjectionRef={equipmentProjectionRef}
-          parsedData={parsedData}
+          cameraRef={cameraRef}
         />
 
         {/* Camera and controls based on mode */}
