@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { generateRealisticImage } from '@/lib/gemini';
 import type { DesignContext } from '@/lib/gemini';
+import { compositeEquipmentOntoImage } from '@/lib/imageCompositing';
+import type { ProjectedEquipment } from '@/lib/equipmentProjection';
 
 const AI_IMAGE_GEN_UNLOCKED_KEY = 'ai-image-gen-unlocked';
 
@@ -48,6 +50,7 @@ interface ImageGenerationModalProps {
   onOpenChange: (open: boolean) => void;
   onCapture: () => string; // Returns canvas base64
   getDesignContext: () => DesignContext; // Getter — reads live data from the 3D canvas ref
+  getEquipmentPositions: () => ProjectedEquipment[]; // Getter — returns projected equipment for compositing
 }
 
 type Stage = 'locked' | 'ready' | 'generating' | 'done' | 'error';
@@ -57,6 +60,7 @@ export function ImageGenerationModal({
   onOpenChange,
   onCapture,
   getDesignContext,
+  getEquipmentPositions,
 }: ImageGenerationModalProps) {
   const [stage, setStage] = useState<Stage>('ready');
   const [unlockCode, setUnlockCode] = useState('');
@@ -105,7 +109,10 @@ export function ImageGenerationModal({
     setStage('generating');
     setErrorMessage(null);
 
+    // Snapshot canvas and equipment positions at the same moment
     const canvasImage = onCapture();
+    const equipmentPositions = getEquipmentPositions();
+
     if (!canvasImage) {
       setErrorMessage('Failed to capture canvas. Make sure a design is loaded.');
       setStage('error');
@@ -121,13 +128,26 @@ export function ImageGenerationModal({
     });
 
     if (result.success && result.image) {
-      setGeneratedImage(result.image);
+      // Composite equipment at projected positions onto the AI-generated image
+      const visibleEquipment = equipmentPositions.filter(e => e.visible);
+      if (visibleEquipment.length > 0) {
+        try {
+          const composited = await compositeEquipmentOntoImage(result.image, visibleEquipment);
+          setGeneratedImage(composited);
+        } catch (err) {
+          // Compositing failed — fall back to raw AI image
+          console.warn('[AI compositing] Failed, using raw image:', err);
+          setGeneratedImage(result.image);
+        }
+      } else {
+        setGeneratedImage(result.image);
+      }
       setStage('done');
     } else {
       setErrorMessage(result.error || 'Failed to generate image');
       setStage('error');
     }
-  }, [onCapture, designContext]);
+  }, [onCapture, getEquipmentPositions, designContext]);
 
   const handleDownload = () => {
     if (!generatedImage) return;

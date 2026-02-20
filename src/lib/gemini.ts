@@ -42,38 +42,27 @@ function buildPrompt(context: DesignContext): string {
     ? `\n- Realistic trees where the schematic shows green tree shapes`
     : '';
 
-  const transformerCount = context.electricalCounts['transformer'] ?? 0;
-  const transformerSection = transformerCount > 0
-    ? `\n- There are ${transformerCount} LARGE colored box(es) in the schematic — these are padmount transformers. Replace each one with a realistic green/gray padmount transformer at that exact location.`
-    : '';
-
   return `You are given a 3D schematic of a solar PV installation. Use it as a spatial blueprint to produce a photorealistic aerial photograph of the same site.
 
-The schematic contains colored lines and colored boxes that represent the engineering design. These are abstract overlays — not real objects. Ignore all colored lines and all SMALL boxes. The only boxes you should convert to real objects are the few LARGE boxes (transformers).
+The schematic contains colored lines and colored boxes representing the engineering design — these are abstract overlays, not real objects.
 
 SITE DETAILS:
 - ${context.panelCount} solar panel tables tilted at ${context.tiltAngle.toFixed(0)}° on ground-mount steel racking
-- Panel table dimensions: ${context.panelDimensions.width.toFixed(1)}m × ${context.panelDimensions.height.toFixed(1)}m${transformerSection}
+- Panel table dimensions: ${context.panelDimensions.width.toFixed(1)}m × ${context.panelDimensions.height.toFixed(1)}m
 
 WHAT THE FINAL IMAGE MUST LOOK LIKE:
 A real drone photograph taken at midday over this solar farm:
 - Rows of dark blue/black solar panels on galvanized steel racking, casting realistic shadows
 - Preserve the EXACT row layout, spacing, and arrangement from the schematic
 - Natural terrain (grass, dirt, gravel) between and around the panel rows
-- Gravel maintenance roads between panel sections${treeSection}${transformerCount > 0 ? '\n- Realistic padmount transformers ONLY where the schematic shows large boxes' : ''}
+- Gravel maintenance roads between panel sections${treeSection}
 - Natural surroundings extending beyond the site
 
-IMPORTANT — DO NOT ADD:
-- Do NOT add any small electrical equipment (no inverters, no combiner boxes, no cabinets, no small enclosures)
-- Do NOT add any wires, cables, or conduits
-- Do NOT draw any colored lines
-- Do NOT place any equipment where the schematic shows empty ground
+DO NOT ADD ANY ELECTRICAL EQUIPMENT — no inverters, no transformers, no cabinets, no enclosures, no boxes of any kind. Equipment will be added separately in post-processing.
 
 WHAT TO REMOVE:
-- All colored lines (these are engineering overlays, not real objects)
-- All small colored boxes (these are schematic markers, not real objects)
-- All wireframe outlines and grid lines
-- Replace the entire scene with photorealistic equivalents`;
+- All colored lines and colored boxes (engineering overlays — ignore them entirely)
+- All wireframe outlines and grid lines`;
 }
 
 /**
