@@ -189,6 +189,11 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
         return pv3DCanvasRef.current?.captureCanvas() ?? '';
     }, []);
 
+    // Get projected equipment positions for compositing
+    const handleGetEquipmentPositions = useCallback(() => {
+        return pv3DCanvasRef.current?.getEquipmentPositions() ?? [];
+    }, []);
+
     // Sync selected version if design updates (e.g. initial load)
     useEffect(() => {
         if (design && !selectedVersionId && effectiveVersionId) {
@@ -499,6 +504,7 @@ export function DesignViewer({ designId, onClose, initialHighlightCommentId, ini
                 onOpenChange={setShowImageModal}
                 onCapture={handleCaptureCanvas}
                 getDesignContext={getDesignContext}
+                getEquipmentPositions={handleGetEquipmentPositions}
             />
 
             {/* Yield Estimate Modal */}

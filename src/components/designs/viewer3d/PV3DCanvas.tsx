@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle, type MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
+import { projectEquipment, type ProjectedEquipment } from '@/lib/equipmentProjection';
 import { Grid } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
 import type { CameraControlsRef } from './CameraControls';
@@ -24,15 +25,24 @@ const AI_CAPTURE_HIDDEN_GROUPS = [
 ];
 
 /**
- * CanvasCaptureProvider - Internal component to capture canvas
+ * CanvasCaptureProvider - Internal component to capture canvas and project equipment.
  * Must be used inside a Canvas component to access useThree()
  */
 function CanvasCaptureProvider({
   captureRef,
+  cameraRef,
 }: {
   captureRef: MutableRefObject<((options?: { forAI?: boolean }) => string) | null>;
+  cameraRef: MutableRefObject<THREE.Camera | null>;
 }) {
   const { gl, scene, camera } = useThree();
+
+  // Keep cameraRef pointing at the live Three.js camera object.
+  // The camera object is mutated in-place as the user pans/zooms, so any
+  // code that reads cameraRef.current later always gets the current state.
+  useEffect(() => {
+    cameraRef.current = camera;
+  }, [camera, cameraRef]);
 
   useEffect(() => {
     captureRef.current = (options) => {
@@ -68,6 +78,8 @@ function CanvasCaptureProvider({
 export interface PV3DCanvasRef {
   focusOnElement: (elementType: string, elementId: string) => void;
   captureCanvas: (options?: { forAI?: boolean }) => string;
+  /** Returns projected equipment positions in normalised 0-1 screen coordinates. */
+  getEquipmentPositions: () => ProjectedEquipment[];
   cameraMode: '3d' | '2d';
   parsedData: DXFParsedData | null;
 }
@@ -119,6 +131,8 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   const cameraControlsRef = useRef<CameraControlsRef>(null);
   // Canvas capture function ref (populated by CanvasCaptureProvider inside Canvas)
   const captureRef = useRef<((options?: { forAI?: boolean }) => string) | null>(null);
+  // Live Three.js camera ref (populated by CanvasCaptureProvider inside Canvas)
+  const cameraRef = useRef<THREE.Camera | null>(null);
 
   // DXF parsing state
   const [parsedData, setParsedData] = useState<DXFParsedData | null>(null);
@@ -274,6 +288,12 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   useImperativeHandle(ref, () => ({
     focusOnElement,
     captureCanvas: (options?: { forAI?: boolean }) => captureRef.current?.(options) ?? '',
+    getEquipmentPositions: () => {
+      if (!parsedData || !cameraRef.current) return [];
+      // Ensure camera matrices are current before projecting
+      cameraRef.current.updateMatrixWorld();
+      return projectEquipment(parsedData, cameraRef.current);
+    },
     cameraMode,
     parsedData,
   }), [focusOnElement, cameraMode, parsedData]);
@@ -322,7 +342,10 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         gl={{ preserveDrawingBuffer: true }} // Required for canvas capture
       >
         {/* Canvas capture provider - must be inside Canvas */}
-        <CanvasCaptureProvider captureRef={captureRef} />
+        <CanvasCaptureProvider
+          captureRef={captureRef}
+          cameraRef={cameraRef}
+        />
 
         {/* Camera and controls based on mode */}
         <CameraControls ref={cameraControlsRef} mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
