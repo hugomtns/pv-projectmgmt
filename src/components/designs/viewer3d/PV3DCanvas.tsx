@@ -18,15 +18,28 @@ import { Loader2 } from 'lucide-react';
 
 /**
  * Compute a unit sun direction vector from hour-of-day (6–18).
- * Elevation peaks at solar noon (12:00) and is clamped to ≥5° so the sky
- * never goes fully dark. The azimuth sweeps from south-east at dawn to
- * south-west at dusk, giving shadows that visibly rotate with time.
+ * Elevation peaks at solar noon (12:00) and reaches the horizon at ~6:00/18:00.
+ * The azimuth sweeps from south-east at dawn to south-west at dusk.
  */
 function computeSunPosition(hour: number): THREE.Vector3 {
-  const elevDeg = Math.max(5, 90 - Math.abs(hour - 12) * 15);
-  const phi = THREE.MathUtils.degToRad(90 - elevDeg); // phi from zenith (0 = up)
+  // phi: polar angle from zenith (0 = directly overhead, π/2 = horizon)
+  const phi = THREE.MathUtils.degToRad(Math.abs(hour - 12) * 15);
   const theta = THREE.MathUtils.degToRad(180 - (hour - 12) * 10); // gentle east-west sweep
   return new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
+}
+
+/**
+ * Configure ACES filmic tone mapping — must run inside <Canvas> to access useThree.
+ * Matches the HTML mock: ACESFilmicToneMapping at exposure 0.7 for visible sun disc
+ * and warm horizon colours at sunrise/sunset.
+ */
+function RendererSetup() {
+  const { gl } = useThree();
+  useEffect(() => {
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = 0.7;
+  }, [gl]);
+  return null;
 }
 
 /** Groups to hide when capturing a clean scene for AI image generation */
@@ -172,10 +185,10 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
   // Sun position (hour of day, 6 = sunrise, 12 = noon, 18 = sunset)
   const [sunTime, setSunTime] = useState(10.5);
   const sunPos = useMemo(() => computeSunPosition(sunTime), [sunTime]);
-  // Dim the sun as it approaches the horizon
+  // Dim the sun as it approaches the horizon (phi = 0 at noon, π/2 at horizon)
   const sunIntensity = useMemo(() => {
-    const elevDeg = Math.max(0, 90 - Math.abs(sunTime - 12) * 15);
-    return Math.sin(THREE.MathUtils.degToRad(elevDeg)) * 2.0 + 0.3;
+    const phi = THREE.MathUtils.degToRad(Math.abs(sunTime - 12) * 15);
+    return Math.max(0, Math.cos(phi)) * 2.0 + 0.3;
   }, [sunTime]);
 
   // Digital Twin telemetry
@@ -372,11 +385,14 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
           cameraRef={cameraRef}
         />
 
+        {/* ACES filmic tone mapping — visible sun disc + warm horizon colours */}
+        <RendererSetup />
+
         {/* Camera and controls based on mode */}
         <CameraControls ref={cameraControlsRef} mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
 
         {/* Sky — physically-based gradient driven by sun position */}
-        <Sky sunPosition={sunPos} />
+        <Sky sunPosition={sunPos} rayleigh={3} turbidity={10} />
 
         {/* Hemisphere light — sky blue above, grass green below */}
         <hemisphereLight args={['#dceafc', '#4a6741', 0.5]} />
