@@ -88,7 +88,7 @@ function SingleTilePlane({
   const texture = useTexture(url);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={position}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={position} receiveShadow>
       <planeGeometry args={[size, size]} />
       <meshStandardMaterial map={texture} />
     </mesh>
@@ -100,7 +100,7 @@ function SingleTilePlane({
  */
 function FallbackPlane({ size = 200 }: { size?: number }) {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
       <planeGeometry args={[size, size]} />
       <meshStandardMaterial color="#3a3a3a" />
     </mesh>

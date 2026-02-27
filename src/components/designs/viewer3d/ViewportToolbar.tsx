@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Box, Square, MessageSquarePlus, Eye, EyeOff, Layers, Activity } from 'lucide-react';
+import { Box, Square, MessageSquarePlus, Eye, EyeOff, Layers, Activity, Sun } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
@@ -9,6 +9,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Slider } from '@/components/ui/slider';
 
 type CameraMode = '3d' | '2d';
 
@@ -34,6 +36,18 @@ interface ViewportToolbarProps {
   onVisibilityChange?: (visibility: LayerVisibility) => void;
   // Digital Twin
   digitalTwinActive?: boolean;
+  // Sun position (hour of day 6–18), only shown in 3D mode
+  sunTime?: number;
+  onSunTimeChange?: (hour: number) => void;
+}
+
+/** Format decimal hour as "H:MM AM/PM" */
+function formatSunTime(hour: number): string {
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${display}:${m.toString().padStart(2, '0')} ${period}`;
 }
 
 /**
@@ -61,6 +75,8 @@ export function ViewportToolbar({
   visibility = defaultVisibility,
   onVisibilityChange,
   digitalTwinActive = false,
+  sunTime = 10.5,
+  onSunTimeChange,
 }: ViewportToolbarProps) {
   // Helper to toggle a single layer
   const toggleLayer = (layer: keyof LayerVisibility) => {
@@ -208,6 +224,48 @@ export function ViewportToolbar({
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+
+      {/* Sun position — only meaningful in 3D mode */}
+      {mode === '3d' && (
+        <>
+          <div className="w-px h-6 bg-border mx-1 self-center" />
+          <Popover>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="ghost" className="gap-1.5">
+                      <Sun className="h-4 w-4" />
+                      <span className="text-xs tabular-nums">{formatSunTime(sunTime)}</span>
+                    </Button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Adjust sun position</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <PopoverContent side="bottom" align="end" className="w-64 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium">Sun position</span>
+                <span className="text-sm text-muted-foreground tabular-nums">
+                  {formatSunTime(sunTime)}
+                </span>
+              </div>
+              <Slider
+                min={6}
+                max={18}
+                step={0.25}
+                value={[sunTime]}
+                onValueChange={([v]) => onSunTimeChange?.(v)}
+                className="mb-2"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>Sunrise</span>
+                <span>Sunset</span>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </>
+      )}
     </div>
   );
 }

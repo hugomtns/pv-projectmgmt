@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImper
 import * as THREE from 'three';
 import { Canvas, useThree } from '@react-three/fiber';
 import { projectEquipment, type ProjectedEquipment } from '@/lib/equipmentProjection';
-import { Grid } from '@react-three/drei';
+import { Grid, Sky } from '@react-three/drei';
 import { CameraControls } from './CameraControls';
 import type { CameraControlsRef } from './CameraControls';
 import { ViewportToolbar, type LayerVisibility } from './ViewportToolbar';
@@ -15,6 +15,19 @@ import type { DXFParsedData, DXFGeoData, PanelGeometry } from '@/lib/dxf/types';
 import type { GPSCoordinates, ElementAnchor } from '@/lib/types';
 import { useDigitalTwinStore } from '@/stores/digitalTwinStore';
 import { Loader2 } from 'lucide-react';
+
+/**
+ * Compute a unit sun direction vector from hour-of-day (6–18).
+ * Elevation peaks at solar noon (12:00) and is clamped to ≥5° so the sky
+ * never goes fully dark. The azimuth sweeps from south-east at dawn to
+ * south-west at dusk, giving shadows that visibly rotate with time.
+ */
+function computeSunPosition(hour: number): THREE.Vector3 {
+  const elevDeg = Math.max(5, 90 - Math.abs(hour - 12) * 15);
+  const phi = THREE.MathUtils.degToRad(90 - elevDeg); // phi from zenith (0 = up)
+  const theta = THREE.MathUtils.degToRad(180 - (hour - 12) * 10); // gentle east-west sweep
+  return new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
+}
 
 /** Groups to hide when capturing a clean scene for AI image generation */
 const AI_CAPTURE_HIDDEN_GROUPS = [
@@ -155,6 +168,15 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
     digitalTwinMetrics: true,
     performanceHeatmap: true,
   });
+
+  // Sun position (hour of day, 6 = sunrise, 12 = noon, 18 = sunset)
+  const [sunTime, setSunTime] = useState(10.5);
+  const sunPos = useMemo(() => computeSunPosition(sunTime), [sunTime]);
+  // Dim the sun as it approaches the horizon
+  const sunIntensity = useMemo(() => {
+    const elevDeg = Math.max(0, 90 - Math.abs(sunTime - 12) * 15);
+    return Math.sin(THREE.MathUtils.degToRad(elevDeg)) * 2.0 + 0.3;
+  }, [sunTime]);
 
   // Digital Twin telemetry
   const telemetry = useDigitalTwinStore((state) => state.currentSnapshot);
@@ -314,6 +336,8 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         visibility={visibility}
         onVisibilityChange={setVisibility}
         digitalTwinActive={digitalTwinActive}
+        sunTime={sunTime}
+        onSunTimeChange={setSunTime}
       />
 
       {/* Loading overlay */}
@@ -338,6 +362,7 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
 
 
       <Canvas
+        shadows
         style={{ cursor: elementCommentMode ? 'crosshair' : 'grab' }}
         gl={{ preserveDrawingBuffer: true }} // Required for canvas capture
       >
@@ -350,10 +375,29 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         {/* Camera and controls based on mode */}
         <CameraControls ref={cameraControlsRef} mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
 
-        {/* Lighting */}
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[10, 10, 5]} intensity={0.8} />
-        <directionalLight position={[-10, -10, -5]} intensity={0.3} />
+        {/* Sky — physically-based gradient driven by sun position */}
+        <Sky sunPosition={sunPos} />
+
+        {/* Hemisphere light — sky blue above, grass green below */}
+        <hemisphereLight args={['#dceafc', '#4a6741', 0.5]} />
+
+        {/* Low ambient fill so shadow areas are not pitch black */}
+        <ambientLight intensity={0.15} />
+
+        {/* Sun: single shadow-casting directional light */}
+        <directionalLight
+          position={[sunPos.x * 150, sunPos.y * 150, sunPos.z * 150]}
+          intensity={sunIntensity}
+          castShadow
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-camera-left={-200}
+          shadow-camera-right={200}
+          shadow-camera-top={200}
+          shadow-camera-bottom={-200}
+          shadow-camera-far={600}
+          shadow-bias={-0.0005}
+        />
 
         {/* Ground: Satellite imagery if GPS coordinates available, otherwise grid */}
         {gpsCoordinates ? (
