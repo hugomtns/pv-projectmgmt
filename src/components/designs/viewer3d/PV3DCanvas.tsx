@@ -392,7 +392,10 @@ export const PV3DCanvas = forwardRef<PV3DCanvasRef, PV3DCanvasProps>(function PV
         <CameraControls ref={cameraControlsRef} mode={cameraMode} zoomRef={zoomRef} elementCommentMode={elementCommentMode} />
 
         {/* Sky — physically-based gradient driven by sun position */}
-        <Sky sunPosition={sunPos} rayleigh={3} turbidity={10} />
+        {/* mieDirectionalG=0.9995 creates a tight forward-scattering peak visible as a
+            sharp sun disc at any elevation (drei default 0.7 spreads into a broad glow
+            that disappears against a bright noon sky) */}
+        <Sky sunPosition={sunPos} rayleigh={3} turbidity={10} mieDirectionalG={0.9995} mieCoefficient={0.005} />
 
         {/* Hemisphere light — sky blue above, grass green below */}
         <hemisphereLight args={['#dceafc', '#4a6741', 0.5]} />
