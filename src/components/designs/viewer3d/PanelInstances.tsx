@@ -347,7 +347,6 @@ export function PanelInstances({
         onClick={handleClick}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
-        castShadow
         receiveShadow
         frustumCulled={false}
       >
@@ -361,6 +360,11 @@ export function PanelInstances({
           side={DoubleSide}
         />
       </instancedMesh>
+
+      {/* One invisible plane per table casts the aggregate shadow.
+          Individual modules have castShadow disabled so shadows come from
+          a single correctly-sized table rectangle rather than 24 tiny boxes. */}
+      <TableShadowCasters panels={panels} />
 
       {/* Table outlines - Line-based for clean rectangles (no diagonals) */}
       <TableOutlines panels={panels} />
@@ -463,6 +467,72 @@ function HoverHighlight({ panel }: { panel: PanelGeometry }) {
         depthWrite={false}
       />
     </mesh>
+  );
+}
+
+/**
+ * TableShadowCasters - One invisible plane per panel table that casts a
+ * single, correctly-sized shadow equal to the full table footprint.
+ *
+ * Why a separate component:
+ *   Individual module boxes are only 5 cm thick. At a 2048×2048 shadow map
+ *   over a 400 m² frustum each texel is ~0.2 m — wider than the module
+ *   thickness — so the thin edges contribute near-zero shadow area.
+ *   Casting per-module also fragments a 16 m × 4.5 m table into 24 small
+ *   silhouettes with gaps between them.
+ *
+ *   Each plane here is sized to tableWidth × tableHeight, oriented identically
+ *   to the panel face (tilt + azimuth), and uses colorWrite=false so it is
+ *   completely invisible in the main render while still participating in the
+ *   shadow-map pass.
+ *
+ *   The InstancedMesh keeps receiveShadow so inter-row shading (front row
+ *   casting on the rear row) is still resolved correctly.
+ */
+function TableShadowCasters({ panels }: { panels: PanelGeometry[] }) {
+  return (
+    <group>
+      {panels.map((panel, index) => {
+        const tableWidth = panel.tableWidth || DEFAULT_TABLE_WIDTH;
+        const tableHeight = panel.tableHeight || DEFAULT_TABLE_HEIGHT;
+        const mountingHeight = panel.mountingHeight || panel.position[2] || 0.8;
+        const tiltAngle = panel.tiltAngle || DEFAULT_TILT_ANGLE;
+        const tiltRad = (tiltAngle * Math.PI) / 180;
+        const azimuth = panel.rotation;
+
+        // Replicate the same table-centre calculation used for modules
+        const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
+        const halfWidth = tableWidth / 2;
+        const halfDepth = (tableHeight / 2) * Math.cos(tiltRad);
+        const offsetX = halfWidth * Math.cos(azimuth) + halfDepth * Math.sin(azimuth);
+        const offsetY = halfWidth * Math.sin(azimuth) - halfDepth * Math.cos(azimuth);
+
+        const cx = panel.position[0] + offsetX;
+        const cy = centerHeight;
+        const cz = -(panel.position[1] + offsetY);
+
+        // PlaneGeometry lies in XY (normal = +Z). Rotating by -PI/2 around X
+        // brings the plane into XZ (normal = +Y, i.e. face-up). Adding tiltRad
+        // then tilts it to the panel's slope angle. The Y-axis azimuth is
+        // applied first (YXZ order) to orient the table horizontally.
+        const rotX = tiltRad - Math.PI / 2;
+
+        return (
+          <mesh
+            key={index}
+            position={[cx, cy, cz]}
+            rotation-order="YXZ"
+            rotation={[rotX, azimuth, 0]}
+            castShadow
+          >
+            <planeGeometry args={[tableWidth, tableHeight]} />
+            {/* colorWrite=false + depthWrite=false: invisible to the camera,
+                but the mesh is still visited by the shadow-map render pass */}
+            <meshBasicMaterial colorWrite={false} depthWrite={false} side={DoubleSide} />
+          </mesh>
+        );
+      })}
+    </group>
   );
 }
 
