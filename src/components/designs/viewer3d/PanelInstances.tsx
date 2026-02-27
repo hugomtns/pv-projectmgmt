@@ -6,8 +6,9 @@
  */
 
 import { useRef, useEffect, useLayoutEffect, useMemo, useState, useCallback } from 'react';
-import { InstancedMesh, Object3D, Color, DoubleSide } from 'three';
+import { InstancedMesh, MeshStandardMaterial, Object3D, Color, DoubleSide } from 'three';
 import { Line } from '@react-three/drei';
+import { createPanelTexture } from './proceduralTextures';
 import type { PanelGeometry } from '@/lib/dxf/types';
 import type { ElementAnchor } from '@/lib/types';
 import type { PanelFramePerformance, PanelFaultType } from '@/lib/digitaltwin/types';
@@ -34,11 +35,10 @@ const DEFAULT_TILT_ANGLE = 20; // degrees - typical ground mount tilt
 const DEFAULT_MODULE_ROWS = 2;
 const DEFAULT_MODULE_COLS = 12;
 const MODULE_GAP = 0.02; // 20mm gap between modules (both rows and columns)
-const MODULE_FRAME_INSET = 0.015; // 15mm inset from module edge (makes silver frame visible)
 
-// Panel colors
-const PANEL_COLOR = new Color('#0a1628'); // Dark blue-black (like real monocrystalline cells)
-const PANEL_FRAME_COLOR = new Color('#e2e8f0'); // Light silver/white frame (like real aluminum)
+// White is the neutral instance color when using the canvas texture map
+// (instance colors multiply with the texture, so white = unmodified texture)
+const WHITE = new Color(1, 1, 1);
 
 // Performance color cache
 const performanceColorCache = new Map<number, Color>();
@@ -117,8 +117,11 @@ export function PanelInstances({
   showPerformanceColors = false,
 }: PanelInstancesProps) {
   const moduleRef = useRef<InstancedMesh>(null);
-  const moduleFrameRef = useRef<InstancedMesh>(null);
+  const moduleMaterialRef = useRef<MeshStandardMaterial>(null);
   const [mounted, setMounted] = useState(false);
+
+  // Panel canvas texture — created once, cached at module level
+  const panelTexture = useMemo(() => createPanelTexture(), []);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   // Temporary object for matrix calculations
@@ -179,8 +182,7 @@ export function PanelInstances({
   // Using useLayoutEffect to ensure matrices are set before paint
   useLayoutEffect(() => {
     const modules = moduleRef.current;
-    const moduleFrames = moduleFrameRef.current;
-    if (!modules || !moduleFrames || !mounted || totalModules === 0) return;
+    if (!modules || !mounted || totalModules === 0) return;
 
     let moduleIndex = 0;
 
@@ -197,7 +199,7 @@ export function PanelInstances({
       const tiltRad = (tiltAngle * Math.PI) / 180;
       const azimuth = panel.rotation; // Already in radians
 
-      // Calculate table center position (same as before - this is correct)
+      // Calculate table center position
       const centerHeight = mountingHeight + (tableHeight / 2) * Math.sin(tiltRad);
       const halfWidth = tableWidth / 2;
       const halfDepth = (tableHeight / 2) * Math.cos(tiltRad);
@@ -218,9 +220,6 @@ export function PanelInstances({
       // Render each module in the grid
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          // Module position in table's LOCAL coordinate system (before tilt/rotation)
-          // X: centered, with gaps between columns
-          // Z: centered, with gaps between rows
           const localX = (col - (cols - 1) / 2) * (moduleWidth + MODULE_GAP);
           const localZ = (row - (rows - 1) / 2) * (moduleHeight + MODULE_GAP);
 
@@ -232,29 +231,17 @@ export function PanelInstances({
           const worldOffsetX = localX * Math.cos(azimuth) - tiltedZ * Math.sin(azimuth);
           const worldOffsetZ = localX * Math.sin(azimuth) + tiltedZ * Math.cos(azimuth);
 
-          // Module frame position (full size module slot - silver border visible)
-          tempObject.position.set(
-            tableCenterX + worldOffsetX,
-            tableCenterY + tiltedY - 0.01, // Behind module (1cm offset to prevent z-fighting)
-            tableCenterZ - worldOffsetZ
-          );
-          tempObject.rotation.order = 'YXZ';
-          tempObject.rotation.set(tiltRad, azimuth, 0);
-          tempObject.scale.set(moduleWidth, DEFAULT_PANEL_THICKNESS + 0.01, moduleHeight);
-          tempObject.updateMatrix();
-          moduleFrames.setMatrixAt(moduleIndex, tempObject.matrix);
-
-          // Module cell position (slightly smaller - shows silver frame border)
+          // Single module mesh — full size. The canvas texture encodes the
+          // silver aluminium frame border so no separate frame mesh is needed,
+          // eliminating the two-mesh z-fighting issue.
           tempObject.position.set(
             tableCenterX + worldOffsetX,
             tableCenterY + tiltedY,
             tableCenterZ - worldOffsetZ
           );
-          tempObject.scale.set(
-            moduleWidth - MODULE_FRAME_INSET * 2,
-            DEFAULT_PANEL_THICKNESS,
-            moduleHeight - MODULE_FRAME_INSET * 2
-          );
+          tempObject.rotation.order = 'YXZ';
+          tempObject.rotation.set(tiltRad, azimuth, 0);
+          tempObject.scale.set(moduleWidth, DEFAULT_PANEL_THICKNESS, moduleHeight);
           tempObject.updateMatrix();
           modules.setMatrixAt(moduleIndex, tempObject.matrix);
 
@@ -264,50 +251,48 @@ export function PanelInstances({
     });
 
     modules.instanceMatrix.needsUpdate = true;
-    moduleFrames.instanceMatrix.needsUpdate = true;
-
     modules.computeBoundingSphere();
-    moduleFrames.computeBoundingSphere();
   }, [panels, tempObject, mounted, totalModules]);
 
-  // Apply colors to modules - using useLayoutEffect to ensure colors are set before paint
-  // This prevents the grey flash when toggling performance colors
+  // Apply colors and swap texture map.
+  // Using useLayoutEffect to avoid the grey flash when toggling performance colors.
   useLayoutEffect(() => {
     const modules = moduleRef.current;
+    const material = moduleMaterialRef.current;
     if (!modules || !mounted || totalModules === 0) return;
 
     if (showPerformanceColors) {
-      // Apply performance-based colors to each module
+      // In heatmap mode: remove the texture map so instance colors render as solid fills
+      if (material) { material.map = null; material.needsUpdate = true; }
+
       for (let moduleIndex = 0; moduleIndex < totalModules; moduleIndex++) {
         const panelIndex = moduleToPanel[moduleIndex];
         const faultType = panelToFault.get(panelIndex);
         const performanceIndex = panelToPerformance.get(panelIndex);
 
         if (faultType) {
-          // Panel has an active fault - show fault color
-          const faultColor = getFaultColor(faultType);
-          modules.setColorAt(moduleIndex, faultColor);
+          modules.setColorAt(moduleIndex, getFaultColor(faultType));
         } else if (performanceIndex !== undefined) {
-          const performanceColor = getPerformanceColor(performanceIndex);
-          modules.setColorAt(moduleIndex, performanceColor);
+          modules.setColorAt(moduleIndex, getPerformanceColor(performanceIndex));
         } else {
-          // No telemetry for this panel yet - show default "good" performance (green-ish)
-          const defaultPerformanceColor = getPerformanceColor(0.85);
-          modules.setColorAt(moduleIndex, defaultPerformanceColor);
+          // No telemetry yet — default to "good" performance
+          modules.setColorAt(moduleIndex, getPerformanceColor(0.85));
         }
       }
     } else {
-      // Reset to default panel color (dark blue-black)
+      // Normal mode: restore texture map and set all instance colors to white
+      // (instance color multiplies with texture, so white = texture shows unmodified)
+      if (material) { material.map = panelTexture; material.needsUpdate = true; }
+
       for (let moduleIndex = 0; moduleIndex < totalModules; moduleIndex++) {
-        modules.setColorAt(moduleIndex, PANEL_COLOR);
+        modules.setColorAt(moduleIndex, WHITE);
       }
     }
 
-    // Mark instance color buffer as needing update
     if (modules.instanceColor) {
       modules.instanceColor.needsUpdate = true;
     }
-  }, [showPerformanceColors, panelToPerformance, panelToFault, moduleToPanel, totalModules, mounted]);
+  }, [showPerformanceColors, panelToPerformance, panelToFault, moduleToPanel, totalModules, mounted, panelTexture]);
 
   // Handle click events - only active in comment mode
   const handleClick = useCallback((event: { stopPropagation: () => void; instanceId?: number }) => {
@@ -350,25 +335,11 @@ export function PanelInstances({
 
   return (
     <group>
-      {/* Module frames - silver aluminum border around each module */}
-      <instancedMesh
-        key={`module-frame-mesh-${totalModules}`}
-        ref={moduleFrameRef}
-        args={[undefined, undefined, totalModules]}
-        frustumCulled={false}
-      >
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial
-          color={PANEL_FRAME_COLOR}
-          metalness={0.7}
-          roughness={0.3}
-          side={DoubleSide}
-        />
-      </instancedMesh>
-
-      {/* Individual solar modules - shiny dark blue glass surface
-          Material color is white to allow instance colors to show through.
-          Instance colors are always applied (either performance colors or default panel color). */}
+      {/* Solar modules — single instanced mesh with procedural canvas texture.
+          The texture encodes the silver aluminium frame border + monocrystalline
+          cell grid, eliminating the previous two-mesh z-fighting issue.
+          Instance colors are white in normal mode (texture shows unmodified) and
+          replaced by performance/fault colours in heatmap mode (map is nulled). */}
       <instancedMesh
         key={`module-mesh-${totalModules}`}
         ref={moduleRef}
@@ -382,9 +353,11 @@ export function PanelInstances({
       >
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
+          ref={moduleMaterialRef}
+          map={panelTexture}
           color="#ffffff"
-          metalness={0}
-          roughness={0.3}
+          metalness={0.1}
+          roughness={0.2}
           side={DoubleSide}
         />
       </instancedMesh>

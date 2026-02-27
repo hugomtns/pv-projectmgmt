@@ -3,21 +3,20 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
-import { Color, DoubleSide } from 'three';
+import { DoubleSide } from 'three';
 import type { ElectricalComponent } from '@/lib/dxf/types';
 import type { ElementAnchor, CommentableElementType } from '@/lib/types';
+import {
+  createTransformerTexture,
+  createInverterTexture,
+  createCombinerTexture,
+} from './proceduralTextures';
 
 interface Equipment3DProps {
   equipment: ElectricalComponent[];
   elementCommentMode?: boolean;
   onElementSelected?: (element: ElementAnchor) => void;
 }
-
-// Equipment colors
-const INVERTER_COLOR = new Color('#059669'); // Green
-const TRANSFORMER_COLOR = new Color('#7c3aed'); // Purple
-const COMBINER_COLOR = new Color('#ea580c'); // Orange
-const DEFAULT_COLOR = new Color('#6b7280'); // Gray
 
 // Default dimensions if not provided (realistic sizes in meters)
 const DEFAULT_DIMS = {
@@ -84,13 +83,13 @@ function EquipmentBox({
     };
   }, [equipment]);
 
-  // Get color based on type
-  const color = useMemo(() => {
+  // Get procedural canvas texture based on equipment type
+  const texture = useMemo(() => {
     switch (equipment.type) {
-      case 'inverter': return INVERTER_COLOR;
-      case 'transformer': return TRANSFORMER_COLOR;
-      case 'combiner': return COMBINER_COLOR;
-      default: return DEFAULT_COLOR;
+      case 'transformer': return createTransformerTexture();
+      case 'inverter':    return createInverterTexture();
+      case 'combiner':    return createCombinerTexture();
+      default:            return createInverterTexture();
     }
   }, [equipment.type]);
 
@@ -141,9 +140,10 @@ function EquipmentBox({
       >
         <boxGeometry args={[dims.width, dims.height, dims.depth]} />
         <meshStandardMaterial
-          color={color}
+          map={texture}
+          color="#ffffff"
           metalness={0.3}
-          roughness={0.7}
+          roughness={0.6}
           side={DoubleSide}
         />
       </mesh>
